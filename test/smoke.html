@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!-- Headless smoke test. Run:
+     msedge --headless --disable-gpu --dump-dom test/smoke.html
+     Results are written into <pre id="out">. -->
+<html>
+<head><meta charset="utf-8"><title>stick smoke test</title></head>
+<body>
+<svg id="hidden" viewBox="0 0 100 100" style="display:none"></svg>
+<pre id="out">RUNNING</pre>
+<script src="../js/presets.js"></script>
+<script src="../js/engine.js"></script>
+<script src="../js/figure.js"></script>
+<script src="../js/scene.js"></script>
+<script src="../js/commands.js"></script>
+<script src="../js/examples.js"></script>
+<script>
+(function () {
+  'use strict';
+  const lines = [];
+  let failures = 0;
+  const log = m => lines.push(m);
+  const fail = m => { failures++; lines.push('  FAIL: ' + m); };
+
+  try {
+    for (const name of Object.keys(STICK.examples)) {
+      const doc = STICK.examples[name];
+      log('example: ' + name);
+      let rt;
+      try {
+        rt = STICK.compile(JSON.parse(JSON.stringify(doc)));
+      } catch (e) { fail('compile threw: ' + e.stack); continue; }
+      if (rt.warnings.length) fail('warnings: ' + rt.warnings.join(' | '));
+      if (!(rt.duration > 1) || !isFinite(rt.duration)) fail('bad duration ' + rt.duration);
+      log('  duration ' + rt.duration.toFixed(1) + 's, channels ' + rt.ch.m.size + ', overlays ' + rt.overlays.length);
+
+      // sample full timeline
+      const steps = 120;
+      outer:
+      for (let i = 0; i <= steps; i++) {
+        const t = rt.duration * i / steps;
+        for (const fig of rt.figs.values()) {
+          let P;
+          try { P = STICK.computeFigure(rt, fig, t); }
+          catch (e) { fail('computeFigure threw at t=' + t.toFixed(2) + ' for ' + fig.id + ': ' + e.stack); break outer; }
+          const pts = [P.pelvis, P.neck, P.headC, P.sh, P.legL.knee, P.legL.ank, P.legR.ank,
+            P.armL.elb, P.armL.hand, P.armR.hand, P.world.head];
+          for (const p of pts) {
+            if (!isFinite(p.x) || !isFinite(p.y)) { fail('NaN point at t=' + t.toFixed(2) + ' for ' + fig.id); break outer; }
+          }
+          if (!isFinite(P.rot) || !isFinite(P.x) || !isFinite(P.y)) { fail('NaN transform at t=' + t.toFixed(2)); break outer; }
+        }
+      }
+
+      // also exercise the DOM drawing path
+      try {
+        const parent = document.getElementById('hidden');
+        parent.innerHTML = '';
+        for (const fig of rt.figs.values()) {
+          const node = STICK.buildFigureNode(fig, parent);
+          STICK.updateFigureNode(node, STICK.computeFigure(rt, fig, rt.duration / 2));
+        }
+        for (const el of rt.scene.elements) STICK.drawSceneElement(el, parent, rt.scene.ink);
+      } catch (e) { fail('DOM drawing threw: ' + e.stack); }
+    }
+
+    // forgiveness: broken input must warn, never throw
+    log('forgiveness checks');
+    try {
+      const rt = STICK.compile({
+        figures: [{ id: 'a', mood: 'confuzzled', archetype: ['alien'] }],
+        timeline: [
+          { cmd: 'explode', target: 'a' },
+          { cmd: 'move', target: 'ghost', args: { to: { x: 1, y: 2 } } },
+          { cmd: 'move', target: 'a', args: { style: 'teleport', to: 'nowhere.here' } },
+          { at: 'whenever', cmd: 'mood', target: 'a', args: { name: 'happy' } },
+          { cmd: 'playClip', target: 'a', args: { name: 'nope' } },
+          'not even an object',
+        ],
+      });
+      if (rt.warnings.length < 5) fail('expected several warnings, got: ' + rt.warnings.join(' | '));
+      STICK.computeFigure(rt, rt.figs.get('a'), 1.0);
+      log('  ok — ' + rt.warnings.length + ' warnings, no exceptions');
+    } catch (e) { fail('forgiveness test threw: ' + e.stack); }
+  } catch (e) {
+    failures++;
+    lines.push('FATAL: ' + e.stack);
+  }
+
+  lines.push(failures ? 'RESULT: ' + failures + ' FAILURE(S)' : 'RESULT: ALL GOOD');
+  document.getElementById('out').textContent = lines.join('\n');
+})();
+</script>
+</body>
+</html>

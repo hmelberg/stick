@@ -1,0 +1,286 @@
+/* stick — playground app: editor, compile, stage construction, rAF loop,
+   transport (play/pause/scrub/loop/speed), warnings panel, overlays. */
+(function () {
+  'use strict';
+  const STICK = window.STICK;
+  const NS = 'http://www.w3.org/2000/svg';
+  const $ = id => document.getElementById(id);
+
+  const mk = (tag, attrs, parent) => {
+    const el = document.createElementNS(NS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(el);
+    return el;
+  };
+
+  const state = {
+    rt: null, dom: null, t: 0,
+    playing: false, loop: true, speed: 1,
+    last: performance.now(),
+  };
+
+  /* ---------------- stage construction ---------------- */
+  function rebuildStage(rt) {
+    const svg = $('stage');
+    svg.innerHTML = '';
+    svg.style.setProperty('--paper', rt.scene.bg);
+
+    const dom = { svg, figNodes: new Map() };
+    dom.bg = mk('rect', { x: -200, y: -200, width: 500, height: 500, fill: rt.scene.bg }, svg);
+    dom.cam = mk('g', {}, svg);
+    dom.layers = {
+      back: mk('g', {}, dom.cam),
+      mid: mk('g', {}, dom.cam),
+      fig: mk('g', {}, dom.cam),
+      front: mk('g', {}, dom.cam),
+      bubbles: mk('g', {}, dom.cam),
+    };
+    dom.fixed = mk('g', {}, svg);
+
+    if (rt.scene.floor) {
+      mk('line', {
+        x1: -100, y1: rt.scene.floorY, x2: 200, y2: rt.scene.floorY,
+        stroke: '#c9bfae', 'stroke-width': 0.35,
+      }, dom.layers.back);
+    }
+    for (const el of rt.scene.elements) {
+      STICK.drawSceneElement(el, dom.layers[el.layer] || dom.layers.mid, rt.scene.ink);
+    }
+    for (const fig of rt.figs.values()) {
+      dom.figNodes.set(fig.id, STICK.buildFigureNode(fig, dom.layers.fig));
+    }
+    return dom;
+  }
+
+  /* ---------------- overlays ---------------- */
+  function wrapText(text, width) {
+    const words = String(text).split(/\s+/).filter(Boolean);
+    const lines = [];
+    let line = '';
+    for (const w of words) {
+      if (line && (line + ' ' + w).length > width) { lines.push(line); line = w; }
+      else line = line ? line + ' ' + w : w;
+      if (lines.length === 3) break;
+    }
+    if (lines.length < 3 && line) lines.push(line);
+    return lines.length ? lines : ['…'];
+  }
+
+  function fade(o, t) {
+    return Math.max(0, Math.min(1, (t - o.t0) / 0.2, (o.t1 - t) / 0.25));
+  }
+
+  function drawOverlays(rt, dom, t, Ps) {
+    dom.layers.bubbles.innerHTML = '';
+    dom.fixed.innerHTML = '';
+    const ink = rt.scene.ink;
+
+    for (const o of rt.overlays) {
+      if (t < o.t0 || t > o.t1) continue;
+      const alpha = fade(o, t);
+      if (alpha <= 0) continue;
+
+      if (o.type === 'caption') {
+        const g = mk('g', { opacity: alpha.toFixed(2) }, dom.fixed);
+        const w = Math.min(92, o.text.length * 1.6 + 5);
+        mk('rect', { x: 50 - w / 2, y: 88.6, width: w, height: 5.4, rx: 1.2, fill: 'rgba(42,42,53,0.82)' }, g);
+        const tx = mk('text', {
+          x: 50, y: 92.3, 'font-size': 3, fill: '#f7f2e9',
+          'text-anchor': 'middle', 'font-family': 'Georgia, serif', 'font-style': 'italic',
+        }, g);
+        tx.textContent = o.text;
+        continue;
+      }
+
+      const P = Ps.get(o.fig);
+      if (!P) continue;
+      const head = P.world.head, r = P.g.headR;
+
+      if (o.type === 'say') {
+        const lines = wrapText(o.text, 20);
+        const maxLen = Math.max(...lines.map(l => l.length));
+        const fs = 2.5, lineH = fs * 1.25;
+        const w = maxLen * fs * 0.52 + 3;
+        const h = lines.length * lineH + 2.2;
+        const cx = Math.max(w / 2 + 2, Math.min(98 - w / 2, head.x + P.fc * 4));
+        const by = Math.max(2, head.y - r * 1.6 - h - 2.6);
+        const g = mk('g', { opacity: alpha.toFixed(2) }, dom.layers.bubbles);
+        mk('path', {
+          d: `M ${head.x + P.fc * 2.2} ${by + h - 0.3} L ${head.x + P.fc * 0.6} ${head.y - r * 1.1} L ${head.x + P.fc * 3.6} ${by + h - 0.3} Z`,
+          fill: '#fffdf6', stroke: ink, 'stroke-width': 0.22, 'stroke-linejoin': 'round',
+        }, g);
+        mk('rect', {
+          x: cx - w / 2, y: by, width: w, height: h, rx: 1.4,
+          fill: '#fffdf6', stroke: ink, 'stroke-width': 0.25,
+        }, g);
+        lines.forEach((ln, i) => {
+          const tx = mk('text', {
+            x: cx, y: by + 1.6 + (i + 0.72) * lineH, 'font-size': fs, fill: ink,
+            'text-anchor': 'middle', 'font-family': 'Trebuchet MS, Comic Sans MS, sans-serif',
+          }, g);
+          tx.textContent = ln;
+        });
+      } else if (o.type === 'emote') {
+        const prog = (t - o.t0) / (o.t1 - o.t0);
+        const ex = head.x + P.fc * 1.6;
+        const ey = head.y - r * 2.4 - prog * 1.6;
+        const g = mk('g', { opacity: alpha.toFixed(2) }, dom.layers.bubbles);
+        if (o.symbol === 'zzz') {
+          [2.8, 2.2, 1.7].forEach((s, i) => {
+            const tx = mk('text', {
+              x: ex + i * 1.7, y: ey - i * 1.5, 'font-size': s, fill: ink,
+              'font-family': 'Georgia, serif', 'font-style': 'italic',
+            }, g);
+            tx.textContent = 'z';
+          });
+        } else {
+          const tx = mk('text', {
+            x: ex, y: ey, 'font-size': 4.2, fill: ink, 'text-anchor': 'middle',
+            'font-family': 'Trebuchet MS, sans-serif', 'font-weight': 'bold',
+          }, g);
+          tx.textContent = o.symbol;
+        }
+      }
+    }
+  }
+
+  /* ---------------- frame ---------------- */
+  function draw() {
+    const rt = state.rt, dom = state.dom;
+    if (!rt || !dom) return;
+    const t = state.t;
+
+    const Ps = new Map();
+    for (const fig of rt.figs.values()) {
+      const P = STICK.computeFigure(rt, fig, t);
+      Ps.set(fig.id, P);
+      STICK.updateFigureNode(dom.figNodes.get(fig.id), P);
+    }
+    drawOverlays(rt, dom, t, Ps);
+
+    const cx = rt.ch.get('cam.x', t), cy = rt.ch.get('cam.y', t), z = rt.ch.get('cam.z', t) || 1;
+    dom.cam.setAttribute('transform', `translate(50 50) scale(${z.toFixed(3)}) translate(${(-cx).toFixed(2)} ${(-cy).toFixed(2)})`);
+
+    if (!state.scrubbing) $('scrub').value = String(Math.round((t / rt.duration) * 1000));
+    $('timeLbl').textContent = t.toFixed(1) + ' / ' + rt.duration.toFixed(1) + 's';
+  }
+
+  function tick(now) {
+    const dt = Math.min(0.1, (now - state.last) / 1000);
+    state.last = now;
+    if (state.playing && state.rt) {
+      state.t += dt * state.speed;
+      if (state.t >= state.rt.duration) {
+        if (state.loop) state.t = 0;
+        else { state.t = state.rt.duration; setPlaying(false); }
+      }
+      draw();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  /* ---------------- compile & UI ---------------- */
+  function showWarnings(list, isError) {
+    const box = $('warnings');
+    box.innerHTML = '';
+    box.className = isError ? 'warnings error' : 'warnings';
+    if (!list.length) {
+      const d = document.createElement('div');
+      d.className = 'ok';
+      d.textContent = '✓ no warnings';
+      box.appendChild(d);
+      return;
+    }
+    for (const w of list) {
+      const d = document.createElement('div');
+      d.textContent = (isError ? '✕ ' : '⚠ ') + w;
+      box.appendChild(d);
+    }
+  }
+
+  function render() {
+    let doc;
+    try {
+      doc = JSON.parse($('ed').value);
+    } catch (e) {
+      showWarnings(['JSON parse error: ' + e.message], true);
+      return;
+    }
+    try {
+      state.rt = STICK.compile(doc);
+      state.dom = rebuildStage(state.rt);
+      state.t = 0;
+      showWarnings(state.rt.warnings, false);
+      setPlaying(true);
+      draw();
+    } catch (e) {
+      showWarnings(['engine error: ' + e.message + (e.stack ? ' @ ' + String(e.stack).split('\n')[1] : '')], true);
+    }
+  }
+
+  function setPlaying(p) {
+    state.playing = p;
+    $('btnPlay').textContent = p ? '❚❚' : '▶';
+  }
+
+  function loadExample(name) {
+    const ex = STICK.examples[name];
+    if (!ex) return;
+    $('ed').value = JSON.stringify(ex, null, 2);
+    render();
+  }
+
+  /* ---------------- boot ---------------- */
+  window.addEventListener('DOMContentLoaded', () => {
+    const sel = $('selExample');
+    for (const name of Object.keys(STICK.examples)) {
+      const o = document.createElement('option');
+      o.value = name; o.textContent = name;
+      sel.appendChild(o);
+    }
+    sel.addEventListener('change', () => loadExample(sel.value));
+
+    $('btnRender').addEventListener('click', render);
+    $('ed').addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); render(); }
+    });
+
+    $('btnPlay').addEventListener('click', () => {
+      if (!state.rt) return;
+      if (!state.playing && state.t >= state.rt.duration) state.t = 0;
+      setPlaying(!state.playing);
+    });
+    $('btnRestart').addEventListener('click', () => { state.t = 0; if (state.rt) { setPlaying(true); draw(); } });
+
+    const scrub = $('scrub');
+    scrub.addEventListener('input', () => {
+      if (!state.rt) return;
+      state.scrubbing = true;
+      state.t = (Number(scrub.value) / 1000) * state.rt.duration;
+      draw();
+      state.scrubbing = false;
+    });
+
+    $('chkLoop').addEventListener('change', e => { state.loop = e.target.checked; });
+    $('selSpeed').addEventListener('change', e => { state.speed = Number(e.target.value); });
+
+    window.addEventListener('keydown', e => {
+      if (e.code === 'Space' && !['TEXTAREA', 'INPUT', 'SELECT'].includes(document.activeElement.tagName)) {
+        e.preventDefault();
+        $('btnPlay').click();
+      }
+    });
+
+    // ?ex=name&t=seconds opens an example paused at a moment — handy for debugging
+    const q = new URLSearchParams(location.search);
+    const exName = q.get('ex');
+    loadExample(exName && STICK.examples[exName] ? exName : Object.keys(STICK.examples)[0]);
+    if (exName && STICK.examples[exName]) sel.value = exName;
+    if (q.has('t') && state.rt) {
+      state.t = Math.min(state.rt.duration, Math.max(0, parseFloat(q.get('t')) || 0));
+      setPlaying(false);
+      draw();
+    }
+    requestAnimationFrame(tick);
+  });
+})();

@@ -1,0 +1,183 @@
+# stick — JSON animation reference (for LLMs)
+
+You are writing a JSON document for **stick**, a browser engine that renders
+animated stick-figure cartoons from JSON. Your output must be **a single valid
+JSON object** — no comments, no trailing commas, no markdown fences unless asked.
+
+The goal is clear cartoon storytelling, not realism. Prefer semantic commands
+(`move`, `mood`, `playClip`, `say`) over raw joint angles.
+
+## Document shape
+
+```json
+{
+  "v": 1,
+  "scene": { "theme": "blank" },
+  "figures": [ ... ],
+  "clips": { ... },
+  "timeline": [ ... ]
+}
+```
+
+## Coordinate system
+
+- viewBox is `0 0 100 100`; y grows downward.
+- The **floor is at y = 70**. A standing figure's `pos` is the point on the
+  ground between its feet, so standing figures have `"pos": {"x": ..., "y": 70}`.
+- Default figure height is 16 units (kids 12).
+
+## Figures
+
+```json
+{
+  "id": "sam",
+  "pos": { "x": 30, "y": 70 },
+  "facing": "right",
+  "archetype": ["man"],
+  "mood": "neutral",
+  "height": 16,
+  "color": "#2a2a35",
+  "hair": "short",
+  "pose": { "base": "stand", "bend": 0.05, "lean": 0, "headTilt": 0, "tilt": 0, "stance": "normal" },
+  "expression": { "smile": 0.2, "eyeOpen": 1 }
+}
+```
+
+- `archetype`: `man` | `woman` | `kid` | `person` (sets hair/height defaults).
+- `character`: `professor` (glasses) | `student` | `dancer` (fedora) — stronger presets.
+- `hair`: `none` | `short` | `tuft` | `long` | `bun` | `sides`. Also `glasses: true`, `hat: "fedora"`.
+- Engine adds idle life automatically (breathing, sway, blinking) based on mood.
+
+### Pose fields
+- `base`: `stand` | `sit` | `crouch` | `lie` | `sleep` (sleep = lie + eyes closed).
+- `bend`: slouch 0..0.4 (0.1 = visibly bored slump, 0.4 = deep bow).
+- `lean`: whole-torso lean, −0.2..0.2 (positive = forward).
+- `headTilt`: −0.3..0.3 (positive = head drooping forward).
+- `tilt`: whole-body tilt in **degrees**, rotating around the feet (positive = forward).
+  For the Michael-Jackson lean: `pin` the feet, then tween `tilt` to ~24.
+- `stance`: `together` | `normal` | `wide`.
+
+### Expression fields (all optional)
+`smile` −1..1 · `eyeOpen` 0..1 · `browTilt` −1 (angry)..1 (sad) · `browRaise` 0..1 ·
+`mouthOpen` 0..1 · `pupilX`/`pupilY` −1..1 (gaze direction).
+
+### Moods (presets for face + posture + idle motion)
+`neutral` `happy` `ecstatic` `bored` `thinking` `angry` `sad` `surprised` `sleepy`
+
+## Timeline events
+
+Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args": { ... } }`
+
+### Timing rules (important)
+- **Omit `at`** → the event starts when the previous event ends (sequential). This is the default — use it for most events.
+- `"at": 2.5` → absolute seconds (inside a clip: relative to clip start).
+- `"at": "+quick"` → previous end + offset. `"at": "-quick"` → previous end − offset (overlap).
+- `"at": "<"` → starts together with the previous event. `"at": "<+fast"` → previous start + offset.
+- Durations: `veryFast` 0.15s · `fast` 0.3s · `quick` 0.5s · `normal` 1s · `slow` 2s · `verySlow` 4s, or a number of seconds.
+- `target` may be an id or an array of ids.
+
+### Commands
+
+| cmd | args | notes |
+|---|---|---|
+| `move` | `{ "style": "walk\|run\|slide\|moonwalk", "to": {x,y} or "anchor" }` | duration auto from distance if `dur` omitted. Auto-faces travel direction (moonwalk faces backwards). Legs animate automatically. |
+| `hop` | `{ "height": 2.2 }` | small jump in place |
+| `mood` | `{ "name": "bored", "animated": true }` | tween to a mood preset |
+| `expression` | any expression fields | tween individual face channels |
+| `pose.tween` | any pose fields (`base`, `bend`, `lean`, `headTilt`, `tilt`, `stance`) | smooth pose change |
+| `joints` | `{ "shoulderR": 165, "elbowR": 20, ... }` | low-level FK, see angle convention below. Use sparingly. |
+| `raiseArm` / `lowerArm` | `{ "side": "left\|right\|both", "angle": 160 }` | |
+| `liftLeg` / `lowerLeg` | `{ "side": "right", "angle": 70 }` | |
+| `point` | `{ "hand": "right", "to": ... }` | aims arm + gaze at target |
+| `lookAt` | `{ "to": ... }` (`null` to reset) | moves pupils + slight head tilt |
+| `reachTo` | `{ "hand": "right", "to": ... }` | IK: hand reaches a point and stays there |
+| `pin` | `{ "foot": "both\|left\|right\|false", "hand": ..., "to": ... }` | locks feet/hands in place (omit `to` to pin where they are) |
+| `release` | `{ "hand": "right" }` / `{ "foot": "both" }` | undo reach/pin |
+| `blink` | `{}` | (auto-blink already happens) |
+| `say` | `{ "text": "...", "dur": ... }` | speech bubble + mouth movement; dur auto from length |
+| `emote` | `{ "symbol": "?\|!\|...\|zzz\|heart\|music\|sparkle\|idea" }` | floating symbol above head |
+| `scene.caption` | `{ "text": "...", "dur": "slow" }` | narrator text at the bottom |
+| `playClip` | `{ "name": "wave", "repeat": 2 }` | run a clip |
+| `wait` | — (use `dur`) | beat of stillness |
+| `facing` | `{ "dir": "left\|right" }` | instant turn |
+| `camera.panTo` | `{ "to": ... }` | |
+| `camera.zoom` | `{ "scale": 1.5, "to": ... }` | scale 1 = full scene |
+| `camera.set` | `{ "x": 50, "y": 50, "scale": 1 }` | instant |
+
+### Joint angle convention
+Degrees. `0` = limb hanging straight down, **positive = forward** (in facing
+direction), `90` = horizontal forward, `180` = straight up, negative = backward.
+`elbow*` ≥ 0 bends the forearm forward; `knee*` ≥ 0 bends the shin backward.
+The same angles work whichever way the figure faces.
+
+### Built-in clips
+`wave` `clapOnce` `shrugOnce` `scratchHead` `nod` `bow` `hopJoy` `facepalm` `stretchYawn`
+
+Define your own clips for anything repeated:
+
+```json
+"clips": {
+  "tantrum": [
+    { "cmd": "joints", "dur": "veryFast", "args": { "shoulderL": 170, "shoulderR": 170 } },
+    { "cmd": "joints", "dur": "veryFast", "args": { "shoulderL": 30, "shoulderR": 30 } }
+  ]
+}
+```
+Play with `{ "target": "sam", "cmd": "playClip", "args": { "name": "tantrum", "repeat": 3 } }`.
+
+## Scene
+
+- `theme`: `blank` | `classroom` (blackboard with anchors `board.center`, `board.write`) |
+  `street` (buildings, sun, lamppost) | `bedroom` (bed with anchors `bed.pillow`, `bed.center`).
+- Custom elements:
+
+```json
+"scene": {
+  "theme": "blank",
+  "elements": [
+    { "id": "table", "type": "rect", "layer": "mid",
+      "props": { "x": 60, "y": 62, "w": 20, "h": 2, "fill": "#8a6f4d" },
+      "anchors": { "top": [70, 62] } }
+  ]
+}
+```
+
+Types: `rect` (x,y,w,h,fill,rx) · `circle` (cx,cy,r) · `ellipse` · `line` (x1,y1,x2,y2) ·
+`text` (x,y,text,size) · `path` (d). Layers: `back`, `mid` (default), `front`.
+
+Anchor references work anywhere a point is expected: `"board.write"`, `"sun.center"`,
+plus figure anchors: `"sam"` (feet), `"sam.head"`, `"sam.chest"`, `"sam.hand.right"`.
+
+## Style guide for good scenes
+
+1. Open with a `scene.caption` to set context; keep total length ~10–30 s.
+2. Sequential by default; use `"at": "<"` when two characters react simultaneously.
+3. Let `move` compute its own duration. Walk distances of 20–50 units read well.
+4. One emotional beat at a time: mood → gesture/clip → say. Don't stack 5 things at once.
+5. Use `say` for dialogue, `scene.caption` for narration, `emote` for inner state.
+6. Prefer clips & semantic commands; drop to `joints` only for special choreography.
+7. End with a small button: a bow, a hop, an emote, or a final caption.
+
+## Complete example
+
+```json
+{
+  "v": 1,
+  "scene": { "theme": "street" },
+  "figures": [
+    { "id": "ana", "archetype": ["woman"], "pos": { "x": 20, "y": 70 }, "mood": "happy" },
+    { "id": "bo", "archetype": ["man"], "pos": { "x": 78, "y": 70 }, "facing": "left", "mood": "bored" }
+  ],
+  "timeline": [
+    { "at": 0, "cmd": "scene.caption", "args": { "text": "Ana has news.", "dur": "normal" } },
+    { "at": 0, "target": "ana", "cmd": "move", "args": { "style": "run", "to": { "x": 60, "y": 70 } } },
+    { "target": "ana", "cmd": "say", "args": { "text": "We shipped it!" } },
+    { "at": "<", "target": "bo", "cmd": "lookAt", "args": { "to": "ana.head" } },
+    { "target": "bo", "cmd": "mood", "args": { "name": "surprised" } },
+    { "target": "bo", "cmd": "emote", "args": { "symbol": "!" } },
+    { "target": ["ana", "bo"], "cmd": "playClip", "args": { "name": "hopJoy" } },
+    { "target": "bo", "cmd": "mood", "at": "<", "args": { "name": "ecstatic" } },
+    { "cmd": "scene.caption", "args": { "text": "It even passed the tests.", "dur": "slow" } }
+  ]
+}
+```
