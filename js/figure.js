@@ -1,4 +1,5 @@
-/* stick — figure: normalization, channel setup, pose computation, SVG drawing.
+/* stick — figure math: normalization, channel setup, pose computation.
+   Drawing lives in styles.js — every visual style renders the same skeleton.
 
    Conventions (documented once, used everywhere):
    - Figure-local space: origin at the ground point between the feet,
@@ -26,17 +27,25 @@
     return v - Math.floor(v);
   };
 
-  STICK.geom = h => ({
-    h,
-    thigh: 0.24 * h, shin: 0.24 * h,
-    torso: 0.34 * h, neckLen: 0.06 * h, headR: 0.13 * h,
-    upper: 0.20 * h, fore: 0.18 * h,
-    foot: 0.09 * h, stroke: 0.055 * h,
-  });
+  /* Rickert-approved proportions: bigger head, arms to thigh level, legs
+     about half the body. headScale lets kids keep an adult-sized head. */
+  STICK.geom = f => {
+    const h = typeof f === 'number' ? f : f.height;
+    const hs = typeof f === 'object' && f.headScale ? f.headScale : 1;
+    return {
+      h,
+      thigh: 0.22 * h, shin: 0.22 * h,
+      torso: 0.30 * h, neckLen: 0.045 * h, headR: 0.135 * h * hs,
+      upper: 0.20 * h, fore: 0.175 * h,
+      foot: 0.10 * h, stroke: 0.05 * h,
+    };
+  };
 
   const num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);
 
-  STICK.normalizeFigure = function (raw, i, warn) {
+  const BODY_COLORS = ['#b9cfe4', '#e8cfb4', '#c5dec0', '#e3d3a8', '#d8c2dd', '#bcd8d8'];
+
+  STICK.normalizeFigure = function (raw, i, warn, defaultStyle) {
     raw = raw && typeof raw === 'object' ? raw : {};
     let preset = {};
     if (raw.character) {
@@ -50,11 +59,16 @@
       if (p) preset = { ...preset, ...p };
       else warn(`unknown archetype "${a}"`);
     }
+    let style = raw.style || preset.style || defaultStyle || 'sketch';
+    if (STICK.styles && !STICK.styles[style]) { warn(`unknown style "${style}" — using sketch`); style = 'sketch'; }
     const fig = {
       id: String(raw.id || raw.name || 'fig' + i),
       name: raw.name || String(raw.id || 'fig' + i),
-      height: num(raw.height, num(preset.height, 16)),
+      style,
+      height: num(raw.height, num(preset.height, 20)),
+      headScale: num(raw.headScale, num(preset.headScale, 1)),
       color: raw.color || preset.color || '#2a2a35',
+      bodyColor: raw.bodyColor || preset.bodyColor || BODY_COLORS[i % BODY_COLORS.length],
       hair: raw.hair != null ? raw.hair : preset.hair || 'none',
       glasses: raw.glasses != null ? !!raw.glasses : !!preset.glasses,
       hat: raw.hat != null ? raw.hat : preset.hat || null,
@@ -95,6 +109,7 @@
 
     set('shL', 0); set('shR', 0); set('elL', 8); set('elR', 8);
     set('hipL', 0); set('hipR', 0); set('kneeL', 0); set('kneeR', 0);
+    set('handL', 'relaxed'); set('handR', 'relaxed');
 
     const E = { ...mood.expr, ...fig.expression };
     if (base === 'sleep') E.eyeOpen = 0.04;
@@ -179,7 +194,7 @@
   /* The pure pose function: figure state at time t, in local coords + transform. */
   STICK.computeFigure = function (rt, fig, t) {
     const ch = rt.ch, id = fig.id;
-    const g = STICK.geom(fig.height);
+    const g = STICK.geom(fig);
     const get = (s, d) => ch.getDef(id + '.' + s, t, d === undefined ? 0 : d);
 
     const x = get('x', 50), y = get('y', 70);
@@ -289,6 +304,10 @@
     return {
       x, y, fc, rot, g, pelvis, neck, ctrl, sh, headC, headA,
       legL, legR, armL, armR, face, toWorld,
+      hands: {
+        L: ch.getDef(id + '.handL', t, 'open'),
+        R: ch.getDef(id + '.handR', t, 'open'),
+      },
       world: {
         head: toWorld(headC),
         chest: toWorld(neck),
@@ -298,134 +317,4 @@
       },
     };
   };
-
-  /* ------------------------- SVG construction ------------------------- */
-  const NS = 'http://www.w3.org/2000/svg';
-  const mk = (tag, attrs, parent) => {
-    const el = document.createElementNS(NS, tag);
-    for (const k in attrs) el.setAttribute(k, attrs[k]);
-    if (parent) parent.appendChild(el);
-    return el;
-  };
-  const pt = p => p.x.toFixed(2) + ' ' + p.y.toFixed(2);
-
-  function hairFor(fig, r, parent, ink) {
-    const stroke = { stroke: ink, 'stroke-width': 0.16 * r, fill: 'none', 'stroke-linecap': 'round' };
-    const style = fig.hair;
-    if (style === 'short' || style === 'spiky') {
-      let d = '';
-      for (let k = 0; k <= 6; k++) {
-        const th = rad(160 - k * (140 / 6));
-        const R = r * (k % 2 ? 1.26 : 1.02);
-        const p = { x: Math.cos(th) * R, y: -Math.sin(th) * R };
-        d += (k ? 'L' : 'M') + pt(p);
-      }
-      mk('path', { d, ...stroke }, parent);
-    } else if (style === 'tuft' || style === 'curly') {
-      mk('path', {
-        d: `M ${0.05 * r} ${-1.02 * r} Q ${-0.1 * r} ${-1.5 * r} ${0.4 * r} ${-1.42 * r} Q ${0.15 * r} ${-1.36 * r} ${0.22 * r} ${-1.06 * r}`,
-        ...stroke,
-      }, parent);
-    } else if (style === 'long') {
-      mk('path', { d: `M ${0.15 * r} ${-0.99 * r} Q ${-1.1 * r} ${-0.8 * r} ${-0.95 * r} ${0.6 * r}`, ...stroke }, parent);
-      mk('path', { d: `M ${-0.35 * r} ${-0.93 * r} Q ${-1.3 * r} ${-0.45 * r} ${-1.1 * r} ${0.8 * r}`, ...stroke }, parent);
-    } else if (style === 'bun') {
-      mk('circle', { cx: -0.8 * r, cy: -0.62 * r, r: 0.3 * r, fill: ink }, parent);
-    } else if (style === 'sides') {
-      mk('circle', { cx: -0.72 * r, cy: 0.3 * r, r: 0.27 * r, fill: ink }, parent);
-      mk('path', { d: `M ${-0.1 * r} ${-1.05 * r} Q 0 ${-1.32 * r} ${0.18 * r} ${-1.12 * r}`, ...stroke }, parent);
-    }
-  }
-
-  function hatFor(fig, r, parent, ink) {
-    if (fig.hat === 'fedora') {
-      mk('path', { d: `M ${-1.25 * r} ${-0.55 * r} L ${1.05 * r} ${-0.55 * r}`, stroke: ink, 'stroke-width': 0.16 * r, 'stroke-linecap': 'round', fill: 'none' }, parent);
-      mk('path', { d: `M ${-0.7 * r} ${-0.58 * r} L ${-0.58 * r} ${-1.3 * r} Q 0 ${-1.44 * r} ${0.5 * r} ${-1.28 * r} L ${0.62 * r} ${-0.58 * r} Z`, fill: ink }, parent);
-    }
-  }
-
-  STICK.buildFigureNode = function (fig, parent) {
-    const g = STICK.geom(fig.height);
-    const r = g.headR, ink = fig.color, w = g.stroke;
-    const root = mk('g', { class: 'fig' }, parent);
-    const limb = { stroke: ink, 'stroke-width': w, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
-
-    const farG = mk('g', { opacity: 0.62 }, root);
-    const far = mk('path', { ...limb, 'stroke-width': w * 0.9 }, farG);
-    const torso = mk('path', limb, root);
-    const head = mk('circle', { r, fill: 'var(--paper, #f7f2e9)', stroke: ink, 'stroke-width': w * 0.85 }, root);
-    const headG = mk('g', {}, root);
-    hairFor(fig, r, headG, ink);
-
-    const fw = 0.09 * r; // face stroke width
-    const eyeN = mk('ellipse', { cx: 0.14 * r, cy: -0.15 * r, rx: 0.15 * r, fill: ink }, headG);
-    const eyeF = mk('ellipse', { cx: 0.52 * r, cy: -0.15 * r, rx: 0.15 * r, fill: ink }, headG);
-    const pupN = mk('circle', { r: 0.07 * r, fill: 'var(--paper, #f7f2e9)' }, headG);
-    const pupF = mk('circle', { r: 0.07 * r, fill: 'var(--paper, #f7f2e9)' }, headG);
-    const browN = mk('path', { stroke: ink, 'stroke-width': fw * 1.4, fill: 'none', 'stroke-linecap': 'round' }, headG);
-    const browF = mk('path', { stroke: ink, 'stroke-width': fw * 1.4, fill: 'none', 'stroke-linecap': 'round' }, headG);
-    const mouth = mk('path', { stroke: ink, 'stroke-width': fw * 1.5, fill: 'none', 'stroke-linecap': 'round' }, headG);
-    const mouthO = mk('ellipse', { fill: ink }, headG);
-    if (fig.glasses) {
-      const gl = { stroke: ink, 'stroke-width': fw, fill: 'none' };
-      mk('circle', { cx: 0.14 * r, cy: -0.15 * r, r: 0.27 * r, ...gl }, headG);
-      mk('circle', { cx: 0.52 * r, cy: -0.15 * r, r: 0.27 * r, ...gl }, headG);
-      mk('path', { d: `M ${-0.13 * r} ${-0.15 * r} L ${-0.85 * r} ${-0.28 * r}`, ...gl }, headG);
-    }
-    hatFor(fig, r, headG, ink);
-
-    const nearG = mk('g', {}, root);
-    const near = mk('path', limb, nearG);
-
-    return { root, far, torso, head, headG, eyeN, eyeF, pupN, pupF, browN, browF, mouth, mouthO, near, r, fig };
-  };
-
-  STICK.updateFigureNode = function (n, P) {
-    const r = n.r;
-    n.root.setAttribute('transform', `translate(${P.x.toFixed(2)} ${P.y.toFixed(2)}) scale(${P.fc} 1) rotate(${P.rot.toFixed(2)})`);
-
-    const legD = l => `M ${pt(P.pelvis)} L ${pt(l.knee)} L ${pt(l.ank)} L ${pt(l.foot)}`;
-    const armD = a => `M ${pt(P.sh)} L ${pt(a.elb)} L ${pt(a.hand)}`;
-    n.far.setAttribute('d', legD(P.legL) + ' ' + armD(P.armL));
-    n.near.setAttribute('d', legD(P.legR) + ' ' + armD(P.armR));
-    n.torso.setAttribute('d', `M ${pt(P.pelvis)} Q ${pt(P.ctrl)} ${pt(P.neck)} L ${pt(mixCN(P))}`);
-    n.head.setAttribute('cx', P.headC.x.toFixed(2));
-    n.head.setAttribute('cy', P.headC.y.toFixed(2));
-    n.headG.setAttribute('transform', `translate(${P.headC.x.toFixed(2)} ${P.headC.y.toFixed(2)}) rotate(${P.headA.toFixed(2)})`);
-
-    const F = P.face;
-    const ry = Math.max(0.022 * r, 0.19 * r * F.eyeOpen);
-    for (const e of [n.eyeN, n.eyeF]) { e.setAttribute('ry', ry.toFixed(3)); }
-    const showPup = F.eyeOpen > 0.35;
-    for (const [pup, eye] of [[n.pupN, n.eyeN], [n.pupF, n.eyeF]]) {
-      pup.setAttribute('visibility', showPup ? 'visible' : 'hidden');
-      if (showPup) {
-        pup.setAttribute('cx', (parseFloat(eye.getAttribute('cx')) + 0.02 * r + F.pupX * 0.055 * r).toFixed(3));
-        pup.setAttribute('cy', (-0.15 * r + F.pupY * 0.05 * r).toFixed(3));
-      }
-    }
-    const by = -0.46 * r - F.browRaise * 0.16 * r;
-    const k = -F.browTilt * 0.1 * r;
-    const brow = cx => `M ${(cx - 0.17 * r).toFixed(3)} ${(by - k).toFixed(3)} L ${(cx + 0.17 * r).toFixed(3)} ${(by + k).toFixed(3)}`;
-    n.browN.setAttribute('d', brow(0.14 * r));
-    n.browF.setAttribute('d', brow(0.52 * r));
-
-    const mx = 0.36 * r, my = 0.48 * r, hw = 0.28 * r;
-    n.mouth.setAttribute('d', `M ${(mx - hw).toFixed(3)} ${my.toFixed(3)} Q ${mx.toFixed(3)} ${(my + F.smile * 0.36 * r).toFixed(3)} ${(mx + hw).toFixed(3)} ${my.toFixed(3)}`);
-    if (F.mouthOpen > 0.06) {
-      n.mouthO.setAttribute('visibility', 'visible');
-      n.mouthO.setAttribute('cx', mx.toFixed(3));
-      n.mouthO.setAttribute('cy', (my + 0.1 * r + 0.1 * r * F.mouthOpen).toFixed(3));
-      n.mouthO.setAttribute('rx', (0.13 * r).toFixed(3));
-      n.mouthO.setAttribute('ry', (0.17 * r * F.mouthOpen).toFixed(3));
-    } else n.mouthO.setAttribute('visibility', 'hidden');
-  };
-
-  // small neck stub from the neck point toward the head
-  function mixCN(P) {
-    const d = { x: P.headC.x - P.neck.x, y: P.headC.y - P.neck.y };
-    const l = Math.hypot(d.x, d.y) || 1;
-    const stub = Math.max(0, l - P.g.headR);
-    return { x: P.neck.x + (d.x / l) * stub, y: P.neck.y + (d.y / l) * stub };
-  }
 })();

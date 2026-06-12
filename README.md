@@ -3,6 +3,11 @@
 A tiny stick-figure animation language: describe a scene in JSON, watch it play
 as an animated SVG cartoon. Designed so an LLM can write the JSON for you.
 
+Figures come in three switchable visual styles rendered from the same skeleton:
+`sketch` (hand-drawn wobbly lines with a touch of line boil — the default),
+`ink` (clean minimal stick), and `toon` (filled cartoon body). See the
+"three styles" example in the playground.
+
 ## Run
 
 Open `index.html` in a browser. No build step, no server, no dependencies.
@@ -34,7 +39,8 @@ applies constraints (pinned feet, reaching hands) with two-bone IK.
 |---|---|
 | `js/engine.js` | easing, channels/tweens, compiler core |
 | `js/commands.js` | every JSON command, expanded into tweens |
-| `js/figure.js` | skeleton math, gait, IK, idle life, SVG drawing |
+| `js/figure.js` | skeleton math, gait, IK, idle life |
+| `js/styles.js` | the three visual styles (ink / sketch / toon), faces, mitten hands |
 | `js/scene.js` | scenery, themes, anchors, point resolution |
 | `js/presets.js` | durations, moods, characters, built-in clips, themes |
 | `js/examples.js` | bundled example scenes |

@@ -1,4 +1,4 @@
-/* stick — presets: durations, moods, archetypes, characters, clips, themes.
+﻿/* stick — presets: durations, moods, archetypes, characters, clips, themes.
    Loaded first; everything hangs off window.STICK. */
 (function () {
   'use strict';
@@ -33,13 +33,13 @@
     person: {},
     man:    { hair: 'short' },
     woman:  { hair: 'long' },
-    kid:    { hair: 'tuft', height: 12 },
+    kid:    { hair: 'tuft', height: 13, headScale: 1.35 }, // same head, shorter body
   };
 
   STICK.presets.characters = {
-    professor: { hair: 'sides', glasses: true, height: 16.5, mood: 'neutral' },
-    student:   { hair: 'short', height: 15, mood: 'bored' },
-    dancer:    { hair: 'none', hat: 'fedora', height: 16 },
+    professor: { hair: 'sides', glasses: true, height: 21, mood: 'neutral' },
+    student:   { hair: 'short', height: 19, mood: 'bored' },
+    dancer:    { hair: 'none', hat: 'fedora', height: 20 },
   };
 
   /* Built-in clips, written in the same event language users write.
@@ -97,6 +97,38 @@
       { cmd: 'wait', dur: 'normal' },
       { cmd: 'joints', dur: 'quick', args: { shoulderR: 0, elbowR: 8 } },
       { at: '<', cmd: 'pose.tween', dur: 'quick', args: { headTilt: 0.02, bend: 0.03 } },
+    ],
+    thinkChin: [
+      { cmd: 'joints', dur: 'fast', args: { shoulderR: 30, elbowR: 138 } },
+      { at: '<', cmd: 'hands', args: { hand: 'right', shape: 'fist' } },
+      { at: '<', cmd: 'pose.tween', dur: 'fast', args: { headTilt: 0.1, bend: 0.06 } },
+      { cmd: 'wait', dur: 'slow' },
+      { cmd: 'joints', dur: 'fast', args: { shoulderR: 0, elbowR: 8 } },
+      { at: '<', cmd: 'hands', args: { hand: 'right', shape: 'relaxed' } },
+      { at: '<', cmd: 'pose.tween', dur: 'fast', args: { headTilt: 0, bend: 0.02 } },
+    ],
+    victory: [
+      { cmd: 'joints', dur: 'fast', ease: 'backOut', args: { shoulderL: 150, shoulderR: 158, elbowL: 22, elbowR: 18 } },
+      { at: '<', cmd: 'hands', args: { shape: 'spread' } },
+      { at: '<', cmd: 'expression', dur: 'fast', args: { smile: 0.9, mouthOpen: 0.4 } },
+      { cmd: 'wait', dur: 'normal' },
+      { cmd: 'joints', dur: 'quick', args: { shoulderL: 0, shoulderR: 0, elbowL: 8, elbowR: 8 } },
+      { at: '<', cmd: 'hands', args: { shape: 'relaxed' } },
+      { at: '<', cmd: 'expression', dur: 'quick', args: { mouthOpen: 0 } },
+    ],
+    phoneCall: [
+      { cmd: 'joints', dur: 'fast', args: { shoulderR: 18, elbowR: 152 } },
+      { at: '<', cmd: 'hands', args: { hand: 'right', shape: 'fist' } },
+      { cmd: 'wait', dur: 'slow' },
+      { cmd: 'joints', dur: 'fast', args: { shoulderR: 0, elbowR: 8 } },
+      { at: '<', cmd: 'hands', args: { hand: 'right', shape: 'relaxed' } },
+    ],
+    coolLean: [
+      { cmd: 'pose.tween', dur: 'quick', args: { lean: -0.07, tilt: -6, stance: 'together' } },
+      { at: '<', cmd: 'joints', dur: 'quick', args: { hipL: 10, kneeL: 26, shoulderL: -12, shoulderR: -12 } },
+      { cmd: 'wait', dur: 'slow' },
+      { cmd: 'pose.tween', dur: 'quick', args: { lean: 0, tilt: 0, stance: 'normal' } },
+      { at: '<', cmd: 'joints', dur: 'quick', args: { hipL: 0, kneeL: 0, shoulderL: 0, shoulderR: 0 } },
     ],
     stretchYawn: [
       { cmd: 'joints', dur: 'quick', args: { shoulderL: 168, shoulderR: 172, elbowL: 8, elbowR: 6 } },

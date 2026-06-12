@@ -8,6 +8,7 @@ const load = f => require(path.join(__dirname, '..', 'js', f));
 load('presets.js');
 load('engine.js');
 load('figure.js');
+load('styles.js');
 load('scene.js');
 load('commands.js');
 load('examples.js');

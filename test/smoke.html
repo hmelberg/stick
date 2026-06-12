@@ -10,6 +10,7 @@
 <script src="../js/presets.js"></script>
 <script src="../js/engine.js"></script>
 <script src="../js/figure.js"></script>
+<script src="../js/styles.js"></script>
 <script src="../js/scene.js"></script>
 <script src="../js/commands.js"></script>
 <script src="../js/examples.js"></script>
@@ -51,13 +52,17 @@
         }
       }
 
-      // also exercise the DOM drawing path
+      // also exercise the DOM drawing path, in every style
       try {
         const parent = document.getElementById('hidden');
         parent.innerHTML = '';
         for (const fig of rt.figs.values()) {
-          const node = STICK.buildFigureNode(fig, parent);
-          STICK.updateFigureNode(node, STICK.computeFigure(rt, fig, rt.duration / 2));
+          for (const styleName of Object.keys(STICK.styles)) {
+            const style = STICK.styles[styleName];
+            const node = style.build({ ...fig, style: styleName }, parent);
+            style.update(node, STICK.computeFigure(rt, fig, rt.duration / 2), rt.duration / 2);
+            style.update(node, STICK.computeFigure(rt, fig, rt.duration / 3), rt.duration / 3);
+          }
         }
         for (const el of rt.scene.elements) STICK.drawSceneElement(el, parent, rt.scene.ink);
       } catch (e) { fail('DOM drawing threw: ' + e.stack); }

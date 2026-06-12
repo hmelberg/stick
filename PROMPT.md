@@ -24,7 +24,20 @@ The goal is clear cartoon storytelling, not realism. Prefer semantic commands
 - viewBox is `0 0 100 100`; y grows downward.
 - The **floor is at y = 70**. A standing figure's `pos` is the point on the
   ground between its feet, so standing figures have `"pos": {"x": ..., "y": 70}`.
-- Default figure height is 16 units (kids 12).
+- Default figure height is 20 units (kids 13, with a proportionally bigger head).
+
+## Visual styles
+
+Each figure can be drawn in one of three styles (set per figure with `"style"`,
+or scene-wide with `"scene": { "style": ... }`):
+
+- `sketch` (default) — hand-drawn look: wobbly boiling lines, imperfect head
+  circle, nose, mitten hands, feet. Best for whimsical explainers.
+- `ink` — clean minimal stick figure. Best for diagram-like clarity.
+- `toon` — cartoon person with a filled torso (color via `"bodyColor"`), neck,
+  shoes and mitten hands.
+
+All three render the same skeleton, so every command works in every style.
 
 ## Figures
 
@@ -33,10 +46,12 @@ The goal is clear cartoon storytelling, not realism. Prefer semantic commands
   "id": "sam",
   "pos": { "x": 30, "y": 70 },
   "facing": "right",
+  "style": "sketch",
   "archetype": ["man"],
   "mood": "neutral",
-  "height": 16,
+  "height": 20,
   "color": "#2a2a35",
+  "bodyColor": "#b9cfe4",
   "hair": "short",
   "pose": { "base": "stand", "bend": 0.05, "lean": 0, "headTilt": 0, "tilt": 0, "stance": "normal" },
   "expression": { "smile": 0.2, "eyeOpen": 1 }
@@ -92,6 +107,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `lookAt` | `{ "to": ... }` (`null` to reset) | moves pupils + slight head tilt |
 | `reachTo` | `{ "hand": "right", "to": ... }` | IK: hand reaches a point and stays there |
 | `pin` | `{ "foot": "both\|left\|right\|false", "hand": ..., "to": ... }` | locks feet/hands in place (omit `to` to pin where they are) |
+| `hands` | `{ "hand": "right", "shape": "fist" }` or `{ "left": "fist", "right": "open" }` | mitten hand shapes: `relaxed` `open` `fist` `point` `spread` (sketch/toon styles). `point` cmd and angry mood set them automatically. |
 | `release` | `{ "hand": "right" }` / `{ "foot": "both" }` | undo reach/pin |
 | `blink` | `{}` | (auto-blink already happens) |
 | `say` | `{ "text": "...", "dur": ... }` | speech bubble + mouth movement; dur auto from length |
@@ -112,6 +128,7 @@ The same angles work whichever way the figure faces.
 
 ### Built-in clips
 `wave` `clapOnce` `shrugOnce` `scratchHead` `nod` `bow` `hopJoy` `facepalm` `stretchYawn`
+`thinkChin` (hand on chin) `victory` (arms up, spread hands) `phoneCall` `coolLean`
 
 Define your own clips for anything repeated:
 

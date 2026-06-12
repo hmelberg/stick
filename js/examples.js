@@ -6,6 +6,25 @@
   const STICK = (G.STICK = G.STICK || {});
 
   STICK.examples = {
+    'three styles': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'inky', style: 'ink', archetype: ['man'], pos: { x: 22, y: 70 }, mood: 'happy' },
+        { id: 'sketchy', style: 'sketch', archetype: ['woman'], pos: { x: 50, y: 70 }, mood: 'happy' },
+        { id: 'toony', style: 'toon', archetype: ['man'], pos: { x: 78, y: 70 }, mood: 'happy', bodyColor: '#b9cfe4' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'ink · sketch · toon — same JSON, different style', dur: 'slow' } },
+        { at: 0.4, target: ['inky', 'sketchy', 'toony'], cmd: 'playClip', args: { name: 'wave' } },
+        { target: 'sketchy', cmd: 'say', args: { text: 'I am the default now.' } },
+        { at: '<', target: 'inky', cmd: 'lookAt', args: { to: 'sketchy.head' } },
+        { at: '<', target: 'toony', cmd: 'lookAt', args: { to: 'sketchy.head' } },
+        { target: ['inky', 'sketchy', 'toony'], cmd: 'playClip', args: { name: 'victory' } },
+        { target: ['inky', 'sketchy', 'toony'], cmd: 'playClip', args: { name: 'bow' } },
+      ],
+    },
+
     'hello wave': {
       v: 1,
       scene: { theme: 'blank' },
@@ -91,7 +110,7 @@
         { at: 0, cmd: 'scene.caption', args: { text: 'A long day of being JSON.', dur: 'slow' } },
         { at: 0, target: 'mo', cmd: 'move', args: { style: 'walk', to: { x: 62, y: 70 } } },
         { target: 'mo', cmd: 'playClip', args: { name: 'stretchYawn' } },
-        { target: 'mo', cmd: 'move', dur: 'quick', args: { style: 'walk', to: { x: 74, y: 64.8 } } },
+        { target: 'mo', cmd: 'move', dur: 'quick', args: { style: 'walk', to: { x: 72, y: 64.8 } } },
         { target: 'mo', cmd: 'pose.tween', dur: 'slow', args: { base: 'lie' } },
         { at: '<', cmd: 'camera.zoom', dur: 'verySlow', args: { scale: 1.45, to: { x: 66, y: 56 } } },
         { target: 'mo', cmd: 'emote', args: { symbol: 'zzz', dur: 'verySlow' } },

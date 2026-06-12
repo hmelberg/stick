@@ -206,6 +206,9 @@
       if (typeof preset.pose.bend === 'number') tw(ctx, fig, 'bend', ctx.t0, dur, preset.pose.bend, ease);
       if (typeof preset.pose.headTilt === 'number') tw(ctx, fig, 'headTilt', ctx.t0, dur, preset.pose.headTilt, ease);
     }
+    const prevMood = ctx.rt.ch.getDef(fig.id + '.mood', ctx.t0, 'neutral');
+    if (name === 'angry') { st(ctx, fig, 'handL', ctx.t0, 'fist'); st(ctx, fig, 'handR', ctx.t0, 'fist'); }
+    else if (prevMood === 'angry') { st(ctx, fig, 'handL', ctx.t0, 'relaxed'); st(ctx, fig, 'handR', ctx.t0, 'relaxed'); }
     st(ctx, fig, 'mood', ctx.t0, name);
     return dur;
   };
@@ -236,6 +239,7 @@
     for (const s of sidesOf(ctx.args.side || ctx.args.arm, 'R')) {
       tw(ctx, fig, 'sh' + s, ctx.t0, dur, 0, EASE.inOut);
       tw(ctx, fig, 'el' + s, ctx.t0, dur, 8, EASE.inOut);
+      st(ctx, fig, 'hand' + s, ctx.t0, 'relaxed');
     }
     return dur;
   };
@@ -294,9 +298,29 @@
     for (const s of sidesOf(ctx.args.hand || ctx.args.side, 'R')) {
       tw(ctx, fig, 'sh' + s, ctx.t0, dur, ang, ease);
       tw(ctx, fig, 'el' + s, ctx.t0, dur, 2, ease);
+      st(ctx, fig, 'hand' + s, ctx.t0, 'point');
     }
     lookTweens(ctx, fig, to, dur);
     return dur;
+  };
+
+  /* hands: { "hand": "right", "shape": "fist" } or { "left": "fist", "right": "open" }
+     shapes: open | fist | point | spread */
+  const HAND_SHAPES = ['open', 'fist', 'point', 'spread', 'relaxed'];
+  H.hands = ctx => {
+    const fig = figOf(ctx); if (!fig) return 0;
+    const a = ctx.args;
+    const apply = (side, shape) => {
+      if (!HAND_SHAPES.includes(shape)) { ctx.rt.warn(`unknown hand shape "${shape}"`); return; }
+      st(ctx, fig, 'hand' + side, ctx.t0, shape);
+    };
+    if (a.left) apply('L', a.left);
+    if (a.right) apply('R', a.right);
+    if (a.shape && !a.left && !a.right) {
+      const sides = a.hand || a.side ? sidesOf(a.hand || a.side, 'R') : ['L', 'R'];
+      for (const s of sides) apply(s, a.shape);
+    }
+    return 0.02;
   };
 
   H.reachTo = ctx => {

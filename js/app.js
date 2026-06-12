@@ -47,7 +47,8 @@
       STICK.drawSceneElement(el, dom.layers[el.layer] || dom.layers.mid, rt.scene.ink);
     }
     for (const fig of rt.figs.values()) {
-      dom.figNodes.set(fig.id, STICK.buildFigureNode(fig, dom.layers.fig));
+      const style = STICK.styles[fig.style] || STICK.styles.sketch;
+      dom.figNodes.set(fig.id, { style, nodes: style.build(fig, dom.layers.fig) });
     }
     return dom;
   }
@@ -154,7 +155,8 @@
     for (const fig of rt.figs.values()) {
       const P = STICK.computeFigure(rt, fig, t);
       Ps.set(fig.id, P);
-      STICK.updateFigureNode(dom.figNodes.get(fig.id), P);
+      const entry = dom.figNodes.get(fig.id);
+      entry.style.update(entry.nodes, P, t);
     }
     drawOverlays(rt, dom, t, Ps);
 
