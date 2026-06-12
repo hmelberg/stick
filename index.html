@@ -24,29 +24,51 @@
     gap: 14px;
     padding: 14px;
   }
-  /* left: editor panel */
+  .hidden { display: none !important; }
+  /* left: control panel */
   #left {
     width: 400px; min-width: 300px;
     display: flex; flex-direction: column; gap: 10px;
   }
+  #titleRow { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   h1 {
     font-size: 20px; margin: 0; font-weight: 600; letter-spacing: 0.5px;
     font-family: Georgia, serif;
   }
   h1 .tag { color: var(--dim); font-size: 12px; font-style: italic; margin-left: 8px; font-family: 'Segoe UI', sans-serif; }
   .row { display: flex; gap: 8px; align-items: center; }
-  select, button, input[type=range] {
+  select, button, input[type=range], input[type=text], input[type=email], textarea {
     background: var(--panel2); color: var(--text);
     border: 1px solid #32353f; border-radius: 6px;
     padding: 6px 10px; font-size: 13px;
   }
   select { flex: 1; }
-  button { cursor: pointer; }
+  button { cursor: pointer; white-space: nowrap; }
   button:hover { border-color: var(--accent); }
-  #btnRender { background: var(--accent); color: #1a1408; font-weight: 600; border: none; }
-  #btnRender:hover { filter: brightness(1.08); }
+  button.primary { background: var(--accent); color: #1a1408; font-weight: 600; border: none; }
+  button.primary:hover { filter: brightness(1.08); }
+  button.subtle { font-size: 12px; padding: 5px 9px; color: var(--dim); }
+  #btnDelete { color: #e07a6a; }
+  /* create panel */
+  #createPanel {
+    background: var(--panel); border: 1px solid #2c2f38; border-radius: 8px;
+    padding: 10px; display: flex; flex-direction: column; gap: 8px;
+  }
+  #createText {
+    width: 100%; resize: vertical; min-height: 56px;
+    font-family: inherit; line-height: 1.4;
+  }
+  #createStatus { font-size: 12px; color: var(--dim); flex: 1; }
+  #createStatus.err { color: #e07a6a; }
+  #createHint {
+    background: var(--panel); border: 1px dashed #32353f; border-radius: 8px;
+    padding: 10px; font-size: 12px; color: var(--dim);
+  }
+  #createHint a { color: var(--accent); }
+  /* json editor (collapsed by default) */
+  #jsonWrap { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 120px; }
   #ed {
-    flex: 1; resize: none; width: 100%;
+    flex: 1; resize: none; width: 100%; min-height: 110px;
     background: var(--panel); color: #cfd8c8;
     border: 1px solid #2c2f38; border-radius: 8px;
     font-family: Consolas, 'Cascadia Code', monospace; font-size: 12px;
@@ -62,6 +84,8 @@
   .warnings .ok { color: #7da87d; }
   .warnings.error { color: #e07a6a; }
   .hint { color: var(--dim); font-size: 11px; }
+  #userBox { font-size: 12px; color: var(--dim); display: flex; gap: 6px; align-items: center; }
+  #userEmail { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* right: stage */
   #right { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
   #stageWrap {
@@ -77,19 +101,71 @@
   #scrub { flex: 1; padding: 0; accent-color: var(--accent); }
   #timeLbl { font-variant-numeric: tabular-nums; color: var(--dim); font-size: 12px; min-width: 90px; text-align: right; }
   label.small { font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 4px; }
+  /* login modal */
+  #loginBackdrop {
+    position: fixed; inset: 0; background: rgba(8,9,12,0.72);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  #loginBackdrop.open { display: flex; }
+  #loginModal {
+    width: 340px; background: var(--panel); border: 1px solid #32353f;
+    border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 10px;
+  }
+  #loginModal h3 { margin: 0 0 4px; font-size: 16px; }
+  #loginModal p { margin: 0; font-size: 12px; color: var(--dim); line-height: 1.5; }
+  #loginModal input { width: 100%; }
+  #loginModal a { color: var(--accent); font-size: 12px; }
+  #loginErr { color: #e07a6a; font-size: 12px; min-height: 16px; }
 </style>
 </head>
 <body>
   <div id="left">
-    <h1>stick<span class="tag">a stick-figure animation language</span></h1>
-    <div class="row">
-      <select id="selExample" title="examples"></select>
-      <button id="btnRender" title="Ctrl+Enter">Render</button>
+    <div id="titleRow">
+      <h1>stick<span class="tag">animation studio</span></h1>
+      <button id="btnLogin" class="subtle">Sign in</button>
+      <span id="userBox" class="hidden">
+        <span id="userEmail"></span>
+        <button id="btnLogout" class="subtle">Sign out</button>
+      </span>
     </div>
-    <textarea id="ed" spellcheck="false"></textarea>
+
+    <div class="row">
+      <select id="selExample" title="animations"></select>
+      <button id="btnDelete" class="subtle hidden" title="delete this saved animation">✕</button>
+    </div>
+
+    <div id="createPanel" class="hidden">
+      <textarea id="createText" placeholder="Describe a scene… e.g. 'A bored student gets confused by a lecture, scratches his head, and shrugs.'"></textarea>
+      <div class="row">
+        <button id="btnCreate" class="primary">Create</button>
+        <span id="createStatus"></span>
+      </div>
+    </div>
+    <div id="createHint">
+      <a id="lnkHint" href="#">Sign in</a> to describe a scene in plain words and have AI build the animation.
+    </div>
+
+    <div class="row">
+      <button id="btnUpload" class="subtle" title="load a stick JSON file">⬆ Upload</button>
+      <button id="btnJsonDl" class="subtle" title="download the current animation as JSON">⬇ JSON</button>
+      <button id="btnWebm" class="subtle" title="record the animation as a WebM video (takes as long as the animation)">⬇ WebM</button>
+      <span style="flex:1"></span>
+      <button id="btnJsonToggle" class="subtle" title="show/hide the JSON source">{ } JSON</button>
+      <input id="fileUpload" type="file" accept=".json,application/json" class="hidden">
+    </div>
+
+    <div id="jsonWrap" class="hidden">
+      <textarea id="ed" spellcheck="false"></textarea>
+      <div class="row">
+        <button id="btnRender" class="primary" title="Ctrl+Enter">Render</button>
+        <span class="hint">Ctrl+Enter renders · see PROMPT.md for the format</span>
+      </div>
+    </div>
+
     <div class="warnings" id="warnings"></div>
-    <div class="hint">Ctrl+Enter renders · Space plays/pauses · see PROMPT.md for the LLM reference</div>
+    <div class="hint">Space plays/pauses · animations save to this browser</div>
   </div>
+
   <div id="right">
     <div id="stageWrap">
       <svg id="stage" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -108,6 +184,35 @@
       </select>
     </div>
   </div>
+
+  <div id="loginBackdrop">
+    <div id="loginModal">
+      <div id="loginStep1">
+        <h3>Sign in</h3>
+        <p>Enter your email and we'll send you a one-time sign-in code.</p>
+        <p style="height:6px"></p>
+        <input id="loginEmail" type="email" placeholder="you@example.com" autocomplete="email">
+        <p style="height:6px"></p>
+        <div class="row">
+          <button id="btnSendCode" class="primary">Send code</button>
+          <a id="lnkHaveCode" href="#">I already have a code</a>
+        </div>
+      </div>
+      <div id="loginStep2" class="hidden">
+        <h3>Enter your code</h3>
+        <p id="loginSentNote">Paste the code from the email (the part after ?login= in the link).</p>
+        <p style="height:6px"></p>
+        <input id="loginCode" type="text" placeholder="code" autocomplete="one-time-code">
+        <p style="height:6px"></p>
+        <div class="row">
+          <button id="btnVerify" class="primary">Verify</button>
+          <a id="lnkBack" href="#">back</a>
+        </div>
+      </div>
+      <div id="loginErr"></div>
+    </div>
+  </div>
+
   <script src="js/presets.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/figure.js"></script>
@@ -116,5 +221,7 @@
   <script src="js/commands.js"></script>
   <script src="js/examples.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/studio.js"></script>
 </body>
 </html>

@@ -1,5 +1,6 @@
-/* stick — playground app: editor, compile, stage construction, rAF loop,
-   transport (play/pause/scrub/loop/speed), warnings panel, overlays. */
+/* stick — playground app: compile, stage construction, rAF loop, transport,
+   warnings panel, overlays, animation library (examples + saved "my animations").
+   Exposes window.StickApp for studio.js (create/upload/download). */
 (function () {
   'use strict';
   const STICK = window.STICK;
@@ -13,11 +14,32 @@
     return el;
   };
 
+  const LS_ANIMS = 'stick.myAnimations';
+
   const state = {
     rt: null, dom: null, t: 0,
     playing: false, loop: true, speed: 1,
     last: performance.now(),
   };
+
+  /* ---------------- my animations (localStorage) ---------------- */
+  function getMyAnims() {
+    try { return JSON.parse(localStorage.getItem(LS_ANIMS)) || {}; }
+    catch (e) { return {}; }
+  }
+  function saveMyAnim(name, doc) {
+    const m = getMyAnims();
+    let n = name, i = 2;
+    while (m[n]) n = name + ' ' + (i++);
+    m[n] = doc;
+    localStorage.setItem(LS_ANIMS, JSON.stringify(m));
+    return n;
+  }
+  function deleteMyAnim(name) {
+    const m = getMyAnims();
+    delete m[name];
+    localStorage.setItem(LS_ANIMS, JSON.stringify(m));
+  }
 
   /* ---------------- stage construction ---------------- */
   function rebuildStage(rt) {
@@ -225,26 +247,78 @@
     $('btnPlay').textContent = p ? '❚❚' : '▶';
   }
 
-  function loadExample(name) {
-    const ex = STICK.examples[name];
-    if (!ex) return;
-    $('ed').value = JSON.stringify(ex, null, 2);
+  /* ---------------- animation library dropdown ---------------- */
+  function refreshDropdown(selValue) {
+    const sel = $('selExample');
+    sel.innerHTML = '';
+    const mine = getMyAnims();
+    const mineNames = Object.keys(mine);
+    if (mineNames.length) {
+      const og = document.createElement('optgroup');
+      og.label = 'my animations';
+      for (const n of mineNames) {
+        const o = document.createElement('option');
+        o.value = 'my:' + n; o.textContent = n;
+        og.appendChild(o);
+      }
+      sel.appendChild(og);
+    }
+    const og2 = document.createElement('optgroup');
+    og2.label = 'examples';
+    for (const n of Object.keys(STICK.examples)) {
+      const o = document.createElement('option');
+      o.value = 'ex:' + n; o.textContent = n;
+      og2.appendChild(o);
+    }
+    sel.appendChild(og2);
+    if (selValue) sel.value = selValue;
+    updateDeleteBtn();
+  }
+
+  function currentName() {
+    const v = $('selExample').value || '';
+    return v.indexOf(':') > 0 ? v.slice(v.indexOf(':') + 1) : 'animation';
+  }
+
+  function loadSelection() {
+    const v = $('selExample').value || '';
+    let doc = null;
+    if (v.startsWith('ex:')) doc = STICK.examples[v.slice(3)];
+    else if (v.startsWith('my:')) doc = getMyAnims()[v.slice(3)];
+    if (!doc) return;
+    $('ed').value = JSON.stringify(doc, null, 2);
     render();
+    updateDeleteBtn();
+  }
+
+  function updateDeleteBtn() {
+    const v = $('selExample').value || '';
+    $('btnDelete').classList.toggle('hidden', !v.startsWith('my:'));
   }
 
   /* ---------------- boot ---------------- */
   window.addEventListener('DOMContentLoaded', () => {
+    refreshDropdown();
     const sel = $('selExample');
-    for (const name of Object.keys(STICK.examples)) {
-      const o = document.createElement('option');
-      o.value = name; o.textContent = name;
-      sel.appendChild(o);
-    }
-    sel.addEventListener('change', () => loadExample(sel.value));
+    sel.addEventListener('change', loadSelection);
+
+    $('btnDelete').addEventListener('click', () => {
+      const v = sel.value || '';
+      if (!v.startsWith('my:')) return;
+      const name = v.slice(3);
+      if (!confirm('Delete "' + name + '" from my animations?')) return;
+      deleteMyAnim(name);
+      refreshDropdown('ex:' + Object.keys(STICK.examples)[0]);
+      loadSelection();
+    });
 
     $('btnRender').addEventListener('click', render);
     $('ed').addEventListener('keydown', e => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); render(); }
+    });
+
+    $('btnJsonToggle').addEventListener('click', () => {
+      $('jsonWrap').classList.toggle('hidden');
     });
 
     $('btnPlay').addEventListener('click', () => {
@@ -276,8 +350,8 @@
     // ?ex=name&t=seconds opens an example paused at a moment — handy for debugging
     const q = new URLSearchParams(location.search);
     const exName = q.get('ex');
-    loadExample(exName && STICK.examples[exName] ? exName : Object.keys(STICK.examples)[0]);
-    if (exName && STICK.examples[exName]) sel.value = exName;
+    sel.value = exName && STICK.examples[exName] ? 'ex:' + exName : 'ex:' + Object.keys(STICK.examples)[0];
+    loadSelection();
     if (q.has('t') && state.rt) {
       state.t = Math.min(state.rt.duration, Math.max(0, parseFloat(q.get('t')) || 0));
       setPlaying(false);
@@ -285,4 +359,15 @@
     }
     requestAnimationFrame(tick);
   });
+
+  window.StickApp = {
+    state, render, draw, setPlaying, refreshDropdown, currentName,
+    saveMyAnim, deleteMyAnim, getMyAnims,
+    drawAt(t) {
+      if (!state.rt) return;
+      state.t = Math.min(state.rt.duration, Math.max(0, t));
+      draw();
+    },
+    setEditor(text) { $('ed').value = text; },
+  };
 })();

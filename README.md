@@ -10,12 +10,41 @@ Figures come in three switchable visual styles rendered from the same skeleton:
 
 ## Run
 
-Open `index.html` in a browser. No build step, no server, no dependencies.
+Open `index.html` in a browser. The player itself has no build step, no server,
+no dependencies. The deployed app lives at https://stickhans.netlify.app/
+(GitHub Pages serves a static mirror without the AI features).
 
-- Pick an example from the dropdown, or paste/edit JSON and hit **Render** (Ctrl+Enter).
+- Pick an animation from the dropdown; the JSON source is behind the `{ } JSON` toggle
+  (**Render** / Ctrl+Enter applies edits).
 - **Space** plays/pauses, the slider scrubs, `⟲` restarts.
+- **⬆ Upload** loads a stick JSON file; **⬇ JSON** / **⬇ WebM** download the current
+  animation (WebM records in real time while the scene replays).
 - Problems with the JSON appear in the warnings panel — the engine never blanks
   the screen over a bad event; it skips it and tells you.
+- Signed-in users get a **Create** panel: describe a scene in plain words and an
+  edge function asks Claude to write the JSON. Created/uploaded animations are
+  saved in the browser (localStorage) under "my animations".
+
+## AI create endpoint (Netlify)
+
+`netlify/edge-functions/create-animation.ts` proxies the Anthropic API so the
+key never reaches the browser. Sign-in reuses the m2py mechanism: email
+magic-codes issued by the Anvil backend (`mdataapi.anvil.app`), validated
+per-request by the edge function; a shared access code (env var) also works.
+
+Required Netlify env vars: `ANTHROPIC_API_KEY`. Optional: `ANTHROPIC_MODEL`
+(default `claude-sonnet-4-6`), `STICK_ACCESS_TOKEN` (shared access code),
+`STICK_ANVIL_VALIDATE_URL`.
+
+`_lib/stick-prompt.ts` is generated from `PROMPT.md`. After editing PROMPT.md,
+regenerate it (PowerShell):
+
+```powershell
+$p = [IO.File]::ReadAllText("PROMPT.md", [Text.Encoding]::UTF8)
+$json = ConvertTo-Json -InputObject $p
+$out = "// AUTO-GENERATED from PROMPT.md - do not edit by hand.`n// Regenerate after editing PROMPT.md (see README, 'AI create endpoint').`n`nexport const STICK_SYSTEM_PROMPT: string =`n  $json;`n"
+[IO.File]::WriteAllText("netlify/edge-functions/_lib/stick-prompt.ts", $out, (New-Object Text.UTF8Encoding $false))
+```
 
 ## Use with an LLM
 
