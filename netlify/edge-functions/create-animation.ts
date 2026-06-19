@@ -104,6 +104,8 @@ export default async (request: Request): Promise<Response> => {
     description,
     '"""',
     "",
+    "Keep the document compact enough to finish within the length limit: represent crowds or full teams with a handful of representative figures (about 4-8), not every individual, and keep the timeline focused. A document that gets cut off mid-JSON cannot be rendered.",
+    "",
     "Reply with ONLY the JSON object — no markdown fences, no commentary before or after.",
   ].join("\n");
 
@@ -112,7 +114,7 @@ export default async (request: Request): Promise<Response> => {
       apiKey,
       model,
       prompt,
-      maxTokens: 4096,
+      maxTokens: 16000,
       system: STICK_SYSTEM_PROMPT,
       cacheTtl: "1h",
     });

@@ -80,6 +80,7 @@ function transformAnthropicStream(
   let outputTokens = 0;
   let cacheReadTokens = 0;
   let cacheCreationTokens = 0;
+  let stopReason = "";
 
   return new ReadableStream({
     async start(controller) {
@@ -107,8 +108,9 @@ function transformAnthropicStream(
                 inputTokens = obj.message.usage.input_tokens ?? 0;
                 cacheReadTokens = obj.message.usage.cache_read_input_tokens ?? 0;
                 cacheCreationTokens = obj.message.usage.cache_creation_input_tokens ?? 0;
-              } else if (obj.type === "message_delta" && obj.usage) {
-                outputTokens = obj.usage.output_tokens ?? outputTokens;
+              } else if (obj.type === "message_delta") {
+                if (obj.usage) outputTokens = obj.usage.output_tokens ?? outputTokens;
+                if (obj.delta?.stop_reason) stopReason = obj.delta.stop_reason;
               }
             } catch (_e) {
               // ignore non-JSON event data
@@ -135,22 +137,32 @@ function transformAnthropicStream(
                 inputTokens = obj.message.usage.input_tokens ?? 0;
                 cacheReadTokens = obj.message.usage.cache_read_input_tokens ?? 0;
                 cacheCreationTokens = obj.message.usage.cache_creation_input_tokens ?? 0;
-              } else if (obj.type === "message_delta" && obj.usage) {
-                outputTokens = obj.usage.output_tokens ?? outputTokens;
+              } else if (obj.type === "message_delta") {
+                if (obj.usage) outputTokens = obj.usage.output_tokens ?? outputTokens;
+                if (obj.delta?.stop_reason) stopReason = obj.delta.stop_reason;
               }
             } catch (_e) {
               // ignore non-JSON event data
             }
           }
         }
-        const done: StreamEvent = {
-          type: "done",
-          inputTokens,
-          outputTokens,
-          cacheReadTokens,
-          cacheCreationTokens,
-        };
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(done)}\n\n`));
+        if (stopReason === "max_tokens") {
+          const err: StreamEvent = {
+            type: "error",
+            message:
+              "The scene was too large and got cut off at the length limit before the JSON was finished, so it can't be rendered. Try a simpler description — fewer characters or actions (e.g. represent a crowd or team with a handful of figures rather than everyone).",
+          };
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(err)}\n\n`));
+        } else {
+          const done: StreamEvent = {
+            type: "done",
+            inputTokens,
+            outputTokens,
+            cacheReadTokens,
+            cacheCreationTokens,
+          };
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(done)}\n\n`));
+        }
       } catch (e) {
         const err: StreamEvent = { type: "error", message: String(e) };
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(err)}\n\n`));
