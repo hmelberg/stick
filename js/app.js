@@ -16,10 +16,131 @@
 
   const LS_ANIMS = 'stick.myAnimations';
 
+  /* ---------------- speech (Web Speech API) ----------------
+     Voices are derived from a figure's archetype + current mood, with optional
+     per-figure (figure.voice) and per-line (say args.voice / sing) overrides.
+     The API can't truly sing, so "sing" fakes a melody by speaking word-by-word
+     at varied pitch. */
+  const Speech = (function () {
+    const synth = (typeof window !== 'undefined' && window.speechSynthesis) || null;
+    let voices = [];
+    const loadVoices = () => { if (synth) voices = synth.getVoices() || []; };
+    if (synth) { loadVoices(); try { synth.addEventListener('voiceschanged', loadVoices); } catch (e) {} }
+
+    const clampN = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    // best-effort name hints; pitch/rate do the real differentiating
+    const FEMALE = /female|woman|samantha|victoria|karen|moira|tessa|fiona|zira|susan|allison|ava|serena|google uk english female/i;
+    const MALE = /male|man|daniel|alex|fred|david|george|thomas|oliver|rishi|aaron|google uk english male/i;
+
+    function pickVoice(kind) {
+      if (!voices.length) return null;
+      const en = voices.filter(v => /^en[-_]?/i.test(v.lang));
+      const pool = en.length ? en : voices;
+      const re = kind === 'female' ? FEMALE : kind === 'male' ? MALE : null;
+      if (re) { const m = pool.find(v => re.test(v.name)); if (m) return m; }
+      return pool[0] || null;
+    }
+
+    const MOOD = {
+      neutral:   { p: 0,     r: 0 },
+      happy:     { p: 0.15,  r: 0.08 },
+      ecstatic:  { p: 0.28,  r: 0.18, v: 1 },
+      sad:       { p: -0.12, r: -0.25 },
+      angry:     { p: -0.05, r: 0.18, v: 1 },
+      bored:     { p: -0.05, r: -0.2 },
+      thinking:  { p: 0,     r: -0.1 },
+      surprised: { p: 0.2,   r: 0.1 },
+      sleepy:    { p: -0.1,  r: -0.32 },
+    };
+
+    function baseFor(fig) {
+      const arch = (fig && fig.archetype) || [];
+      if (arch.includes('kid')) return { kind: 'child', pitch: 1.6, rate: 1.08 };
+      if (arch.includes('woman')) return { kind: 'female', pitch: 1.25, rate: 1.04 };
+      if (arch.includes('man')) return { kind: 'male', pitch: 0.82, rate: 1.0 };
+      if (fig && fig.character === 'professor') return { kind: 'male', pitch: 0.7, rate: 0.92 };
+      if (fig && fig.character === 'student') return { kind: 'male', pitch: 1.05, rate: 1.05 };
+      return { kind: 'default', pitch: 1.0, rate: 1.0 };
+    }
+
+    const SCALE_P = { high: 1.3, low: 0.75, normal: 1 };
+    const SCALE_R = { fast: 1.3, slow: 0.7, normal: 1 };
+
+    function paramsFor(fig, mood, sayArgs) {
+      const b = baseFor(fig);
+      let pitch = b.pitch, rate = b.rate, volume = 1, kind = b.kind;
+      const m = MOOD[mood]; if (m) { pitch += m.p; rate += m.r; if (m.v != null) volume = m.v; }
+      const ov = Object.assign({}, fig && fig.voice, sayArgs && sayArgs.voice);
+      if (ov.gender === 'female') kind = 'female';
+      else if (ov.gender === 'male') kind = 'male';
+      else if (ov.gender === 'child' || ov.age === 'child') { kind = 'child'; pitch = Math.max(pitch, 1.5); }
+      if (typeof ov.pitch === 'number') pitch = ov.pitch;
+      else if (typeof ov.pitch === 'string') pitch *= (SCALE_P[ov.pitch] || 1);
+      if (typeof ov.rate === 'number') rate = ov.rate;
+      else if (typeof ov.rate === 'string') rate *= (SCALE_R[ov.rate] || 1);
+      if (typeof ov.volume === 'number') volume = ov.volume;
+      return {
+        pitch: clampN(pitch, 0.1, 2),
+        rate: clampN(rate, 0.4, 2.2),
+        volume: clampN(volume, 0, 1),
+        voice: pickVoice(kind),
+        sing: !!((sayArgs && sayArgs.sing) || ov.sing),
+      };
+    }
+
+    function mkUtter(text, p, speed) {
+      const u = new SpeechSynthesisUtterance(text);
+      u.pitch = p.pitch; u.volume = p.volume;
+      u.rate = clampN(p.rate * (speed || 1), 0.1, 10);
+      if (p.voice) u.voice = p.voice;
+      return u;
+    }
+
+    return {
+      available: !!synth,
+      cancel() { if (synth) { try { synth.cancel(); } catch (e) {} } },
+      speak(text, fig, mood, sayArgs, speed) {
+        if (!synth || !text) return;
+        const p = paramsFor(fig, mood, sayArgs);
+        if (p.sing) {
+          const words = String(text).split(/\s+/).filter(Boolean);
+          const melody = [0, 0.12, 0.22, 0.12, -0.05, 0.16, 0.28, 0.1];
+          words.forEach((w, i) => {
+            const pp = Object.assign({}, p, { pitch: clampN(p.pitch + melody[i % melody.length], 0.1, 2), rate: p.rate * 0.85 });
+            synth.speak(mkUtter(w, pp, speed));
+          });
+        } else {
+          synth.speak(mkUtter(text, p, speed));
+        }
+      },
+    };
+  })();
+
+  /* Fire each say line as the playhead crosses its start; reset on loop/seek-back. */
+  function processSpeech() {
+    if (!Speech.available) return;
+    const rt = state.rt; if (!rt) return;
+    const t = state.t;
+    if (t < state.lastSpeakT - 0.001) { state.spoken.clear(); Speech.cancel(); state.lastSpeakT = -1; }
+    if (state.sound) {
+      for (const o of rt.overlays) {
+        if (o.type !== 'say') continue;
+        if (o.t0 > state.lastSpeakT && o.t0 <= t && !state.spoken.has(o)) {
+          state.spoken.add(o);
+          const fig = rt.figs.get(o.fig);
+          const mood = rt.ch.getDef(o.fig + '.mood', o.t0, fig ? fig.mood : 'neutral');
+          Speech.speak(o.text, fig, mood, o.args, state.speed);
+        }
+      }
+    }
+    state.lastSpeakT = t;
+  }
+
   const state = {
     rt: null, dom: null, t: 0,
     playing: false, loop: true, speed: 1,
     last: performance.now(),
+    sound: false, lastSpeakT: 0, spoken: new Set(),
   };
 
   /* ---------------- my animations (localStorage) ---------------- */
@@ -219,6 +340,7 @@
         else { state.t = state.rt.duration; setPlaying(false); }
       }
       draw();
+      processSpeech();
     }
     requestAnimationFrame(tick);
   }
@@ -254,6 +376,7 @@
       state.rt = STICK.compile(doc);
       state.dom = rebuildStage(state.rt);
       state.t = 0;
+      Speech.cancel(); state.spoken.clear(); state.lastSpeakT = -1;
       showWarnings(state.rt.warnings, false);
       setPlaying(true);
       draw();
@@ -265,6 +388,9 @@
   function setPlaying(p) {
     state.playing = p;
     $('btnPlay').textContent = p ? '❚❚' : '▶';
+    if (!p) Speech.cancel();
+    // no lastSpeakT reset here: while paused processSpeech doesn't run, so it
+    // already holds the pause point — resuming continues forward, no backlog.
   }
 
   /* ---------------- animation library dropdown ---------------- */
@@ -346,13 +472,14 @@
       if (!state.playing && state.t >= state.rt.duration) state.t = 0;
       setPlaying(!state.playing);
     });
-    $('btnRestart').addEventListener('click', () => { state.t = 0; if (state.rt) { setPlaying(true); draw(); } });
+    $('btnRestart').addEventListener('click', () => { state.t = 0; state.spoken.clear(); state.lastSpeakT = -1; Speech.cancel(); if (state.rt) { setPlaying(true); draw(); } });
 
     const scrub = $('scrub');
     scrub.addEventListener('input', () => {
       if (!state.rt) return;
       state.scrubbing = true;
       state.t = (Number(scrub.value) / 1000) * state.rt.duration;
+      Speech.cancel(); state.lastSpeakT = state.t;
       draw();
       state.scrubbing = false;
     });
@@ -368,6 +495,11 @@
     });
 
     $('chkLoop').addEventListener('change', e => { state.loop = e.target.checked; });
+    $('chkSound').addEventListener('change', e => {
+      state.sound = e.target.checked;
+      if (!state.sound) Speech.cancel();
+      else state.lastSpeakT = state.t; // start from here, don't dump backlog
+    });
     $('selSpeed').addEventListener('change', e => { state.speed = Number(e.target.value); });
 
     window.addEventListener('keydown', e => {

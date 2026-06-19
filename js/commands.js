@@ -390,7 +390,7 @@
     const fig = figOf(ctx); if (!fig) return 0;
     const text = String(ctx.args.text != null ? ctx.args.text : '...');
     const dur = durOf(ctx, clamp(1 + text.length * 0.045, 1.2, 6));
-    ctx.rt.overlays.push({ type: 'say', fig: fig.id, text, t0: ctx.t0, t1: ctx.t0 + dur });
+    ctx.rt.overlays.push({ type: 'say', fig: fig.id, text, t0: ctx.t0, t1: ctx.t0 + dur, args: ctx.args });
     const v0 = cv(ctx, fig, 'mouthOpen');
     const n = clamp(Math.floor(dur / 0.4), 1, 6);
     for (let i = 0; i < n; i++) {

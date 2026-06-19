@@ -64,6 +64,9 @@
     const fig = {
       id: String(raw.id || raw.name || 'fig' + i),
       name: raw.name || String(raw.id || 'fig' + i),
+      archetype: archList,
+      character: raw.character || null,
+      voice: raw.voice && typeof raw.voice === 'object' ? raw.voice : null,
       style,
       height: num(raw.height, num(preset.height, 20)),
       headScale: num(raw.headScale, num(preset.headScale, 1)),

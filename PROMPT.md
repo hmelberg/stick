@@ -61,6 +61,10 @@ All three render the same skeleton, so every command works in every style.
 
 - `archetype`: `man` | `woman` | `kid` | `person` (sets hair/height defaults).
 - `character`: `professor` (glasses) | `student` | `dancer` (fedora) — stronger presets.
+- `voice` (optional): controls spoken audio when the viewer enables sound. By
+  default a voice is derived from the figure's archetype + current mood, so you
+  usually omit this. Override with `{ "gender": "male\|female\|child", "pitch":
+  0.1..2 or "high\|low", "rate": 0.4..2.2 or "fast\|slow", "volume": 0..1 }`.
 - `hair`: `none` | `short` | `tuft` | `long` | `bun` | `sides`. Also `glasses: true`, `hat: "fedora"`.
 - Engine adds idle life automatically (breathing, sway, blinking) based on mood.
 
@@ -111,7 +115,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `hands` | `{ "hand": "right", "shape": "fist" }` or `{ "left": "fist", "right": "open" }` | mitten hand shapes: `relaxed` `open` `fist` `point` `spread` (sketch/toon styles). `point` cmd and angry mood set them automatically. |
 | `release` | `{ "hand": "right" }` / `{ "foot": "both" }` | undo reach/pin |
 | `blink` | `{}` | (auto-blink already happens) |
-| `say` | `{ "text": "...", "dur": ... }` | speech bubble + mouth movement; dur auto from length |
+| `say` | `{ "text": "...", "dur": ..., "sing": false, "voice": {...} }` | speech bubble + mouth movement; dur auto from length. If the viewer turns **sound** on, lines are spoken aloud (browser voices). `sing: true` makes it sing-song. `voice` overrides this line only. |
 | `emote` | `{ "symbol": "?\|!\|...\|zzz\|heart\|music\|sparkle\|idea" }` | floating symbol above head |
 | `scene.caption` | `{ "text": "...", "dur": "slow" }` | narrator text at the bottom |
 | `playClip` | `{ "name": "wave", "repeat": 2 }` | run a clip |
