@@ -35,6 +35,55 @@
   }
   STICK.resolveBoardColor = resolveColor;
 
+  /* ---------------- math (MathJax SVG, lazy) ----------------
+     MathJax v3 with SVG output: native paths (no web fonts) so equations survive
+     the WebM export and tint to chalk colour. Supports LaTeX ($..$, $$..$$) and
+     AsciiMath (`..`). Loaded on first use; falls back to raw text if unavailable. */
+  STICK.mathReady = false;
+  STICK.ensureMath = function () {
+    if (STICK._mathP) return STICK._mathP;
+    STICK._mathP = new Promise((resolve, reject) => {
+      if (typeof document === 'undefined') { reject(new Error('no dom')); return; }
+      const url = (typeof window !== 'undefined' && window.STICK_MATHJAX_URL) || 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/startup.js';
+      const done = () => { STICK.mathReady = typeof window.MathJax.tex2svg === 'function'; resolve(window.MathJax); };
+      window.MathJax = {
+        loader: { load: ['input/tex', 'input/asciimath', 'output/svg'] },
+        startup: { typeset: false },
+        svg: { fontCache: 'none' }, // self-contained paths per equation (export-safe)
+      };
+      const s = document.createElement('script');
+      s.src = url; s.async = true;
+      s.onload = () => {
+        const st = window.MathJax && window.MathJax.startup;
+        if (st && st.promise) st.promise.then(done).catch(done);
+        // safety net: if startup never resolves, force-init and continue
+        setTimeout(() => { if (!STICK.mathReady) { try { st && st.defaultReady && st.defaultReady(); } catch (e) {} done(); } }, 6000);
+      };
+      s.onerror = () => reject(new Error('mathjax failed to load'));
+      document.head.appendChild(s);
+    });
+    return STICK._mathP;
+  };
+
+  // does this compiled doc write any math? (gates the lazy load before build)
+  STICK.boardsNeedMath = function (rt) {
+    for (const b of rt.boards.values()) for (const blk of b.blocks) if (blk.md && /\$|`/.test(blk.md)) return true;
+    return false;
+  };
+
+  // kind: 'tex'|'ascii'. Returns {svg, vbW, vbH, minY, hEx} or null.
+  STICK.renderMath = function (kind, src, display) {
+    const MJ = typeof window !== 'undefined' && window.MathJax;
+    if (!MJ || !STICK.mathReady) return null;
+    try {
+      const node = (kind === 'ascii' && MJ.asciimath2svg) ? MJ.asciimath2svg(src) : MJ.tex2svg(src, { display: !!display });
+      const svg = node.querySelector('svg');
+      if (!svg) return null;
+      const vb = (svg.getAttribute('viewBox') || '0 0 1 1').split(/\s+/).map(Number);
+      return { svg, vbW: vb[2] || 1, vbH: vb[3] || 1, minY: vb[1] || 0, hEx: parseFloat(svg.getAttribute('height')) || 1 };
+    } catch (e) { return null; }
+  };
+
   STICK.normalizeBoard = function (raw, i, warn) {
     raw = raw && typeof raw === 'object' ? raw : {};
     const style = STYLES[raw.style] ? raw.style : 'chalk';
@@ -63,6 +112,19 @@
     let i = 0, bold = false, italic = false, underline = false, buf = '';
     const push = () => { if (buf) { segs.push({ text: buf, bold, italic, underline }); buf = ''; } };
     while (i < text.length) {
+      // math: $$display$$, $inline$ (LaTeX), `asciimath`
+      if (text.startsWith('$$', i)) {
+        const c = text.indexOf('$$', i + 2);
+        if (c > i) { push(); segs.push({ math: true, kind: 'tex', src: text.slice(i + 2, c), display: true }); i = c + 2; continue; }
+      }
+      if (text[i] === '$') {
+        const c = text.indexOf('$', i + 1);
+        if (c > i) { push(); segs.push({ math: true, kind: 'tex', src: text.slice(i + 1, c) }); i = c + 1; continue; }
+      }
+      if (text[i] === '`') {
+        const c = text.indexOf('`', i + 1);
+        if (c > i) { push(); segs.push({ math: true, kind: 'ascii', src: text.slice(i + 1, c) }); i = c + 1; continue; }
+      }
       // {colour|text} colour span (no nested styling inside)
       if (text[i] === '{') {
         const close = text.indexOf('}', i), bar = text.indexOf('|', i);
@@ -138,6 +200,18 @@
     const defColor = (para.type === 'h1' || para.type === 'h2') ? board.accent : null;
     const tokens = [];
     for (const seg of para.segs) {
+      if (seg.math) {
+        const fsM = seg.display ? size * 1.25 : size;
+        const m = STICK.renderMath(seg.kind, seg.src, seg.display);
+        if (m) {
+          const H = m.hEx * 0.5 * fsM;          // ex -> board units (calibrated)
+          tokens.push({ math: true, mathEl: m.svg, H, W: (m.vbW / m.vbH) * H, ascent: (-m.minY / m.vbH) * H, color: seg.color || defColor });
+        } else { // fallback: show the source as plain text
+          const raw = seg.kind === 'ascii' ? '`' + seg.src + '`' : '$' + seg.src + '$';
+          for (const w of raw.split(/(\s+)/)) if (w.length) tokens.push({ text: w, space: /^\s+$/.test(w), color: seg.color || defColor });
+        }
+        continue;
+      }
       for (const w of seg.text.split(/(\s+)/)) {
         if (!w.length) continue;
         tokens.push({ text: w, space: /^\s+$/.test(w), bold: heavy || seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color || defColor });
@@ -147,10 +221,11 @@
     const vlines = [];
     let cur = [], curW = 0, started = false;
     for (const tk of tokens) {
-      const w = tk.space ? spaceW : measure(tk.text, size, tk.bold, tk.italic);
+      const w = tk.math ? tk.W : tk.space ? spaceW : measure(tk.text, size, tk.bold, tk.italic);
+      tk.w = w;
       if (!tk.space && started && curW + w > avail) { vlines.push({ tokens: cur, width: curW, size, indent }); cur = []; curW = 0; started = false; }
       if (tk.space && !started) continue; // drop leading space on a wrapped line
-      cur.push(tk); curW += w; if (!tk.space) started = true;
+      cur.push(tk); curW += w; if (!tk.space || tk.math) started = true;
     }
     if (cur.length || !vlines.length) vlines.push({ tokens: cur, width: curW, size, indent });
     if (para.type === 'li') vlines[0].bullet = true;
@@ -296,7 +371,12 @@
       for (const para of parseMarkdown(block.md)) {
         if (para.type === 'gap') { vlines.push({ gap: true, lineH: board.fontSize * 0.7 }); continue; }
         if (para.type === 'hr') { vlines.push({ hr: true, lineH: board.fontSize * 1.1, indent: 0, width: innerW, size: board.fontSize }); continue; }
-        for (const vl of layoutParagraph(para, board, innerW, measure)) { vl.lineH = vl.size * 1.4; vlines.push(vl); }
+        for (const vl of layoutParagraph(para, board, innerW, measure)) {
+          let asc = vl.size * 0.85, desc = vl.size * 0.35;
+          for (const tk of vl.tokens) if (tk.math && tk.H != null) { asc = Math.max(asc, tk.ascent); desc = Math.max(desc, tk.H - tk.ascent); }
+          vl.ascent = asc; vl.lineH = asc + desc + vl.size * 0.28;
+          vlines.push(vl);
+        }
       }
       const totalInk = vlines.reduce((s, vl) => s + (vl.gap ? 0 : (vl.width || 0.001)), 0) || 1;
       let acc = 0;
@@ -308,10 +388,36 @@
         cursorY += vl.lineH;
         if (vl.gap) continue;
         const x = r.x + pad + (vl.indent || 0);
-        const baseY = r.y + pad + yTop + (vl.size || board.fontSize) * 0.85;
+        const baseY = r.y + pad + yTop + (vl.ascent != null ? vl.ascent : (vl.size || board.fontSize) * 0.85);
         let el;
         if (vl.hr) {
           el = mk('line', { x1: x, y1: baseY, x2: x + innerW, y2: baseY, stroke: board.color, 'stroke-width': 0.3, 'stroke-linecap': 'round' }, contentG);
+        } else if (vl.tokens && vl.tokens.some(t => t.math && t.mathEl)) {
+          // flow layout: text runs interleaved with inline math SVGs
+          el = mk('g', {}, contentG);
+          let cx = x, runStart = x, run = null;
+          const flush = () => { if (run) { cx = runStart + (run.getComputedTextLength() || 0); run = null; } };
+          if (vl.bullet) { const b = mk('text', { x: cx, y: baseY, 'font-family': board.font, 'font-size': vl.size, fill: board.color }, el); b.textContent = '• '; cx += measure('• ', vl.size, false, false); }
+          for (const tk of vl.tokens) {
+            if (tk.math && tk.mathEl) {
+              flush();
+              const m = tk.mathEl;
+              m.setAttribute('x', cx.toFixed(2)); m.setAttribute('y', (baseY - tk.ascent).toFixed(2));
+              m.setAttribute('width', tk.W.toFixed(2)); m.setAttribute('height', tk.H.toFixed(2));
+              m.style.width = ''; m.style.height = ''; m.style.color = tk.color || board.color;
+              el.appendChild(m);
+              cx += tk.W;
+            } else {
+              if (!run) { run = mk('text', { x: cx.toFixed(2), y: baseY, 'font-family': board.font, 'font-size': vl.size, fill: board.color }, el); run.style.whiteSpace = 'pre'; runStart = cx; }
+              const ts = mk('tspan', {}, run);
+              if (tk.bold) ts.setAttribute('font-weight', '700');
+              if (tk.italic) ts.setAttribute('font-style', 'italic');
+              if (tk.underline && !tk.space) ts.setAttribute('text-decoration', 'underline');
+              if (tk.color) ts.setAttribute('fill', tk.color);
+              ts.textContent = tk.text;
+            }
+          }
+          flush();
         } else {
           el = mk('text', { x, y: baseY, 'font-family': board.font, 'font-size': vl.size, fill: board.color }, contentG);
           if (vl.bullet) { mk('tspan', {}, el).textContent = '• '; }

@@ -409,12 +409,18 @@
     }
     try {
       state.rt = STICK.compile(doc);
-      state.dom = rebuildStage(state.rt);
-      state.t = 0;
-      Speech.cancel(); state.spoken.clear(); state.lastSpeakT = -1;
-      showWarnings(state.rt.warnings, false);
-      setPlaying(true);
-      draw();
+      const finish = () => {
+        state.dom = rebuildStage(state.rt);
+        state.t = 0;
+        Speech.cancel(); state.spoken.clear(); state.lastSpeakT = -1;
+        showWarnings(state.rt.warnings, false);
+        setPlaying(true);
+        draw();
+      };
+      if (STICK.boardsNeedMath && STICK.boardsNeedMath(state.rt) && !STICK.mathReady && STICK.ensureMath) {
+        showWarnings(['loading math…'], false);
+        STICK.ensureMath().then(finish).catch(finish); // fall back to raw text if it fails
+      } else finish();
     } catch (e) {
       showWarnings(['engine error: ' + e.message + (e.stack ? ' @ ' + String(e.stack).split('\n')[1] : '')], true);
     }

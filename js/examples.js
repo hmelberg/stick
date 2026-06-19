@@ -302,6 +302,21 @@
       ],
     },
 
+    'marginal cost': {
+      v: 1,
+      scene: { theme: 'blank' },
+      boards: [{ id: 'bb', rect: { x: 5, y: 6, w: 58, h: 60 }, style: 'chalk' }],
+      figures: [{ id: 'prof', character: 'professor', pos: { x: 72, y: 70 }, facing: 'left' }],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'A little calculus', dur: 'normal' } },
+        { at: 0, target: 'bb', cmd: 'board.write', by: 'prof', dur: 'slow', args: { md: '# {amber|Marginal cost}\n\nThe derivative of total cost:\n\n$$MC = \\frac{dC}{dQ}$$' } },
+        { target: 'prof', cmd: 'say', args: { text: 'The slope of the cost curve.' } },
+        { target: 'bb', cmd: 'board.write', by: 'prof', dur: 'slow', args: { md: 'So if $C = Q^2$ then $MC = 2Q$.\n\nAsciiMath too: `sum_(i=1)^n i = n(n+1)/2`' } },
+        { at: '<', target: 'prof', cmd: 'playClip', args: { name: 'nod' } },
+        { cmd: 'scene.caption', args: { text: 'Q.E.D.', dur: 'slow' } },
+      ],
+    },
+
     'naptime': {
       v: 1,
       scene: { theme: 'bedroom' },

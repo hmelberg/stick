@@ -272,6 +272,8 @@ boards at the top level in `"boards"`:
 
 **Highlighting:** the `supply-demand` preset auto-names its parts `axes`, `demand`, `supply`, `equilibrium`, so `board.highlight { target: "demand" }` works immediately. For custom shapes add `"id"`. Pairs naturally with speech: `say "demand slopes down"` + `board.highlight { target: "demand" }` (use `"at": "<"` to do both at once).
 
+**Math equations:** write real math inside `board.write` markdown — `$...$` inline LaTeX, `$$...$$` display LaTeX, and `` `...` `` for AsciiMath. E.g. `"md": "The derivative: $$MC = \\frac{dC}{dQ}$$"` or `"md": "if $C = Q^2$ then $MC = 2Q$"`. (In JSON, escape backslashes: `\\frac`.) Math is typeset (not handwritten) and renders only when the viewer is online the first time; offline it shows the raw source. Prefer LaTeX; AsciiMath is the simpler `` `int_0^1 x dx = 1/2` `` style.
+
 **Zoom to the board:** `camera.focus { on: "bb" }` zooms/pans so the board fills the frame; `camera.reset` returns to the whole scene.
 
 ### Drawing diagrams (`board.draw`)
