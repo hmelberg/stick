@@ -28,6 +28,49 @@
     return s.slice(a, b + 1);
   }
 
+  /* Salvage a truncated reply: scan to the last position where a nested element
+     (object/array) closed cleanly, cut there, and append the brackets needed to
+     close everything still open. Figures/scene come before the timeline, so this
+     typically yields a valid doc with all complete figures + the first N events.
+     The engine tolerates the rest. Returns a parseable string or null. */
+  function repairTruncatedJson(s) {
+    const stack = [];
+    let inStr = false, esc = false, safeCut = -1, safeStack = null;
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === '\\') esc = true;
+        else if (c === '"') inStr = false;
+        continue;
+      }
+      if (c === '"') inStr = true;
+      else if (c === '{' || c === '[') stack.push(c);
+      else if (c === '}' || c === ']') {
+        stack.pop();
+        if (stack.length > 0) { safeCut = i + 1; safeStack = stack.slice(); } // closed a nested element while still inside the doc
+      }
+    }
+    if (safeCut < 0 || !safeStack) return null;
+    let out = s.slice(0, safeCut).replace(/[\s,]+$/, '');
+    for (let i = safeStack.length - 1; i >= 0; i--) out += safeStack[i] === '{' ? '}' : ']';
+    return out;
+  }
+
+  // Parse the reply; if it won't parse (e.g. cut off), try to salvage a partial.
+  // Returns { doc, partial } or null.
+  function docFromReply(acc) {
+    let jsonText = null;
+    try { jsonText = extractJson(acc); } catch (e) { /* no object at all */ }
+    if (jsonText) { try { return { doc: JSON.parse(jsonText), partial: false }; } catch (e) { /* fall through */ } }
+    const start = acc.indexOf('{');
+    if (start >= 0) {
+      const repaired = repairTruncatedJson(acc.slice(start));
+      if (repaired) { try { return { doc: JSON.parse(repaired), partial: true }; } catch (e) { /* give up */ } }
+    }
+    return null;
+  }
+
   function nameFrom(text) {
     const words = text.trim().split(/\s+/).slice(0, 5).join(' ');
     return (words.length > 36 ? words.slice(0, 36) + '…' : words) || 'created scene';
@@ -86,15 +129,24 @@
           }
         }
       }
-      if (failed) { setStatus('Error: ' + failed, true); return; }
+      // Build the document. If the reply was cut off at the length limit, salvage
+      // whatever completed so the partial scene still plays (failed is set when
+      // the server saw a max_tokens stop).
+      const built = docFromReply(acc);
+      if (!built) { setStatus('Error: ' + (failed || 'could not read the generated scene'), true); return; }
+      const { doc, partial } = built;
 
-      const doc = JSON.parse(extractJson(acc));
       const name = App().saveMyAnim(nameFrom(text), doc);
       App().refreshDropdown('my:' + name);
       App().setEditor(JSON.stringify(doc, null, 2));
       App().render();
       const warnings = App().state.rt ? App().state.rt.warnings.length : 0;
-      setStatus(warnings ? '✓ created (' + warnings + ' warning' + (warnings > 1 ? 's' : '') + ' — see panel)' : '✓ created');
+      const warnNote = warnings ? ' (' + warnings + ' warning' + (warnings > 1 ? 's' : '') + ')' : '';
+      if (partial || failed) {
+        setStatus('⚠ cut off at the length limit — playing the partial scene' + warnNote, true);
+      } else {
+        setStatus(warnings ? '✓ created' + warnNote + ' — see panel' : '✓ created');
+      }
     } catch (e) {
       setStatus('Could not build the animation: ' + e.message, true);
     } finally {
