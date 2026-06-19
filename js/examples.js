@@ -190,6 +190,27 @@
       ],
     },
 
+    'standup': {
+      v: 1,
+      scene: { theme: 'blank' },
+      boards: [
+        { id: 'wb', rect: { x: 6, y: 6, w: 58, h: 60 }, style: 'marker' },
+      ],
+      figures: [
+        { id: 'lee', archetype: ['woman'], pos: { x: 78, y: 70 }, facing: 'left', mood: 'happy' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Monday standup', dur: 'normal' } },
+        { at: 0, target: 'wb', cmd: 'board.write', by: 'lee', dur: 'slow', args: { md: '# Sprint Goals\n\n- Ship **boards**\n- Fix the *scroll* bug\n- Write the demo' } },
+        { target: 'lee', cmd: 'say', args: { text: 'Three things this week.' } },
+        { at: '<', target: 'lee', cmd: 'playClip', args: { name: 'nod' } },
+        { target: 'wb', cmd: 'board.write', by: 'lee', dur: 'normal', args: { md: '\n---\nDone by __Friday__.' } },
+        { target: 'lee', cmd: 'say', args: { text: 'Then we ship.' } },
+        { at: '<', target: 'lee', cmd: 'playClip', args: { name: 'victory' } },
+        { cmd: 'scene.caption', args: { text: 'Easy.', dur: 'slow' } },
+      ],
+    },
+
     'naptime': {
       v: 1,
       scene: { theme: 'bedroom' },
