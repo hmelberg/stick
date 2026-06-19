@@ -135,6 +135,41 @@
       ],
     },
 
+    'juggler': {
+      v: 1,
+      scene: { theme: 'street' },
+      figures: [
+        { id: 'jo', archetype: ['man'], pos: { x: 50, y: 70 }, mood: 'happy' },
+      ],
+      objects: [
+        { id: 'b1', shape: 'circle', layer: 'front', props: { cx: 46, cy: 58, r: 2.2, fill: '#e0533a' } },
+        { id: 'b2', shape: 'circle', layer: 'front', props: { cx: 54, cy: 58, r: 2.2, fill: '#3a86e0' } },
+        { id: 'b3', shape: 'circle', layer: 'front', props: { cx: 46, cy: 58, r: 2.2, fill: '#2fae66' } },
+      ],
+      clips: {
+        // one full cycle: toss to the far hand, then back. arc does the parabola.
+        cycleL: [
+          { cmd: 'arc', dur: 'quick', args: { to: { x: 54, y: 58 }, height: 22, spin: 1 } },
+          { cmd: 'arc', dur: 'quick', args: { to: { x: 46, y: 58 }, height: 22, spin: 1 } },
+        ],
+        cycleR: [
+          { cmd: 'arc', dur: 'quick', args: { to: { x: 46, y: 58 }, height: 24, spin: -1 } },
+          { cmd: 'arc', dur: 'quick', args: { to: { x: 54, y: 58 }, height: 24, spin: -1 } },
+        ],
+      },
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Three balls, no dropping. Allegedly.', dur: 'slow' } },
+        // raise forearms into a juggling stance and look up
+        { at: 0, target: 'jo', cmd: 'joints', dur: 'fast', args: { shoulderL: 38, elbowL: 112, shoulderR: 38, elbowR: 112 } },
+        { at: '<', target: 'jo', cmd: 'pose.tween', dur: 'fast', args: { headTilt: -0.12 } },
+        // three balls staggered one third of a cycle apart -> a cascade
+        { at: 0.5, target: 'b1', cmd: 'playClip', args: { name: 'cycleL', repeat: 4 } },
+        { at: 0.83, target: 'b2', cmd: 'playClip', args: { name: 'cycleR', repeat: 4 } },
+        { at: 1.16, target: 'b3', cmd: 'playClip', args: { name: 'cycleL', repeat: 4 } },
+        { at: 4.2, cmd: 'scene.caption', args: { text: 'Ta-da.', dur: 'slow' } },
+      ],
+    },
+
     'naptime': {
       v: 1,
       scene: { theme: 'bedroom' },

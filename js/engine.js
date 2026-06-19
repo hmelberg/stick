@@ -102,6 +102,7 @@
       overlays: [],   // {type:'say'|'emote'|'caption', fig?, text|symbol, t0, t1}
       loco: [],       // {fig, t0, t1, style, x0, y0}
       figs: new Map(),
+      objs: new Map(), // animatable simple shapes (id -> normalized object)
       scene: null, duration: 1,
     };
     rt.scene = STICK.buildScene(doc.scene || {}, warn);
@@ -114,6 +115,15 @@
       if (rt.figs.has(fig.id)) { warn(`duplicate figure id "${fig.id}" — second one ignored`); return; }
       rt.figs.set(fig.id, fig);
       STICK.initFigureChannels(rt, fig);
+    });
+
+    const objs = Array.isArray(doc.objects) ? doc.objects : [];
+    objs.forEach((o, i) => {
+      const obj = STICK.normalizeObject(o, i, warn);
+      if (!obj) return;
+      if (rt.figs.has(obj.id) || rt.objs.has(obj.id)) { warn(`duplicate id "${obj.id}" for object — ignored`); return; }
+      rt.objs.set(obj.id, obj);
+      STICK.initObjectChannels(rt, obj);
     });
 
     // camera defaults

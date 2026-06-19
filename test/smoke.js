@@ -53,6 +53,14 @@ for (const [name, doc] of Object.entries(STICK.examples)) {
       }
       if (!isFinite(P.rot) || !isFinite(P.x) || !isFinite(P.y)) fail(`NaN transform at t=${t.toFixed(2)} for ${fig.id}`);
     }
+    for (const obj of rt.objs.values()) {
+      for (const s of ['tx', 'ty', 'scale', 'rot', 'opacity']) {
+        if (!isFinite(rt.ch.get(obj.id + '.' + s, t))) {
+          fail(`NaN object channel ${obj.id}.${s} at t=${t.toFixed(2)}`);
+          i = steps + 1; break;
+        }
+      }
+    }
   }
 }
 

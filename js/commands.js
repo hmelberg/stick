@@ -477,6 +477,119 @@
     return tCur - ctx.t0;
   };
 
+  /* ------------------------------ objects ------------------------------
+     Simple props (balls, boxes, signs…) animated via the same channel engine.
+     All target an object id; they share one internal tween over its channels. */
+  function objOf(ctx) {
+    const rt = ctx.rt;
+    if (ctx.targetId != null) {
+      const o = rt.objs.get(String(ctx.targetId));
+      if (o) return o;
+      rt.warn(`unknown object target "${ctx.targetId}" for cmd "${ctx.ev.cmd}"`);
+      return null;
+    }
+    if (rt.objs.size === 1) return rt.objs.values().next().value;
+    rt.warn(`cmd "${ctx.ev.cmd}" needs an object target`);
+    return null;
+  }
+
+  H.appear = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const dur = durOf(ctx, DUR.fast);
+    tw(ctx, o, 'opacity', ctx.t0, dur, 1, EASE.out);
+    return dur;
+  };
+  H.disappear = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const dur = durOf(ctx, DUR.fast);
+    tw(ctx, o, 'opacity', ctx.t0, dur, 0, EASE.in);
+    return dur;
+  };
+  H.fade = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const dur = durOf(ctx, DUR.fast);
+    tw(ctx, o, 'opacity', ctx.t0, dur, clamp(num(ctx.args.to, num(ctx.args.opacity, 1)), 0, 1), EASE.inOut);
+    return dur;
+  };
+
+  H.moveTo = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const dur = durOf(ctx, DUR.normal), ease = easeOf(ctx, EASE.inOut);
+    const to = STICK.resolvePoint(ctx.rt, ctx.args.to, ctx.t0);
+    if (!to) { ctx.rt.warn('moveTo: missing/unresolvable "to"'); return 0; }
+    tw(ctx, o, 'tx', ctx.t0, dur, to.x - o.pivot.x, ease);
+    tw(ctx, o, 'ty', ctx.t0, dur, to.y - o.pivot.y, ease);
+    return dur;
+  };
+
+  H.scale = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const dur = durOf(ctx, DUR.fast), ease = easeOf(ctx, EASE.inOut);
+    tw(ctx, o, 'scale', ctx.t0, dur, clamp(num(ctx.args.to, num(ctx.args.scale, 1)), 0.01, 50), ease);
+    return dur;
+  };
+  H.grow = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const dur = durOf(ctx, DUR.fast), ease = easeOf(ctx, EASE.inOut);
+    const cur = cv(ctx, o, 'scale') || 1;
+    tw(ctx, o, 'scale', ctx.t0, dur, clamp(cur * num(ctx.args.by, num(ctx.args.factor, 1.5)), 0.01, 50), ease);
+    return dur;
+  };
+  H.shrink = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const dur = durOf(ctx, DUR.fast), ease = easeOf(ctx, EASE.inOut);
+    const cur = cv(ctx, o, 'scale') || 1;
+    tw(ctx, o, 'scale', ctx.t0, dur, clamp(cur / num(ctx.args.by, num(ctx.args.factor, 1.5)), 0.01, 50), ease);
+    return dur;
+  };
+
+  H.rotate = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const dur = durOf(ctx, DUR.fast), ease = easeOf(ctx, EASE.inOut);
+    const cur = cv(ctx, o, 'rot') || 0;
+    const to = typeof ctx.args.by === 'number' ? cur + ctx.args.by : num(ctx.args.to, num(ctx.args.deg, cur + 90));
+    tw(ctx, o, 'rot', ctx.t0, dur, to, ease);
+    return dur;
+  };
+  H.spin = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const dur = durOf(ctx, DUR.normal);
+    const cur = cv(ctx, o, 'rot') || 0;
+    const dir = ctx.args.dir === 'ccw' || ctx.args.dir === -1 ? -1 : 1;
+    tw(ctx, o, 'rot', ctx.t0, dur, cur + dir * 360 * num(ctx.args.turns, 1), EASE.linear);
+    return dur;
+  };
+
+  H.color = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const to = ctx.args.to != null ? ctx.args.to : ctx.args.fill;
+    if (to == null) { ctx.rt.warn('color: missing "to"'); return 0; }
+    st(ctx, o, 'fill', ctx.t0, String(to)); // instant
+    return 0.02;
+  };
+  H.recolor = H.color;
+
+  // arc: a believable toss — tx eases across while ty rises to an apex and falls.
+  H.arc = ctx => {
+    const o = objOf(ctx); if (!o) return 0;
+    const dur = durOf(ctx, DUR.quick);
+    const to = STICK.resolvePoint(ctx.rt, ctx.args.to, ctx.t0);
+    if (!to) { ctx.rt.warn('arc: missing/unresolvable "to"'); return 0; }
+    const height = num(ctx.args.height, 15);
+    const tx0 = cv(ctx, o, 'tx'), ty0 = cv(ctx, o, 'ty');
+    const x0 = o.pivot.x + tx0, y0 = o.pivot.y + ty0;
+    tw(ctx, o, 'tx', ctx.t0, dur, to.x - o.pivot.x, EASE.linear);
+    const apexY = Math.min(y0, to.y) - Math.max(0, height);
+    tw(ctx, o, 'ty', ctx.t0, dur / 2, apexY - o.pivot.y, EASE.out);
+    tw(ctx, o, 'ty', ctx.t0 + dur / 2, dur / 2, to.y - o.pivot.y, EASE.in);
+    if (ctx.args.spin != null) {
+      const cur = cv(ctx, o, 'rot') || 0;
+      const dir = ctx.args.dir === 'ccw' || ctx.args.dir === -1 ? -1 : (to.x >= x0 ? 1 : -1);
+      tw(ctx, o, 'rot', ctx.t0, dur, cur + dir * 360 * num(ctx.args.spin, 1), EASE.linear);
+    }
+    return dur;
+  };
+
   STICK.commands = H;
 
   STICK.expandEvent = function (rt, ev, cur, inheritTarget, depth) {

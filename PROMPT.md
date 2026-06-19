@@ -14,6 +14,7 @@ The goal is clear cartoon storytelling, not realism. Prefer semantic commands
   "v": 1,
   "scene": { "theme": "blank" },
   "figures": [ ... ],
+  "objects": [ ... ],
   "clips": { ... },
   "timeline": [ ... ]
 }
@@ -164,6 +165,62 @@ Types: `rect` (x,y,w,h,fill,rx) · `circle` (cx,cy,r) · `ellipse` · `line` (x1
 
 Anchor references work anywhere a point is expected: `"board.write"`, `"sun.center"`,
 plus figure anchors: `"sam"` (feet), `"sam.head"`, `"sam.chest"`, `"sam.hand.right"`.
+
+## Objects (animatable props)
+
+For simple things that move, grow, spin, fade, or change colour — balls, boxes,
+signs, suns, props — use **objects**. They are NOT stick figures (no skeleton):
+just a shape you animate with a few verbs. Geometry is authored exactly like a
+scene element. List them at the top level in `"objects"`:
+
+```json
+"objects": [
+  { "id": "ball", "shape": "circle", "layer": "front",
+    "props": { "cx": 50, "cy": 40, "r": 3, "fill": "#e0533a" } }
+]
+```
+
+- `shape`: `circle` `rect` `ellipse` `line` `path` `text` (same props as scene elements).
+- `layer`: `back` `mid` `fig` `front` (default `front`).
+- `hidden: true` starts it invisible (then `appear`).
+- The object's pivot (centre of scale/rotation) is the shape's natural centre,
+  or set `"pivot": { "x": .., "y": .. }`.
+
+### Object commands (each needs `target`: an object id)
+
+| cmd | args | notes |
+|---|---|---|
+| `appear` / `disappear` | `dur` | fade in / out (opacity) |
+| `moveTo` | `{ "to": {x,y} or "anchor" }` | glide to a point (straight line) |
+| `arc` | `{ "to": ..., "height": 20, "spin": 1 }` | **toss**: a parabola up-and-over to a point; optional `spin` (turns). Use this for throwing/juggling/bouncing. |
+| `grow` / `shrink` | `{ "by": 1.5 }` | multiply current size |
+| `scale` | `{ "to": 2 }` | absolute size (1 = original) |
+| `rotate` | `{ "to": 90 }` or `{ "by": 45 }` | degrees |
+| `spin` | `{ "turns": 2, "dir": "cw\|ccw" }` | full turns |
+| `color` | `{ "to": "#3a86e0" }` | change fill (instant) |
+
+Objects honour the same timing (`at`, `dur`) and `playClip`/`repeat` as figures,
+and any object id works as a point reference (it tracks the moving object), e.g.
+`{ "cmd": "lookAt", "args": { "to": "ball" } }`.
+
+**Juggling pattern** — `arc` + a repeated clip + staggered starts:
+
+```json
+"objects": [
+  { "id": "b1", "shape": "circle", "props": { "cx": 46, "cy": 58, "r": 2.2, "fill": "#e0533a" } },
+  { "id": "b2", "shape": "circle", "props": { "cx": 54, "cy": 58, "r": 2.2, "fill": "#3a86e0" } }
+],
+"clips": {
+  "cycleL": [
+    { "cmd": "arc", "dur": "quick", "args": { "to": { "x": 54, "y": 58 }, "height": 22, "spin": 1 } },
+    { "cmd": "arc", "dur": "quick", "args": { "to": { "x": 46, "y": 58 }, "height": 22, "spin": 1 } }
+  ]
+},
+"timeline": [
+  { "at": 0.5, "target": "b1", "cmd": "playClip", "args": { "name": "cycleL", "repeat": 4 } },
+  { "at": 0.83, "target": "b2", "cmd": "playClip", "args": { "name": "cycleL", "repeat": 4 } }
+]
+```
 
 ## Style guide for good scenes
 

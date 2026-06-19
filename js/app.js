@@ -72,6 +72,13 @@
       const style = STICK.styles[fig.style] || STICK.styles.sketch;
       dom.figNodes.set(fig.id, { style, nodes: style.build(fig, dom.layers.fig) });
     }
+    dom.objNodes = new Map();
+    for (const obj of rt.objs.values()) {
+      const layer = dom.layers[obj.layer] || dom.layers.front;
+      const g = mk('g', {}, layer);
+      const shapeEl = STICK.drawSceneElement({ type: obj.shape, props: obj.props }, g, rt.scene.ink);
+      dom.objNodes.set(obj.id, { g, shapeEl, obj, lastFill: null });
+    }
     return dom;
   }
 
@@ -179,6 +186,19 @@
       Ps.set(fig.id, P);
       const entry = dom.figNodes.get(fig.id);
       entry.style.update(entry.nodes, P, t);
+    }
+    for (const obj of rt.objs.values()) {
+      const node = dom.objNodes && dom.objNodes.get(obj.id);
+      if (!node) continue;
+      const tx = rt.ch.get(obj.id + '.tx', t), ty = rt.ch.get(obj.id + '.ty', t);
+      const sc = rt.ch.getDef(obj.id + '.scale', t, 1), rot = rt.ch.get(obj.id + '.rot', t);
+      const op = rt.ch.getDef(obj.id + '.opacity', t, 1);
+      const px = obj.pivot.x, py = obj.pivot.y;
+      node.g.setAttribute('transform',
+        `translate(${tx.toFixed(3)} ${ty.toFixed(3)}) translate(${px} ${py}) rotate(${rot.toFixed(2)}) scale(${sc.toFixed(4)}) translate(${(-px)} ${(-py)})`);
+      node.g.setAttribute('opacity', op.toFixed(3));
+      const fill = rt.ch.getDef(obj.id + '.fill', t, null);
+      if (fill != null && fill !== node.lastFill) { node.shapeEl.setAttribute('fill', fill); node.lastFill = fill; }
     }
     drawOverlays(rt, dom, t, Ps);
 

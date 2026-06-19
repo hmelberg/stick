@@ -35,6 +35,51 @@
     return scene;
   };
 
+  /* ---------------- animatable objects (props) ----------------
+     Objects are simple shapes (no skeleton) that move/scale/rotate/fade/recolor
+     via channels objId.tx/.ty/.scale/.rot/.opacity/.fill. Geometry is authored
+     exactly like a scene element; the pivot is the shape's natural centre. */
+  const OBJ_SHAPES = ['circle', 'rect', 'ellipse', 'line', 'path', 'text'];
+
+  STICK.objectPivot = function (obj) {
+    const p = obj.props;
+    switch (obj.shape) {
+      case 'rect': return { x: num(p.x, 0) + num(p.w, 10) / 2, y: num(p.y, 0) + num(p.h, 10) / 2 };
+      case 'circle': return { x: num(p.cx, 0), y: num(p.cy, 0) };
+      case 'ellipse': return { x: num(p.cx, 0), y: num(p.cy, 0) };
+      case 'line': return { x: (num(p.x1, 0) + num(p.x2, 10)) / 2, y: (num(p.y1, 0) + num(p.y2, 10)) / 2 };
+      case 'text': return { x: num(p.x, 50), y: num(p.y, 50) };
+      default: return { x: num(p.cx, 50), y: num(p.cy, 50) }; // path: optional cx/cy hint
+    }
+  };
+
+  STICK.normalizeObject = function (raw, i, warn) {
+    raw = raw && typeof raw === 'object' ? raw : {};
+    const shape = raw.shape || raw.type;
+    if (!OBJ_SHAPES.includes(shape)) { warn(`object ${i} has unknown shape "${shape}" — skipped`); return null; }
+    const obj = {
+      id: String(raw.id || raw.name || 'obj' + i),
+      shape,
+      layer: ['back', 'mid', 'fig', 'front'].includes(raw.layer) ? raw.layer : 'front',
+      props: raw.props && typeof raw.props === 'object' ? { ...raw.props } : {},
+      hidden: !!raw.hidden,
+    };
+    obj.opacity = num(obj.props.opacity, 1);
+    obj.pivot = (raw.pivot && typeof raw.pivot === 'object' && typeof raw.pivot.x === 'number')
+      ? { x: raw.pivot.x, y: num(raw.pivot.y, 0) }
+      : STICK.objectPivot(obj);
+    return obj;
+  };
+
+  STICK.initObjectChannels = function (rt, obj) {
+    const ch = rt.ch, id = obj.id;
+    const set = (s, v) => ch.setBase(id + '.' + s, v);
+    set('tx', 0); set('ty', 0);
+    set('scale', 1); set('rot', 0);
+    set('opacity', obj.hidden ? 0 : obj.opacity);
+    set('fill', obj.props.fill != null ? obj.props.fill : null);
+  };
+
   function autoAnchor(el, name) {
     const p = el.props;
     if (el.type === 'rect') {
@@ -79,6 +124,12 @@
       if (rest[0] === 'foot') return { ...(rest[1] === 'left' ? P.world.footL : P.world.footR) };
       rt.warn(`unknown figure anchor "${ref}" — using position`);
       return { ...P.world.pos };
+    }
+
+    const obj = rt.objs && rt.objs.get(id);
+    if (obj) {
+      // an object resolves to its moving centre (pivot + translation at t)
+      return { x: obj.pivot.x + rt.ch.get(id + '.tx', t), y: obj.pivot.y + rt.ch.get(id + '.ty', t) };
     }
 
     const el = rt.scene.byId.get(id);
