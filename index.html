@@ -28,8 +28,8 @@
     overflow-y: auto;
   }
   .hidden { display: none !important; }
-  /* controls panel (below the stage) */
-  #left {
+  /* top bar (headline + animation picker) and controls panel both match the stage width */
+  #topbar, #left {
     width: 100%; max-width: 480px;
     display: flex; flex-direction: column; gap: 10px;
   }
@@ -136,6 +136,22 @@
 </style>
 </head>
 <body>
+  <div id="topbar">
+    <div id="titleRow">
+      <h1>stick<span class="tag">animation studio</span></h1>
+      <button id="btnLogin" class="subtle">Sign in</button>
+      <span id="userBox" class="hidden">
+        <span id="userEmail"></span>
+        <button id="btnLogout" class="subtle">Sign out</button>
+      </span>
+    </div>
+
+    <div class="row">
+      <select id="selExample" title="animations"></select>
+      <button id="btnDelete" class="subtle hidden" title="delete this saved animation">✕</button>
+    </div>
+  </div>
+
   <div id="right">
     <div id="stageWrap">
       <svg id="stage" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -158,20 +174,6 @@
   </div>
 
   <div id="left">
-    <div id="titleRow">
-      <h1>stick<span class="tag">animation studio</span></h1>
-      <button id="btnLogin" class="subtle">Sign in</button>
-      <span id="userBox" class="hidden">
-        <span id="userEmail"></span>
-        <button id="btnLogout" class="subtle">Sign out</button>
-      </span>
-    </div>
-
-    <div class="row">
-      <select id="selExample" title="animations"></select>
-      <button id="btnDelete" class="subtle hidden" title="delete this saved animation">✕</button>
-    </div>
-
     <div id="createPanel" class="hidden">
       <textarea id="createText" placeholder="Describe a scene… e.g. 'A bored student gets confused by a lecture, scratches his head, and shrugs.'"></textarea>
       <div class="row">
