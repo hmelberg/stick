@@ -308,7 +308,7 @@
       const name = v.slice(3);
       if (!confirm('Delete "' + name + '" from my animations?')) return;
       deleteMyAnim(name);
-      refreshDropdown('ex:' + Object.keys(STICK.examples)[0]);
+      refreshDropdown('ex:' + (STICK.examples.moonwalk ? 'moonwalk' : Object.keys(STICK.examples)[0]));
       loadSelection();
     });
 
@@ -337,6 +337,16 @@
       state.scrubbing = false;
     });
 
+    $('btnFull').addEventListener('click', () => {
+      const el = $('stageWrap');
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fsEl) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      } else {
+        (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+      }
+    });
+
     $('chkLoop').addEventListener('change', e => { state.loop = e.target.checked; });
     $('selSpeed').addEventListener('change', e => { state.speed = Number(e.target.value); });
 
@@ -350,7 +360,8 @@
     // ?ex=name&t=seconds opens an example paused at a moment — handy for debugging
     const q = new URLSearchParams(location.search);
     const exName = q.get('ex');
-    sel.value = exName && STICK.examples[exName] ? 'ex:' + exName : 'ex:' + Object.keys(STICK.examples)[0];
+    const defaultEx = STICK.examples.moonwalk ? 'moonwalk' : Object.keys(STICK.examples)[0];
+    sel.value = exName && STICK.examples[exName] ? 'ex:' + exName : 'ex:' + defaultEx;
     loadSelection();
     if (q.has('t') && state.rt) {
       state.t = Math.min(state.rt.duration, Math.max(0, parseFloat(q.get('t')) || 0));

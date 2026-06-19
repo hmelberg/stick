@@ -100,6 +100,41 @@
       ],
     },
 
+    'John Cleese silly walks': {
+      v: 1,
+      scene: { theme: 'street' },
+      figures: [
+        { id: 'mr', archetype: ['man'], hat: 'fedora', pos: { x: 14, y: 70 }, mood: 'neutral' },
+        { id: 'clerk', archetype: ['woman'], pos: { x: 90, y: 70 }, facing: 'left', mood: 'neutral' },
+      ],
+      clips: {
+        // one full silly stride: a straight-legged high kick on each side,
+        // stiff arms swinging opposite, torso held bolt upright
+        silly: [
+          { cmd: 'joints', dur: 'fast', ease: 'backOut', args: { hipL: 122, kneeL: 0, shoulderR: 72, elbowR: 0, shoulderL: -28, elbowL: 0 } },
+          { at: '<', cmd: 'pose.tween', dur: 'fast', args: { bend: -0.07, headTilt: -0.05 } },
+          { cmd: 'joints', dur: 'fast', args: { hipL: 0, kneeL: 0, shoulderR: 0, shoulderL: 0 } },
+          { cmd: 'joints', dur: 'fast', ease: 'backOut', args: { hipR: 122, kneeR: 0, shoulderL: 72, elbowL: 0, shoulderR: -28, elbowR: 0 } },
+          { cmd: 'joints', dur: 'fast', args: { hipR: 0, kneeR: 0, shoulderL: 0, shoulderR: 0 } },
+        ],
+      },
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'The Ministry of Silly Walks', dur: 'slow' } },
+        { at: 0, target: 'mr', cmd: 'move', dur: 'normal', args: { style: 'walk', to: { x: 30, y: 70 } } },
+        { target: 'mr', cmd: 'say', args: { text: 'Good morning. I have a silly walk.' } },
+        { cmd: 'scene.caption', args: { text: 'He would like it subsidised.', dur: 'normal' } },
+        // travels across while performing the walk — move and clip run together,
+        // so the kicks layer on top of the gait
+        { target: 'mr', cmd: 'move', dur: 'verySlow', args: { style: 'walk', to: { x: 72, y: 70 } } },
+        { at: '<', target: 'mr', cmd: 'playClip', args: { name: 'silly', repeat: 3 } },
+        { at: '<+normal', target: 'clerk', cmd: 'mood', args: { name: 'surprised' } },
+        { at: '<', target: 'clerk', cmd: 'emote', args: { symbol: '!' } },
+        { target: 'clerk', cmd: 'say', args: { text: 'That is a very silly walk.' } },
+        { at: '<', target: 'mr', cmd: 'playClip', args: { name: 'bow' } },
+        { cmd: 'scene.caption', args: { text: 'Funding approved.', dur: 'slow' } },
+      ],
+    },
+
     'naptime': {
       v: 1,
       scene: { theme: 'bedroom' },
