@@ -590,6 +590,74 @@
     return dur;
   };
 
+  /* ------------------------------ boards ------------------------------
+     Write markdown to a panel; the board module lays it out and reveals it with
+     a handwriting wipe at render time. compile only records the blocks (+ an
+     approximate hand animation when a figure is named via `by`). */
+  function boardOf(ctx) {
+    const rt = ctx.rt;
+    if (ctx.targetId != null) {
+      const b = rt.boards.get(String(ctx.targetId));
+      if (b) return b;
+      rt.warn(`unknown board target "${ctx.targetId}" for cmd "${ctx.ev.cmd}"`);
+      return null;
+    }
+    if (rt.boards.size === 1) return rt.boards.values().next().value;
+    rt.warn(`cmd "${ctx.ev.cmd}" needs a board target`);
+    return null;
+  }
+
+  // Approximate "the professor writes": sweep the writing hand across the board's
+  // area over the block duration (IK clamps the reach, so it reads as gesturing
+  // at the board even from a distance). Not glyph-accurate by design.
+  function writeHandSync(ctx, fig, board, t0, dur) {
+    const rt = ctx.rt, r = board.rect, pad = board.pad;
+    const figX = rt.ch.get(fig.id + '.x', t0);
+    st(ctx, fig, 'facing', t0, (r.x + r.w / 2) < figX ? -1 : 1);
+    const x0 = r.x + pad, x1 = r.x + r.w - pad;
+    const yTop = r.y + pad + 3, yBot = Math.min(r.y + r.h - pad, r.y + pad + Math.max(8, dur * 4));
+    const strokes = Math.max(3, Math.min(16, Math.round(dur / 0.45)));
+    const seg = dur / strokes;
+    const P = STICK.computeFigure(rt, fig, t0);
+    st(ctx, fig, 'reachRx', t0, P.world.handR.x);
+    st(ctx, fig, 'reachRy', t0, P.world.handR.y);
+    for (let k = 0; k <= strokes; k++) {
+      const tk = t0 + seg * k;
+      const x = x0 + (x1 - x0) * ((k % 4) / 3);
+      const y = yTop + (yBot - yTop) * (k / strokes);
+      tw(ctx, fig, 'reachRx', tk, seg, x, EASE.inOut);
+      tw(ctx, fig, 'reachRy', tk, seg, y, EASE.inOut);
+      tw(ctx, fig, 'reachRon', tk, Math.min(0.2, seg), 1, EASE.inOut);
+    }
+    tw(ctx, fig, 'reachRon', t0 + dur, 0.3, 0, EASE.inOut);
+  }
+
+  H['board.write'] = ctx => {
+    const board = boardOf(ctx); if (!board) return 0;
+    const md = String(ctx.args.md != null ? ctx.args.md : ctx.args.text != null ? ctx.args.text : '');
+    if (!md) { ctx.rt.warn('board.write: missing "md"'); return 0; }
+    const chars = md.replace(/\s+/g, ' ').trim().length;
+    const dur = durOf(ctx, clamp(chars / 12, 1.2, 30));
+    board.blocks.push({ kind: 'write', t0: ctx.t0, dur, md });
+    const by = ctx.ev.by != null ? ctx.ev.by : ctx.args.by;
+    if (by != null) {
+      const fig = ctx.rt.figs.get(String(by));
+      if (fig) writeHandSync(ctx, fig, board, ctx.t0, dur);
+      else ctx.rt.warn(`board.write by "${by}": no such figure`);
+    }
+    return dur;
+  };
+  H['board.clear'] = ctx => {
+    const board = boardOf(ctx); if (!board) return 0;
+    board.blocks.push({ kind: 'clear', t0: ctx.t0 });
+    return durOf(ctx, 0.02);
+  };
+  H['board.erase'] = ctx => {
+    const board = boardOf(ctx); if (!board) return 0;
+    board.blocks.push({ kind: 'erase', t0: ctx.t0, n: Math.max(1, Math.round(num(ctx.args.lines, 1))) });
+    return durOf(ctx, 0.3);
+  };
+
   STICK.commands = H;
 
   STICK.expandEvent = function (rt, ev, cur, inheritTarget, depth) {

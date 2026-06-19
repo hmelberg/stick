@@ -226,6 +226,42 @@ and any object id works as a point reference (it tracks the moving object), e.g.
 ]
 ```
 
+## Boards (writing on a blackboard / whiteboard)
+
+For a character that teaches, presents, or writes things down, use a **board** — a
+styled panel you write markdown to. Text is laid out, wrapped, and revealed with a
+left-to-right handwriting "wipe", and auto-scrolls up when it overflows. Define
+boards at the top level in `"boards"`:
+
+```json
+"boards": [
+  { "id": "bb", "rect": { "x": 5, "y": 6, "w": 56, "h": 60 }, "style": "chalk" }
+]
+```
+
+- `style`: `chalk` (dark board, light text — default) | `marker` (white board, dark text).
+- Optional: `bg`, `color` (text/chalk colour), `font` (`handwriting` default | `clean` | `mono` | any family), `fontSize` (default 3.2), `pad`, `frame: false`, `layer`.
+- Defaults give a large chalkboard, so `rect` is optional.
+
+### Board commands (target an object/board id)
+
+| cmd | args | notes |
+|---|---|---|
+| `board.write` | `{ "md": "..." }`, plus optional `"by": "figId"` | Write markdown. With `by`, that figure's hand animates as if writing (stand it near the board). `dur` sets writing speed (auto from length otherwise). |
+| `board.clear` | — | wipe the board and start fresh at the top |
+| `board.erase` | `{ "lines": 2 }` | erase the last N written lines |
+
+Markdown subset: `# Heading`, `## Subheading`, `**bold**`, `*italic*`, `__underline__`,
+`- bullet`, blank line = gap, `---` = divider. Put a real newline (`\n`) between lines.
+A board id is also a point reference (`"bb"`, `"bb.center"`, `"bb.tr"`) for `camera`/`reachTo`.
+
+Example — a professor teaching:
+
+```json
+{ "at": 0, "target": "bb", "cmd": "board.write", "by": "prof", "dur": "slow",
+  "args": { "md": "# Supply & Demand\n\n- Price on the **Y** axis\n- They meet at __equilibrium__." } }
+```
+
 ## Style guide for good scenes
 
 1. Open with a `scene.caption` to set context; keep total length ~10–30 s.

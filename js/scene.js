@@ -132,6 +132,14 @@
       return { x: obj.pivot.x + rt.ch.get(id + '.tx', t), y: obj.pivot.y + rt.ch.get(id + '.ty', t) };
     }
 
+    const board = rt.boards && rt.boards.get(id);
+    if (board) {
+      const r = board.rect;
+      const a = { center: [r.x + r.w / 2, r.y + r.h / 2], tl: [r.x, r.y], tr: [r.x + r.w, r.y], bl: [r.x, r.y + r.h], br: [r.x + r.w, r.y + r.h] };
+      const p = a[rest[0]] || a.center;
+      return { x: p[0], y: p[1] };
+    }
+
     const el = rt.scene.byId.get(id);
     if (el) {
       const name = rest[0] || 'center';

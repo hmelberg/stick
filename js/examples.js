@@ -170,6 +170,26 @@
       ],
     },
 
+    'lecture': {
+      v: 1,
+      scene: { theme: 'blank' },
+      boards: [
+        { id: 'bb', rect: { x: 5, y: 6, w: 56, h: 60 }, style: 'chalk' },
+      ],
+      figures: [
+        { id: 'prof', character: 'professor', pos: { x: 76, y: 70 }, facing: 'left' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Econ 101', dur: 'normal' } },
+        { at: 0, target: 'bb', cmd: 'board.write', by: 'prof', dur: 'slow', args: { md: '# Supply & Demand\n\n- Price on the **Y** axis\n- Quantity on the **X** axis' } },
+        { target: 'prof', cmd: 'say', args: { text: 'Two curves, one story.' } },
+        { target: 'bb', cmd: 'board.write', by: 'prof', dur: 'slow', args: { md: 'They meet at __equilibrium__.' } },
+        { at: '<', target: 'prof', cmd: 'playClip', args: { name: 'nod' } },
+        { target: 'prof', cmd: 'say', args: { text: 'Any questions?' } },
+        { cmd: 'scene.caption', args: { text: 'Class dismissed.', dur: 'slow' } },
+      ],
+    },
+
     'naptime': {
       v: 1,
       scene: { theme: 'bedroom' },

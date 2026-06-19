@@ -200,6 +200,11 @@
       const shapeEl = STICK.drawSceneElement({ type: obj.shape, props: obj.props }, g, rt.scene.ink);
       dom.objNodes.set(obj.id, { g, shapeEl, obj, lastFill: null });
     }
+    dom.boardNodes = new Map();
+    for (const board of rt.boards.values()) {
+      const layer = dom.layers[board.layer] || dom.layers.mid;
+      dom.boardNodes.set(board.id, STICK.buildBoard(board, layer, svg));
+    }
     return dom;
   }
 
@@ -320,6 +325,10 @@
       node.g.setAttribute('opacity', op.toFixed(3));
       const fill = rt.ch.getDef(obj.id + '.fill', t, null);
       if (fill != null && fill !== node.lastFill) { node.shapeEl.setAttribute('fill', fill); node.lastFill = fill; }
+    }
+    if (dom.boardNodes) for (const board of rt.boards.values()) {
+      const node = dom.boardNodes.get(board.id);
+      if (node) STICK.updateBoard(node, t);
     }
     drawOverlays(rt, dom, t, Ps);
 

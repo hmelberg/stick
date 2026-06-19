@@ -10,6 +10,7 @@ load('engine.js');
 load('figure.js');
 load('styles.js');
 load('scene.js');
+load('board.js');
 load('commands.js');
 load('examples.js');
 
