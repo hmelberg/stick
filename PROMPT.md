@@ -240,7 +240,8 @@ boards at the top level in `"boards"`:
 ```
 
 - `style`: `chalk` (dark board, light text — default) | `marker` (white board, dark text).
-- Optional: `bg`, `color` (text/chalk colour), `font` (`handwriting` default | `clean` | `mono` | any family), `fontSize` (default 3.2), `pad`, `frame: false`, `layer`.
+- Optional: `bg`, `color` (text/chalk colour), `font` (`handwriting` default | `clean` | `mono` | any family), `fontSize` (default 3.2), `pad`, `frame: false`, `layer`, `hand: true`.
+- A **chalk hand** that holds the chalk and tracks the exact point being written/drawn appears automatically when a `board.write`/`board.draw` names a writer via `by` (or set `hand: true` for a writer with no figure). Stand the named figure next to the board.
 - Defaults give a large chalkboard, so `rect` is optional.
 
 ### Board commands (target an object/board id)

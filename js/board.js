@@ -37,6 +37,7 @@
       font: FONTS[raw.font] || raw.font || FONTS.handwriting,
       fontSize: num(raw.fontSize, 3.2),
       pad: num(raw.pad, 2.5),
+      hand: !!raw.hand, // show a chalk-holding hand that tracks the write/draw point
       blocks: [], // {kind:'write', t0, dur, md, by} | {kind:'clear', t0} | {kind:'erase', t0, n}
     };
   };
@@ -79,6 +80,26 @@
     if (parent) parent.appendChild(el);
     return el;
   };
+
+  // A small hand holding chalk, with the chalk TIP at the local origin (0,0) so
+  // translating the group to a point puts the tip exactly there.
+  function buildChalkHand(board, parent) {
+    const g = mk('g', {}, parent);
+    mk('line', { x1: 0, y1: 0, x2: 1.7, y2: -1.6, stroke: board.style === 'marker' ? '#444' : board.color, 'stroke-width': 0.9, 'stroke-linecap': 'round' }, g);
+    mk('ellipse', { cx: 2.8, cy: -2.6, rx: 1.7, ry: 1.2, fill: '#cda072', stroke: '#5b4a36', 'stroke-width': 0.18 }, g);
+    mk('rect', { x: 3.4, y: -2.4, width: 1.8, height: 1.5, rx: 0.5, fill: '#6f6088', stroke: '#5b4a36', 'stroke-width': 0.18, transform: 'rotate(30 3.4 -2.4)' }, g);
+    g.style.display = 'none';
+    return g;
+  }
+
+  // The point the chalk tip should sit at for a line at reveal fraction `frac`.
+  function writePoint(ln, frac) {
+    if (ln.kind === 'stroke' && ln.el.getPointAtLength) {
+      try { const p = ln.el.getPointAtLength(ln.len * frac); return { x: p.x, y: p.y }; } catch (e) { return null; }
+    }
+    if (ln.kind === 'dot') return { x: ln.cx, y: ln.cy };
+    return { x: ln.x + (ln.width || 0) * frac, y: ln.baseY != null ? ln.baseY : ln.yBottom };
+  }
 
   function sizeOf(board, type) {
     return type === 'h1' ? board.fontSize * 1.7 : type === 'h2' ? board.fontSize * 1.3 : board.fontSize;
@@ -163,12 +184,12 @@
           const fs = size || board.fontSize * 0.78;
           const el = mk('text', { x, y, 'font-family': board.font, 'font-size': fs, fill: board.color }, contentG);
           el.textContent = String(text); el.style.display = 'none';
-          items.push({ el, kind: 'label', width: measure(String(text), fs, false, false) || 2, x });
+          items.push({ el, kind: 'label', width: measure(String(text), fs, false, false) || 2, x, baseY: y });
         };
         const addDot = (x, y, color) => {
           const el = mk('circle', { cx: x, cy: y, r: 0.9, fill: color || board.color }, contentG);
           el.style.display = 'none';
-          items.push({ el, kind: 'dot' });
+          items.push({ el, kind: 'dot', cx: x, cy: y });
         };
         for (const sh of block.shapes) {
           const ty = sh.t || (sh.axes ? 'axes' : sh.dot ? 'dot' : sh.line ? 'line' : sh.label ? 'label' : 'curve');
@@ -247,16 +268,17 @@
           }
         }
         el.style.display = 'none';
-        lines.push({ el, hr: !!vl.hr, revStart, revEnd, yBottom: yTop + vl.lineH, hideAt: null, x, width: vl.hr ? innerW : (vl.width || 0.001) });
+        lines.push({ el, hr: !!vl.hr, revStart, revEnd, yBottom: yTop + vl.lineH, hideAt: null, x, baseY, width: vl.hr ? innerW : (vl.width || 0.001) });
       }
     }
     svg.removeChild(meas);
-    return { board, lines, contentG, innerH };
+    const hand = (board.hand || board._hand) ? buildChalkHand(board, contentG) : null;
+    return { board, lines, contentG, innerH, hand };
   };
 
   STICK.updateBoard = function (node, t) {
     const lines = node.lines;
-    let maxBottom = 0;
+    let maxBottom = 0, active = null, activeFrac = 0;
     for (const ln of lines) {
       const visible = t >= ln.revStart && (ln.hideAt == null || t < ln.hideAt);
       if (!visible) { ln.el.style.display = 'none'; continue; }
@@ -267,7 +289,13 @@
       else if (ln.hr) ln.el.setAttribute('x2', (ln.x + ln.width * frac).toFixed(2));
       else ln.el.style.clipPath = frac >= 1 ? 'none' : `inset(-20% ${((1 - frac) * 100).toFixed(2)}% -20% 0)`;
       if (ln.yBottom > maxBottom) maxBottom = ln.yBottom;
+      if (frac > 0 && frac < 1 && (!active || ln.revStart >= active.revStart)) { active = ln; activeFrac = frac; }
     }
     node.contentG.setAttribute('transform', `translate(0 ${(-Math.max(0, maxBottom - node.innerH)).toFixed(2)})`);
+    if (node.hand) {
+      const p = active ? writePoint(active, activeFrac) : null;
+      if (p) { node.hand.style.display = ''; node.hand.setAttribute('transform', `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})`); }
+      else node.hand.style.display = 'none';
+    }
   };
 })();

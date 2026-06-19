@@ -177,7 +177,7 @@
         { id: 'bb', rect: { x: 5, y: 6, w: 56, h: 60 }, style: 'chalk' },
       ],
       figures: [
-        { id: 'prof', character: 'professor', pos: { x: 76, y: 70 }, facing: 'left' },
+        { id: 'prof', character: 'professor', pos: { x: 70, y: 70 }, facing: 'left' },
       ],
       timeline: [
         { at: 0, cmd: 'scene.caption', args: { text: 'Econ 101', dur: 'normal' } },
@@ -199,7 +199,7 @@
         { id: 'wb', rect: { x: 6, y: 6, w: 58, h: 60 }, style: 'marker' },
       ],
       figures: [
-        { id: 'lee', archetype: ['woman'], pos: { x: 78, y: 70 }, facing: 'left', mood: 'happy' },
+        { id: 'lee', archetype: ['woman'], pos: { x: 72, y: 70 }, facing: 'left', mood: 'happy' },
       ],
       timeline: [
         { at: 0, cmd: 'scene.caption', args: { text: 'Monday standup', dur: 'normal' } },

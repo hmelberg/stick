@@ -607,27 +607,26 @@
     return null;
   }
 
-  // Approximate "the professor writes": sweep the writing hand across the board's
-  // area over the block duration (IK clamps the reach, so it reads as gesturing
-  // at the board even from a distance). Not glyph-accurate by design.
+  // The chalk hand (board.js) does the precise writing; here we just give the
+  // figure a "writing posture" — face the board and aim its arm at the board edge
+  // nearest it, drifting down a little as the block proceeds. IK clamps the reach.
   function writeHandSync(ctx, fig, board, t0, dur) {
     const rt = ctx.rt, r = board.rect, pad = board.pad;
     const figX = rt.ch.get(fig.id + '.x', t0);
-    st(ctx, fig, 'facing', t0, (r.x + r.w / 2) < figX ? -1 : 1);
-    const x0 = r.x + pad, x1 = r.x + r.w - pad;
-    const yTop = r.y + pad + 3, yBot = Math.min(r.y + r.h - pad, r.y + pad + Math.max(8, dur * 4));
-    const strokes = Math.max(3, Math.min(16, Math.round(dur / 0.45)));
-    const seg = dur / strokes;
+    const fromRight = figX > r.x + r.w / 2;
+    st(ctx, fig, 'facing', t0, fromRight ? -1 : 1);
+    const tx = fromRight ? r.x + r.w - pad : r.x + pad;
+    const yTop = r.y + pad + 4, yBot = Math.min(r.y + r.h - pad, r.y + pad + Math.max(10, dur * 3));
+    const steps = Math.max(2, Math.min(8, Math.round(dur / 0.8)));
+    const seg = dur / steps;
     const P = STICK.computeFigure(rt, fig, t0);
     st(ctx, fig, 'reachRx', t0, P.world.handR.x);
     st(ctx, fig, 'reachRy', t0, P.world.handR.y);
-    for (let k = 0; k <= strokes; k++) {
+    for (let k = 0; k <= steps; k++) {
       const tk = t0 + seg * k;
-      const x = x0 + (x1 - x0) * ((k % 4) / 3);
-      const y = yTop + (yBot - yTop) * (k / strokes);
-      tw(ctx, fig, 'reachRx', tk, seg, x, EASE.inOut);
-      tw(ctx, fig, 'reachRy', tk, seg, y, EASE.inOut);
-      tw(ctx, fig, 'reachRon', tk, Math.min(0.2, seg), 1, EASE.inOut);
+      tw(ctx, fig, 'reachRx', tk, seg, tx + (k % 2 ? -1.5 : 1.5), EASE.inOut);
+      tw(ctx, fig, 'reachRy', tk, seg, yTop + (yBot - yTop) * (k / steps), EASE.inOut);
+      tw(ctx, fig, 'reachRon', tk, Math.min(0.25, seg), 1, EASE.inOut);
     }
     tw(ctx, fig, 'reachRon', t0 + dur, 0.3, 0, EASE.inOut);
   }
@@ -641,6 +640,7 @@
     board.blocks.push({ kind: 'write', t0: ctx.t0, dur, md });
     const by = ctx.ev.by != null ? ctx.ev.by : ctx.args.by;
     if (by != null) {
+      board._hand = true;
       const fig = ctx.rt.figs.get(String(by));
       if (fig) writeHandSync(ctx, fig, board, ctx.t0, dur);
       else ctx.rt.warn(`board.write by "${by}": no such figure`);
@@ -669,6 +669,7 @@
     board.blocks.push({ kind: 'draw', t0: ctx.t0, dur, shapes, size: num(a.size, 0) });
     const by = ctx.ev.by != null ? ctx.ev.by : a.by;
     if (by != null) {
+      board._hand = true;
       const fig = ctx.rt.figs.get(String(by));
       if (fig) writeHandSync(ctx, fig, board, ctx.t0, dur);
       else ctx.rt.warn(`board.draw by "${by}": no such figure`);
