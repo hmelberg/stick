@@ -249,9 +249,17 @@ boards at the top level in `"boards"`:
 | cmd | args | notes |
 |---|---|---|
 | `board.write` | `{ "md": "..." }`, plus optional `"by": "figId"` | Write markdown. With `by`, that figure's hand animates as if writing (stand it near the board). `dur` sets writing speed (auto from length otherwise). |
-| `board.draw` | `{ "chart": "supply-demand", "xlabel": "...", "ylabel": "..." }` or `{ "shapes": [...] }` | draw a diagram, animated stroke-by-stroke. `by` and `dur` work like `board.write`. |
+| `board.draw` | `{ "chart": "supply-demand", "xlabel": "...", "ylabel": "..." }` or `{ "shapes": [...] }` | draw a diagram, animated stroke-by-stroke. `by` and `dur` work like `board.write`. Shapes/preset parts can take an `id` for highlighting. |
+| `board.highlight` | `{ "target": "demand", "color": "yellow", "dur": 3 }` | circle an element (by `id`) or a written word while talking about it; holds `dur` seconds then fades (`hold: true` keeps it). |
+| `board.unhighlight` | — | remove current highlights |
 | `board.clear` | — | wipe the board and start fresh at the top |
 | `board.erase` | `{ "lines": 2 }` | erase the last N written lines |
+
+**Coloured words:** inline `{colour|text}` anywhere in markdown — named (`red orange amber yellow green teal blue sky purple pink white black`) or hex, e.g. `# {amber|Supply} & {sky|Demand}`. A board `accent` colour auto-colours all headings.
+
+**Highlighting:** the `supply-demand` preset auto-names its parts `axes`, `demand`, `supply`, `equilibrium`, so `board.highlight { target: "demand" }` works immediately. For custom shapes add `"id"`. Pairs naturally with speech: `say "demand slopes down"` + `board.highlight { target: "demand" }` (use `"at": "<"` to do both at once).
+
+**Zoom to the board:** `camera.focus { on: "bb" }` zooms/pans so the board fills the frame; `camera.reset` returns to the whole scene.
 
 ### Drawing diagrams (`board.draw`)
 

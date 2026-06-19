@@ -455,6 +455,35 @@
     return dur;
   };
 
+  // Zoom/pan so a board (or any point) fills the frame; reset returns to the scene.
+  H['camera.focus'] = ctx => {
+    const dur = durOf(ctx, DUR.slow);
+    const a = ctx.args;
+    const id = a.on != null ? a.on : a.target != null ? a.target : a.to;
+    const board = id != null ? ctx.rt.boards.get(String(id)) : null;
+    let cx, cy, z;
+    if (board) {
+      const r = board.rect, pad = num(a.pad, 6);
+      cx = r.x + r.w / 2; cy = r.y + r.h / 2;
+      z = clamp((100 - 2 * pad) / Math.max(r.w, r.h), 0.2, 8);
+    } else {
+      const p = STICK.resolvePoint(ctx.rt, id, ctx.t0);
+      if (!p) { ctx.rt.warn('camera.focus: missing/unresolvable "on"'); return 0; }
+      cx = p.x; cy = p.y; z = clamp(num(a.scale, 2), 0.2, 8);
+    }
+    ctx.rt.ch.tween('cam.z', ctx.t0, dur, z, EASE.inOut);
+    ctx.rt.ch.tween('cam.x', ctx.t0, dur, cx, EASE.inOut);
+    ctx.rt.ch.tween('cam.y', ctx.t0, dur, cy, EASE.inOut);
+    return dur;
+  };
+  H['camera.reset'] = ctx => {
+    const dur = durOf(ctx, DUR.slow);
+    ctx.rt.ch.tween('cam.z', ctx.t0, dur, 1, EASE.inOut);
+    ctx.rt.ch.tween('cam.x', ctx.t0, dur, 50, EASE.inOut);
+    ctx.rt.ch.tween('cam.y', ctx.t0, dur, 50, EASE.inOut);
+    return dur;
+  };
+
   /* ------------------------------ structure ------------------------------ */
   H.wait = ctx => durOf(ctx, DUR.normal);
   H.pause = H.wait;
@@ -654,10 +683,10 @@
     if (Array.isArray(a.shapes)) shapes = a.shapes;
     else if (a.chart === 'supply-demand' || a.chart === 'supply/demand' || a.chart === 'sd') {
       shapes = [
-        { t: 'axes', xlabel: a.xlabel || 'Quantity', ylabel: a.ylabel || 'Price' },
-        { t: 'curve', from: [0.08, 0.85], to: [0.9, 0.12], label: a.demandLabel || 'D', color: a.demandColor },
-        { t: 'curve', from: [0.08, 0.12], to: [0.9, 0.85], label: a.supplyLabel || 'S', color: a.supplyColor },
-        { t: 'dot', at: [0.49, 0.49], label: a.eqLabel != null ? a.eqLabel : 'E' },
+        { t: 'axes', id: 'axes', xlabel: a.xlabel || 'Quantity', ylabel: a.ylabel || 'Price' },
+        { t: 'curve', id: 'demand', from: [0.08, 0.85], to: [0.9, 0.12], label: a.demandLabel || 'D', color: a.demandColor },
+        { t: 'curve', id: 'supply', from: [0.08, 0.12], to: [0.9, 0.85], label: a.supplyLabel || 'S', color: a.supplyColor },
+        { t: 'dot', id: 'equilibrium', at: [0.49, 0.49], label: a.eqLabel != null ? a.eqLabel : 'E' },
       ];
     } else if (a.axes) {
       shapes = [{ t: 'axes', xlabel: a.xlabel, ylabel: a.ylabel }];
@@ -675,6 +704,25 @@
       else ctx.rt.warn(`board.draw by "${by}": no such figure`);
     }
     return dur;
+  };
+  // Circle/box an element or word while the speaker talks about it. Reveals fast,
+  // holds for `dur` (or until unhighlight/clear if hold), then disappears.
+  H['board.highlight'] = ctx => {
+    const board = boardOf(ctx); if (!board) return 0;
+    const a = ctx.args;
+    const target = a.target != null ? a.target : a.on != null ? a.on : a.word != null ? a.word : a.id;
+    if (target == null) { ctx.rt.warn('board.highlight: missing "target"'); return 0; }
+    const drawDur = 0.6;
+    const stay = a.hold ? null : durOf(ctx, 3);
+    board.blocks.push({ kind: 'highlight', t0: ctx.t0, drawDur, stay, dur: drawDur + (stay == null ? 2 : stay), target: String(target), color: a.color, style: a.style || 'ring' });
+    const by = ctx.ev.by != null ? ctx.ev.by : a.by;
+    if (by != null) { board._hand = true; const fig = ctx.rt.figs.get(String(by)); if (fig) writeHandSync(ctx, fig, board, ctx.t0, Math.min(drawDur + 0.4, 1.2)); }
+    return drawDur;
+  };
+  H['board.unhighlight'] = ctx => {
+    const board = boardOf(ctx); if (!board) return 0;
+    board.blocks.push({ kind: 'unhighlight', t0: ctx.t0 });
+    return durOf(ctx, 0.02);
   };
   H['board.clear'] = ctx => {
     const board = boardOf(ctx); if (!board) return 0;

@@ -21,6 +21,20 @@
     mono: 'Consolas, monospace',
   };
 
+  // chalk-friendly named colours; hex passes through, as do raw CSS colour names.
+  const COLORS = {
+    red: '#e0533a', orange: '#e08a3a', amber: '#e0b13a', yellow: '#ecd35a',
+    green: '#5fae6b', teal: '#4fb0a0', blue: '#3a86e0', sky: '#7bb8ec',
+    purple: '#9b6fd0', pink: '#e07ab0', gray: '#9aa0a8', grey: '#9aa0a8',
+    white: '#f3efe6', black: '#23303a',
+  };
+  function resolveColor(c) {
+    if (!c) return null;
+    c = String(c);
+    return c[0] === '#' ? c : (COLORS[c.toLowerCase()] || c);
+  }
+  STICK.resolveBoardColor = resolveColor;
+
   STICK.normalizeBoard = function (raw, i, warn) {
     raw = raw && typeof raw === 'object' ? raw : {};
     const style = STYLES[raw.style] ? raw.style : 'chalk';
@@ -32,7 +46,8 @@
       layer: ['back', 'mid', 'fig', 'front'].includes(raw.layer) ? raw.layer : 'mid',
       rect: { x: num(r.x, 6), y: num(r.y, 6), w: num(r.w, 60), h: num(r.h, 58) },
       bg: raw.bg || s.bg,
-      color: raw.color || raw.ink || s.color,
+      color: resolveColor(raw.color || raw.ink) || s.color,
+      accent: raw.accent ? resolveColor(raw.accent) : null,
       frame: raw.frame === false ? null : (raw.frameColor || s.frame),
       font: FONTS[raw.font] || raw.font || FONTS.handwriting,
       fontSize: num(raw.fontSize, 3.2),
@@ -48,6 +63,15 @@
     let i = 0, bold = false, italic = false, underline = false, buf = '';
     const push = () => { if (buf) { segs.push({ text: buf, bold, italic, underline }); buf = ''; } };
     while (i < text.length) {
+      // {colour|text} colour span (no nested styling inside)
+      if (text[i] === '{') {
+        const close = text.indexOf('}', i), bar = text.indexOf('|', i);
+        if (close > i && bar > i && bar < close) {
+          push();
+          segs.push({ text: text.slice(bar + 1, close), bold, italic, underline, color: resolveColor(text.slice(i + 1, bar).trim()) });
+          i = close + 1; continue;
+        }
+      }
       if (text.startsWith('**', i)) { push(); bold = !bold; i += 2; continue; }
       if (text.startsWith('__', i)) { push(); underline = !underline; i += 2; continue; }
       if (text[i] === '*') { push(); italic = !italic; i += 1; continue; }
@@ -111,11 +135,12 @@
     const heavy = para.type === 'h1' || para.type === 'h2';
     const indent = para.type === 'li' ? board.fontSize * 1.4 : 0;
     const avail = innerW - indent;
+    const defColor = (para.type === 'h1' || para.type === 'h2') ? board.accent : null;
     const tokens = [];
     for (const seg of para.segs) {
       for (const w of seg.text.split(/(\s+)/)) {
         if (!w.length) continue;
-        tokens.push({ text: w, space: /^\s+$/.test(w), bold: heavy || seg.bold, italic: seg.italic, underline: seg.underline });
+        tokens.push({ text: w, space: /^\s+$/.test(w), bold: heavy || seg.bold, italic: seg.italic, underline: seg.underline, color: seg.color || defColor });
       }
     }
     const spaceW = measure(' ', size, false, false);
@@ -166,6 +191,35 @@
         }
         continue;
       }
+      if (block.kind === 'unhighlight') {
+        for (const ln of lines) if (ln.highlight && ln.hideAt == null) ln.hideAt = block.t0;
+        continue;
+      }
+      if (block.kind === 'highlight') {
+        const tgt = block.target.toLowerCase();
+        let match = null;
+        for (const ln of lines) { if (ln.hideAt == null && ln.id && ln.id.toLowerCase() === tgt) { match = ln; break; } }
+        if (!match) {
+          for (const ln of lines) {
+            if (ln.hideAt != null || ln.kind === 'stroke' || ln.kind === 'dot' || !ln.el.textContent) continue;
+            if (ln.el.textContent.toLowerCase().indexOf(tgt) >= 0) { match = ln; break; }
+          }
+        }
+        if (!match) continue;
+        const wasHidden = match.el.style.display === 'none';
+        if (wasHidden) match.el.style.display = '';
+        let bb = null; try { bb = match.el.getBBox(); } catch (e) {}
+        if (wasHidden) match.el.style.display = 'none';
+        if (!bb || !bb.width) continue;
+        const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
+        const el = mk('ellipse', { cx, cy, rx: bb.width / 2 + 2.4, ry: bb.height / 2 + 2.0, fill: 'none', stroke: resolveColor(block.color) || '#ecd35a', 'stroke-width': 0.55, 'stroke-linecap': 'round' }, contentG);
+        const len = (el.getTotalLength && el.getTotalLength()) || 30;
+        el.setAttribute('stroke-dasharray', len.toFixed(2));
+        el.setAttribute('stroke-dashoffset', len.toFixed(2));
+        el.style.display = 'none';
+        lines.push({ el, kind: 'stroke', highlight: true, len: len || 1, revStart: block.t0, revEnd: block.t0 + block.drawDur, yBottom: 0, hideAt: block.stay == null ? null : block.t0 + block.drawDur + block.stay, x: cx, baseY: cy });
+        continue;
+      }
       if (block.kind === 'draw') {
         const boxW = Math.min(innerW, block.size > 0 ? block.size : Math.min(innerW, 42));
         const boxH = boxW * 0.78;
@@ -192,6 +246,7 @@
           items.push({ el, kind: 'dot', cx: x, cy: y });
         };
         for (const sh of block.shapes) {
+          const i0 = items.length;
           const ty = sh.t || (sh.axes ? 'axes' : sh.dot ? 'dot' : sh.line ? 'line' : sh.label ? 'label' : 'curve');
           if (ty === 'axes') {
             const ox = X(0.06), oy = Y(0.06), xe = X(0.97), yt = Y(0.97);
@@ -219,6 +274,7 @@
             const at = sh.at || [0.5, 0.5];
             addLabel(X(at[0]), Y(at[1]), sh.text != null ? sh.text : '', sh.size || board.fontSize * 0.78);
           }
+          if (sh.id != null) for (let k = i0; k < items.length; k++) items[k].id = String(sh.id);
         }
         const cost = it => it.kind === 'stroke' ? Math.max(2, it.len) : it.kind === 'label' ? Math.max(1.5, it.width) : 1.2;
         const total = items.reduce((s, it) => s + cost(it), 0) || 1;
@@ -264,6 +320,7 @@
             if (tk.bold) ts.setAttribute('font-weight', '700');
             if (tk.italic) ts.setAttribute('font-style', 'italic');
             if (tk.underline && !tk.space) ts.setAttribute('text-decoration', 'underline');
+            if (tk.color) ts.setAttribute('fill', tk.color);
             ts.textContent = tk.text;
           }
         }
