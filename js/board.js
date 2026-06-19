@@ -145,6 +145,75 @@
         }
         continue;
       }
+      if (block.kind === 'draw') {
+        const boxW = Math.min(innerW, block.size > 0 ? block.size : Math.min(innerW, 42));
+        const boxH = boxW * 0.78;
+        const bx = r.x + pad, byTop = r.y + pad + cursorY;
+        const X = nx => bx + nx * boxW, Y = ny => byTop + (1 - ny) * boxH;
+        const items = [];
+        const addStroke = (d, color) => {
+          const el = mk('path', { d, fill: 'none', stroke: color || board.color, 'stroke-width': 0.45, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, contentG);
+          const len = (el.getTotalLength && el.getTotalLength()) || 20;
+          el.setAttribute('stroke-dasharray', len.toFixed(2));
+          el.setAttribute('stroke-dashoffset', len.toFixed(2));
+          el.style.display = 'none';
+          items.push({ el, kind: 'stroke', len: len || 1 });
+        };
+        const addLabel = (x, y, text, size) => {
+          const fs = size || board.fontSize * 0.78;
+          const el = mk('text', { x, y, 'font-family': board.font, 'font-size': fs, fill: board.color }, contentG);
+          el.textContent = String(text); el.style.display = 'none';
+          items.push({ el, kind: 'label', width: measure(String(text), fs, false, false) || 2, x });
+        };
+        const addDot = (x, y, color) => {
+          const el = mk('circle', { cx: x, cy: y, r: 0.9, fill: color || board.color }, contentG);
+          el.style.display = 'none';
+          items.push({ el, kind: 'dot' });
+        };
+        for (const sh of block.shapes) {
+          const ty = sh.t || (sh.axes ? 'axes' : sh.dot ? 'dot' : sh.line ? 'line' : sh.label ? 'label' : 'curve');
+          if (ty === 'axes') {
+            const ox = X(0.06), oy = Y(0.06), xe = X(0.97), yt = Y(0.97);
+            addStroke(`M ${ox} ${oy} L ${xe} ${oy} M ${(xe - 1.5).toFixed(2)} ${(oy - 0.9).toFixed(2)} L ${xe} ${oy} L ${(xe - 1.5).toFixed(2)} ${(oy + 0.9).toFixed(2)}`);
+            addStroke(`M ${ox} ${oy} L ${ox} ${yt} M ${(ox - 0.9).toFixed(2)} ${(yt + 1.5).toFixed(2)} L ${ox} ${yt} L ${(ox + 0.9).toFixed(2)} ${(yt + 1.5).toFixed(2)}`);
+            if (sh.xlabel) addLabel(X(0.58), oy + board.fontSize * 0.95, sh.xlabel, board.fontSize * 0.72);
+            if (sh.ylabel) addLabel(X(0.0), yt - board.fontSize * 0.25, sh.ylabel, board.fontSize * 0.72);
+          } else if (ty === 'curve' || ty === 'line') {
+            const f = sh.from || [0.1, 0.1], to = sh.to || [0.9, 0.9];
+            const x1 = X(f[0]), y1 = Y(f[1]), x2 = X(to[0]), y2 = Y(to[1]);
+            const bow = num(sh.bow, 0);
+            let d;
+            if (ty === 'line' || !bow) d = `M ${x1.toFixed(2)} ${y1.toFixed(2)} L ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+            else {
+              const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, dx = x2 - x1, dy = y2 - y1, nl = Math.hypot(dx, dy) || 1;
+              d = `M ${x1.toFixed(2)} ${y1.toFixed(2)} Q ${(mx - dy / nl * bow * boxH * 0.5).toFixed(2)} ${(my + dx / nl * bow * boxH * 0.5).toFixed(2)} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+            }
+            addStroke(d, sh.color);
+            if (sh.label) addLabel(x2 + 0.6, y2 + 0.3, sh.label, board.fontSize * 0.78);
+          } else if (ty === 'dot') {
+            const at = sh.at || [0.5, 0.5], x = X(at[0]), y = Y(at[1]);
+            addDot(x, y, sh.color);
+            if (sh.label) addLabel(x + 1.2, y + 0.2, sh.label, board.fontSize * 0.7);
+          } else if (ty === 'label') {
+            const at = sh.at || [0.5, 0.5];
+            addLabel(X(at[0]), Y(at[1]), sh.text != null ? sh.text : '', sh.size || board.fontSize * 0.78);
+          }
+        }
+        const cost = it => it.kind === 'stroke' ? Math.max(2, it.len) : it.kind === 'label' ? Math.max(1.5, it.width) : 1.2;
+        const total = items.reduce((s, it) => s + cost(it), 0) || 1;
+        let acc = 0;
+        for (const it of items) {
+          it.revStart = block.t0 + block.dur * acc;
+          acc += cost(it) / total;
+          it.revEnd = block.t0 + block.dur * acc;
+          it.yBottom = cursorY + boxH;
+          it.hideAt = null;
+          lines.push(it);
+        }
+        cursorY += boxH + board.fontSize * 0.8;
+        continue;
+      }
+
       // write
       const vlines = [];
       for (const para of parseMarkdown(block.md)) {
@@ -193,7 +262,9 @@
       if (!visible) { ln.el.style.display = 'none'; continue; }
       ln.el.style.display = '';
       const frac = ln.revEnd > ln.revStart ? Math.min(1, Math.max(0, (t - ln.revStart) / (ln.revEnd - ln.revStart))) : 1;
-      if (ln.hr) ln.el.setAttribute('x2', (ln.x + ln.width * frac).toFixed(2));
+      if (ln.kind === 'stroke') ln.el.setAttribute('stroke-dashoffset', (ln.len * (1 - frac)).toFixed(2));
+      else if (ln.kind === 'dot') ln.el.setAttribute('opacity', frac.toFixed(2));
+      else if (ln.hr) ln.el.setAttribute('x2', (ln.x + ln.width * frac).toFixed(2));
       else ln.el.style.clipPath = frac >= 1 ? 'none' : `inset(-20% ${((1 - frac) * 100).toFixed(2)}% -20% 0)`;
       if (ln.yBottom > maxBottom) maxBottom = ln.yBottom;
     }

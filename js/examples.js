@@ -181,9 +181,11 @@
       ],
       timeline: [
         { at: 0, cmd: 'scene.caption', args: { text: 'Econ 101', dur: 'normal' } },
-        { at: 0, target: 'bb', cmd: 'board.write', by: 'prof', dur: 'slow', args: { md: '# Supply & Demand\n\n- Price on the **Y** axis\n- Quantity on the **X** axis' } },
+        { at: 0, target: 'bb', cmd: 'board.write', by: 'prof', dur: 'normal', args: { md: '# Supply & Demand' } },
         { target: 'prof', cmd: 'say', args: { text: 'Two curves, one story.' } },
-        { target: 'bb', cmd: 'board.write', by: 'prof', dur: 'slow', args: { md: 'They meet at __equilibrium__.' } },
+        { target: 'bb', cmd: 'board.draw', by: 'prof', dur: 'slow', args: { chart: 'supply-demand', xlabel: 'Quantity', ylabel: 'Price' } },
+        { target: 'prof', cmd: 'say', args: { text: 'They meet at equilibrium.' } },
+        { target: 'bb', cmd: 'board.write', by: 'prof', dur: 'normal', args: { md: 'Price settles where they __cross__.' } },
         { at: '<', target: 'prof', cmd: 'playClip', args: { name: 'nod' } },
         { target: 'prof', cmd: 'say', args: { text: 'Any questions?' } },
         { cmd: 'scene.caption', args: { text: 'Class dismissed.', dur: 'slow' } },

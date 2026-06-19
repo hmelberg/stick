@@ -248,8 +248,31 @@ boards at the top level in `"boards"`:
 | cmd | args | notes |
 |---|---|---|
 | `board.write` | `{ "md": "..." }`, plus optional `"by": "figId"` | Write markdown. With `by`, that figure's hand animates as if writing (stand it near the board). `dur` sets writing speed (auto from length otherwise). |
+| `board.draw` | `{ "chart": "supply-demand", "xlabel": "...", "ylabel": "..." }` or `{ "shapes": [...] }` | draw a diagram, animated stroke-by-stroke. `by` and `dur` work like `board.write`. |
 | `board.clear` | — | wipe the board and start fresh at the top |
 | `board.erase` | `{ "lines": 2 }` | erase the last N written lines |
+
+### Drawing diagrams (`board.draw`)
+
+Easiest is the `chart` preset (axes + Demand & Supply curves + equilibrium dot + labels):
+
+```json
+{ "target": "bb", "cmd": "board.draw", "by": "prof", "dur": "slow",
+  "args": { "chart": "supply-demand", "xlabel": "Quantity", "ylabel": "Price" } }
+```
+
+For anything else, give `shapes` — coords are normalized `0..1`, origin bottom-left:
+
+```json
+"args": { "shapes": [
+  { "t": "axes", "xlabel": "Q", "ylabel": "P" },
+  { "t": "curve", "from": [0.1,0.85], "to": [0.9,0.1], "label": "D", "bow": 0.2 },
+  { "t": "line",  "from": [0.1,0.1], "to": [0.9,0.9], "label": "S" },
+  { "t": "dot",   "at": [0.5,0.5], "label": "E*" },
+  { "t": "label", "at": [0.5,1.0], "text": "Market" }
+] }
+```
+Shapes draw in order over `dur`. The diagram sits in the content flow (write text, draw a chart, write more — it auto-scrolls).
 
 Markdown subset: `# Heading`, `## Subheading`, `**bold**`, `*italic*`, `__underline__`,
 `- bullet`, blank line = gap, `---` = divider. Put a real newline (`\n`) between lines.

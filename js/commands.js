@@ -647,6 +647,34 @@
     }
     return dur;
   };
+  H['board.draw'] = ctx => {
+    const board = boardOf(ctx); if (!board) return 0;
+    const a = ctx.args;
+    let shapes = [];
+    if (Array.isArray(a.shapes)) shapes = a.shapes;
+    else if (a.chart === 'supply-demand' || a.chart === 'supply/demand' || a.chart === 'sd') {
+      shapes = [
+        { t: 'axes', xlabel: a.xlabel || 'Quantity', ylabel: a.ylabel || 'Price' },
+        { t: 'curve', from: [0.08, 0.85], to: [0.9, 0.12], label: a.demandLabel || 'D', color: a.demandColor },
+        { t: 'curve', from: [0.08, 0.12], to: [0.9, 0.85], label: a.supplyLabel || 'S', color: a.supplyColor },
+        { t: 'dot', at: [0.49, 0.49], label: a.eqLabel != null ? a.eqLabel : 'E' },
+      ];
+    } else if (a.axes) {
+      shapes = [{ t: 'axes', xlabel: a.xlabel, ylabel: a.ylabel }];
+    } else if (a.t || a.from || a.dot || a.line || a.curve) {
+      shapes = [a];
+    }
+    if (!shapes.length) { ctx.rt.warn('board.draw: nothing to draw (use "chart" or "shapes")'); return 0; }
+    const dur = durOf(ctx, clamp(shapes.length * 0.8, 1.2, 30));
+    board.blocks.push({ kind: 'draw', t0: ctx.t0, dur, shapes, size: num(a.size, 0) });
+    const by = ctx.ev.by != null ? ctx.ev.by : a.by;
+    if (by != null) {
+      const fig = ctx.rt.figs.get(String(by));
+      if (fig) writeHandSync(ctx, fig, board, ctx.t0, dur);
+      else ctx.rt.warn(`board.draw by "${by}": no such figure`);
+    }
+    return dur;
+  };
   H['board.clear'] = ctx => {
     const board = boardOf(ctx); if (!board) return 0;
     board.blocks.push({ kind: 'clear', t0: ctx.t0 });
