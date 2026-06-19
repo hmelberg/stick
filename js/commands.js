@@ -433,6 +433,8 @@
     if (typeof a.y === 'number') ctx.rt.ch.set('cam.y', ctx.t0, a.y);
     const z = a.scale != null ? a.scale : a.zoom;
     if (typeof z === 'number') ctx.rt.ch.set('cam.z', ctx.t0, clamp(z, 0.2, 8));
+    const tl = a.tilt != null ? a.tilt : a.rot;
+    if (typeof tl === 'number') ctx.rt.ch.set('cam.rot', ctx.t0, tl);
     return 0.02;
   };
   H['camera.panTo'] = ctx => {
@@ -481,8 +483,76 @@
     ctx.rt.ch.tween('cam.z', ctx.t0, dur, 1, EASE.inOut);
     ctx.rt.ch.tween('cam.x', ctx.t0, dur, 50, EASE.inOut);
     ctx.rt.ch.tween('cam.y', ctx.t0, dur, 50, EASE.inOut);
+    ctx.rt.ch.tween('cam.rot', ctx.t0, dur, 0, EASE.inOut);
+    ctx.rt.ch.set('cam.shake', ctx.t0, 0);
     return dur;
   };
+
+  // tilt (Dutch angle), shake, instant cut to a framing, and follow a figure.
+  H['camera.tilt'] = ctx => {
+    const dur = durOf(ctx, DUR.slow);
+    const cur = ctx.rt.ch.get('cam.rot', ctx.t0);
+    const to = typeof ctx.args.by === 'number' ? cur + ctx.args.by : num(ctx.args.to, num(ctx.args.deg, 0));
+    ctx.rt.ch.tween('cam.rot', ctx.t0, dur, to, EASE.inOut);
+    return dur;
+  };
+  H['camera.shake'] = ctx => {
+    const dur = durOf(ctx, 0.6);
+    ctx.rt.ch.set('cam.shake', ctx.t0, num(ctx.args.amount, num(ctx.args.amp, 1.5)));
+    ctx.rt.ch.tween('cam.shake', ctx.t0, dur, 0, EASE.out);
+    return dur;
+  };
+  H['camera.cut'] = ctx => {
+    const a = ctx.args, set = (s, v) => ctx.rt.ch.set(s, ctx.t0, v);
+    const id = a.on != null ? a.on : a.to;
+    const board = id != null ? ctx.rt.boards.get(String(id)) : null;
+    if (board) {
+      const r = board.rect, pad = num(a.pad, 6);
+      set('cam.x', r.x + r.w / 2); set('cam.y', r.y + r.h / 2);
+      set('cam.z', clamp((100 - 2 * pad) / Math.max(r.w, r.h), 0.2, 8));
+    } else if (id != null && typeof id !== 'number') {
+      const p = STICK.resolvePoint(ctx.rt, id, ctx.t0);
+      if (p) { set('cam.x', p.x); set('cam.y', p.y); }
+      if (a.scale != null) set('cam.z', clamp(num(a.scale, 1), 0.2, 8));
+    } else {
+      if (typeof a.x === 'number') set('cam.x', a.x);
+      if (typeof a.y === 'number') set('cam.y', a.y);
+      if (a.scale != null) set('cam.z', clamp(num(a.scale, 1), 0.2, 8));
+    }
+    if (typeof a.tilt === 'number') set('cam.rot', a.tilt);
+    return 0.02;
+  };
+  H['camera.follow'] = ctx => {
+    const a = ctx.args;
+    const id = a.target != null ? a.target : a.on != null ? a.on : a.of;
+    const fig = id != null ? ctx.rt.figs.get(String(id)) : null;
+    if (!fig) { ctx.rt.warn('camera.follow: needs a figure "target"'); return 0; }
+    const dur = durOf(ctx, DUR.slow), offset = num(a.offset, 0);
+    const steps = Math.max(4, Math.min(60, Math.round(dur / 0.2))), seg = dur / steps;
+    const followY = !!a.y;
+    for (let k = 1; k <= steps; k++) {
+      const tk = ctx.t0 + seg * k;
+      ctx.rt.ch.tween('cam.x', ctx.t0 + seg * (k - 1), seg, ctx.rt.ch.get(fig.id + '.x', tk) + offset, EASE.linear);
+      if (followY) ctx.rt.ch.tween('cam.y', ctx.t0 + seg * (k - 1), seg, ctx.rt.ch.get(fig.id + '.y', tk), EASE.linear);
+    }
+    return dur;
+  };
+
+  // swap the backdrop (new scenery) — fade for a soft transition, cut for instant.
+  function backdropDef(a) {
+    return (a.to && typeof a.to === 'object') ? a.to
+      : { theme: a.theme || (typeof a.to === 'string' ? a.to : undefined), bg: a.bg, elements: a.elements, items: a.items, floor: a.floor, floorY: a.floorY, parallax: a.parallax, style: a.style };
+  }
+  H['scene.fade'] = ctx => {
+    const dur = durOf(ctx, DUR.slow);
+    ctx.rt.backdrops.push({ t0: ctx.t0, fade: dur, scene: STICK.buildScene(backdropDef(ctx.args), ctx.rt.warn) });
+    return dur;
+  };
+  H['scene.cut'] = ctx => {
+    ctx.rt.backdrops.push({ t0: ctx.t0, fade: 0, scene: STICK.buildScene(backdropDef(ctx.args), ctx.rt.warn) });
+    return durOf(ctx, 0.02);
+  };
+  H['scene.to'] = H['scene.fade'];
 
   /* ------------------------------ structure ------------------------------ */
   H.wait = ctx => durOf(ctx, DUR.normal);

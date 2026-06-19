@@ -169,8 +169,23 @@
     svg.style.setProperty('--paper', rt.scene.bg);
 
     const dom = { svg, figNodes: new Map() };
-    dom.bg = mk('rect', { x: -200, y: -200, width: 500, height: 500, fill: rt.scene.bg }, svg);
     dom.cam = mk('g', {}, svg);
+    dom.parallax = rt.scene.parallax;
+
+    // backdrops: scenery (bg + floor + scene elements) per backdrop, crossfaded.
+    dom.backdropG = mk('g', {}, dom.cam);
+    dom.backdrops = [];
+    rt.backdrops.forEach((bd, i) => {
+      const g = mk('g', {}, dom.backdropG);
+      const sc = bd.scene;
+      mk('rect', { x: -300, y: -300, width: 700, height: 700, fill: sc.bg }, g);
+      if (sc.floor) mk('line', { x1: -300, y1: sc.floorY, x2: 400, y2: sc.floorY, stroke: '#c9bfae', 'stroke-width': 0.35 }, g);
+      for (const el of sc.elements) STICK.drawSceneElement(el, g, sc.ink);
+      if (i > 0) g.style.opacity = '0';
+      dom.backdrops.push({ g, t0: bd.t0, fade: bd.fade });
+    });
+
+    // content layers sit above the backdrops
     dom.layers = {
       back: mk('g', {}, dom.cam),
       mid: mk('g', {}, dom.cam),
@@ -180,15 +195,6 @@
     };
     dom.fixed = mk('g', {}, svg);
 
-    if (rt.scene.floor) {
-      mk('line', {
-        x1: -100, y1: rt.scene.floorY, x2: 200, y2: rt.scene.floorY,
-        stroke: '#c9bfae', 'stroke-width': 0.35,
-      }, dom.layers.back);
-    }
-    for (const el of rt.scene.elements) {
-      STICK.drawSceneElement(el, dom.layers[el.layer] || dom.layers.mid, rt.scene.ink);
-    }
     for (const fig of rt.figs.values()) {
       const style = STICK.styles[fig.style] || STICK.styles.sketch;
       dom.figNodes.set(fig.id, { style, nodes: style.build(fig, dom.layers.fig) });
@@ -333,7 +339,27 @@
     drawOverlays(rt, dom, t, Ps);
 
     const cx = rt.ch.get('cam.x', t), cy = rt.ch.get('cam.y', t), z = rt.ch.get('cam.z', t) || 1;
-    dom.cam.setAttribute('transform', `translate(50 50) scale(${z.toFixed(3)}) translate(${(-cx).toFixed(2)} ${(-cy).toFixed(2)})`);
+    const rot = rt.ch.get('cam.rot', t) || 0, sh = rt.ch.getDef('cam.shake', t, 0) || 0;
+    const jx = sh ? sh * (Math.sin(t * 53) * 0.6 + Math.sin(t * 97) * 0.4) : 0;
+    const jy = sh ? sh * (Math.cos(t * 61) * 0.6 + Math.cos(t * 89) * 0.4) : 0;
+    const par = dom.parallax;
+    const xform = f => `translate(${(50 + jx).toFixed(2)} ${(50 + jy).toFixed(2)}) rotate(${rot.toFixed(2)}) scale(${z.toFixed(3)}) translate(${(-(50 + (cx - 50) * f)).toFixed(2)} ${(-(50 + (cy - 50) * f)).toFixed(2)})`;
+    dom.backdropG.setAttribute('transform', xform(par ? par.backdrop : 1));
+    for (const name in dom.layers) dom.layers[name].setAttribute('transform', xform(par && par[name] != null ? par[name] : 1));
+    // backdrop crossfade
+    for (let i = 0; i < dom.backdrops.length; i++) {
+      const cur = dom.backdrops[i], next = dom.backdrops[i + 1];
+      let op;
+      if (t < cur.t0) op = 0;
+      else {
+        const aIn = cur.fade > 0 ? Math.min(1, (t - cur.t0) / cur.fade) : 1;
+        let aOut = 1;
+        if (next) aOut = next.fade > 0 ? Math.max(0, Math.min(1, (next.t0 + next.fade - t) / next.fade)) : (t < next.t0 ? 1 : 0);
+        op = Math.max(0, Math.min(aIn, aOut));
+      }
+      cur.g.style.opacity = op.toFixed(3);
+      cur.g.style.display = op <= 0.001 ? 'none' : '';
+    }
 
     if (!state.scrubbing) $('scrub').value = String(Math.round((t / rt.duration) * 1000));
     $('timeLbl').textContent = t.toFixed(1) + ' / ' + rt.duration.toFixed(1) + 's';

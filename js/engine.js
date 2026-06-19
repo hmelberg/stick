@@ -104,9 +104,11 @@
       figs: new Map(),
       objs: new Map(), // animatable simple shapes (id -> normalized object)
       boards: new Map(), // writable panels (id -> normalized board with write blocks)
+      backdrops: [],  // {t0, fade, scene} — crossfading scenery (backdrop 0 = doc.scene)
       scene: null, duration: 1,
     };
     rt.scene = STICK.buildScene(doc.scene || {}, warn);
+    rt.backdrops.push({ t0: 0, fade: 0, scene: rt.scene });
 
     const figs = Array.isArray(doc.figures) ? doc.figures : [];
     if (!figs.length) warn('no figures defined');
@@ -139,6 +141,8 @@
     rt.ch.setBase('cam.x', 50);
     rt.ch.setBase('cam.y', 50);
     rt.ch.setBase('cam.z', 1);
+    rt.ch.setBase('cam.rot', 0);
+    rt.ch.setBase('cam.shake', 0);
 
     const cur = { start: 0, end: 0, origin: 0 };
     const tl = Array.isArray(doc.timeline) ? doc.timeline : [];
@@ -152,6 +156,7 @@
     for (const o of rt.overlays) end = Math.max(end, o.t1);
     for (const l of rt.loco) end = Math.max(end, l.t1);
     for (const b of rt.boards.values()) for (const blk of b.blocks) end = Math.max(end, blk.t0 + (blk.dur || 0));
+    for (const b of rt.backdrops) end = Math.max(end, b.t0 + (b.fade || 0));
     rt.duration = Math.min(end + 0.8, 600);
     return rt;
   };

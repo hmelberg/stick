@@ -219,6 +219,89 @@
       ],
     },
 
+    'journey': {
+      v: 1,
+      scene: {
+        theme: 'blank', parallax: true,
+        elements: [
+          { type: 'repeat', props: { of: { type: 'rect', props: { x: 0, y: 38, w: 9, h: 32, fill: '#e3d8c6' } }, from: 8, to: 220, step: 28 } },
+          { type: 'repeat', props: { of: { type: 'circle', props: { cx: 0, cy: 16, r: 1.2, fill: '#ccc2ad' } }, from: 20, to: 220, step: 17 } },
+        ],
+      },
+      figures: [
+        { id: 'sam', archetype: ['man'], pos: { x: 16, y: 70 }, mood: 'happy' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Off we go.', dur: 'normal' } },
+        { at: 0, target: 'sam', cmd: 'move', args: { style: 'walk', to: { x: 150, y: 70 } }, dur: 6 },
+        { at: '<', cmd: 'camera.follow', args: { target: 'sam', offset: -6 }, dur: 6 },
+        { at: 2, cmd: 'scene.fade', args: { to: 'street' }, dur: 2 },
+        { at: 4.4, target: 'sam', cmd: 'say', args: { text: 'Almost there…' } },
+        { at: 5.4, cmd: 'camera.tilt', args: { to: 5, dur: 'quick' } },
+        { cmd: 'scene.caption', args: { text: 'Fin.', dur: 'slow' } },
+      ],
+    },
+
+    'the pitch': {
+      v: 1,
+      scene: { theme: 'blank' },
+      boards: [{ id: 'wb', rect: { x: 5, y: 6, w: 54, h: 58 }, style: 'marker' }],
+      figures: [
+        { id: 'founder', archetype: ['man'], pos: { x: 68, y: 70 }, facing: 'left', mood: 'ecstatic' },
+        { id: 'vc', archetype: ['woman'], pos: { x: 88, y: 70 }, facing: 'left', mood: 'bored' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Series A pitch', dur: 'normal' } },
+        { at: 0, target: 'wb', cmd: 'board.write', by: 'founder', dur: 'normal', args: { md: '# {green|Growth}' } },
+        { target: 'wb', cmd: 'board.draw', by: 'founder', dur: 'slow', args: { shapes: [
+          { t: 'axes', xlabel: 'Time', ylabel: '$' },
+          { t: 'curve', id: 'hockey', from: [0.08, 0.12], to: [0.92, 0.95], bow: -0.6, label: 'us', color: 'green' },
+        ] } },
+        { target: 'founder', cmd: 'say', args: { text: 'It only goes up!' } },
+        { target: 'wb', cmd: 'board.highlight', args: { target: 'hockey', color: 'green', dur: 2.4 } },
+        { at: '<', target: 'vc', cmd: 'say', args: { text: 'And revenue?' } },
+        { target: 'founder', cmd: 'say', args: { text: 'Pre-revenue. Post-vibes.' } },
+        { at: '<', target: 'vc', cmd: 'emote', args: { symbol: '?' } },
+        { target: 'vc', cmd: 'mood', args: { name: 'thinking' } },
+        { cmd: 'scene.caption', args: { text: 'They invested anyway.', dur: 'slow' } },
+      ],
+    },
+
+    'motivation': {
+      v: 1,
+      scene: { theme: 'blank' },
+      boards: [{ id: 'bb', rect: { x: 6, y: 6, w: 58, h: 58 }, style: 'chalk' }],
+      figures: [{ id: 'guru', character: 'professor', pos: { x: 72, y: 70 }, facing: 'left', mood: 'ecstatic' }],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Seminar: Crushing It™', dur: 'normal' } },
+        { at: 0, target: 'bb', cmd: 'board.write', by: 'guru', dur: 'normal', args: { md: '# {amber|Believe!}' } },
+        { target: 'bb', cmd: 'board.draw', by: 'guru', dur: 'slow', args: { shapes: [
+          { t: 'axes', xlabel: 'Effort', ylabel: 'Success' },
+          { t: 'curve', from: [0.08, 0.9], to: [0.92, 0.12], label: 'me', color: 'red' },
+        ] } },
+        { target: 'guru', cmd: 'say', args: { text: 'Up and to the right!' } },
+        { at: '<', target: 'guru', cmd: 'playClip', args: { name: 'victory' } },
+        { cmd: 'scene.caption', args: { text: '(it was down and to the right)', dur: 'slow' } },
+      ],
+    },
+
+    'breaking news': {
+      v: 1,
+      scene: { theme: 'street' },
+      figures: [{ id: 'anchor', archetype: ['woman'], pos: { x: 50, y: 70 }, mood: 'surprised' }],
+      timeline: [
+        { at: 0, cmd: 'camera.shake', args: { amount: 1.8, dur: 'quick' } },
+        { at: 0, cmd: 'scene.caption', args: { text: 'BREAKING NEWS', dur: 'normal' } },
+        { at: 0.5, target: 'anchor', cmd: 'say', args: { text: 'Local man animates stick figures instead of working.' } },
+        { target: 'anchor', cmd: 'mood', args: { name: 'thinking' } },
+        { cmd: 'camera.zoom', dur: 'normal', args: { scale: 1.6, to: 'anchor.head' } },
+        { target: 'anchor', cmd: 'say', args: { text: 'He calls it "research".' } },
+        { cmd: 'camera.tilt', args: { to: 6, dur: 'quick' } },
+        { cmd: 'scene.caption', args: { text: 'More at 11.', dur: 'slow' } },
+        { cmd: 'camera.reset', dur: 'normal' },
+      ],
+    },
+
     'naptime': {
       v: 1,
       scene: { theme: 'bedroom' },

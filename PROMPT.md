@@ -123,7 +123,14 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `facing` | `{ "dir": "left\|right" }` | instant turn |
 | `camera.panTo` | `{ "to": ... }` | |
 | `camera.zoom` | `{ "scale": 1.5, "to": ... }` | scale 1 = full scene |
-| `camera.set` | `{ "x": 50, "y": 50, "scale": 1 }` | instant |
+| `camera.set` | `{ "x": 50, "y": 50, "scale": 1, "tilt": 0 }` | instant |
+| `camera.focus` | `{ "on": "boardId" }` | zoom/pan so a board (or point) fills the frame |
+| `camera.reset` | — | back to the whole scene (zoom 1, level) |
+| `camera.cut` | `{ "on": "id", "scale": 2, "tilt": 8 }` | instant cut to a framing |
+| `camera.tilt` | `{ "to": 8 }` or `{ "by": 5 }` | Dutch-angle roll, in degrees |
+| `camera.shake` | `{ "amount": 1.5 }` | quick camera shake (impact/excitement) |
+| `camera.follow` | `{ "target": "figId", "offset": -6 }` | pan to track a walking figure (use with the move, `"at": "<"`) — for side-scrolling |
+| `scene.fade` / `scene.cut` | `{ "to": "street" }` or `{ "bg": "#...", "elements": [...] }` | change the backdrop (new setting) — fade for a soft transition, cut for instant |
 
 ### Joint angle convention
 Degrees. `0` = limb hanging straight down, **positive = forward** (in facing
@@ -165,7 +172,13 @@ Play with `{ "target": "sam", "cmd": "playClip", "args": { "name": "tantrum", "r
 ```
 
 Types: `rect` (x,y,w,h,fill,rx) · `circle` (cx,cy,r) · `ellipse` · `line` (x1,y1,x2,y2) ·
-`text` (x,y,text,size) · `path` (d). Layers: `back`, `mid` (default), `front`.
+`text` (x,y,text,size) · `path` (d) · `repeat` (tile a child shape across a range:
+`{ "of": {"type":"rect","props":{...}}, "from":0, "to":200, "step":28 }`). Layers: `back`, `mid` (default), `front`.
+
+**Depth & long worlds:** set `"scene": { "parallax": true }` so far layers move slower than near
+ones when the camera pans (fake 3D depth). Coordinates aren't limited to 0–100 — place
+scenery out to the right and use `camera.follow` for a side-scrolling journey. `repeat` makes
+an "endless" background cheaply.
 
 Anchor references work anywhere a point is expected: `"board.write"`, `"sun.center"`,
 plus figure anchors: `"sam"` (feet), `"sam.head"`, `"sam.chest"`, `"sam.hand.right"`.

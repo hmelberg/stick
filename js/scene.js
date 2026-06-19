@@ -7,6 +7,13 @@
 
   const num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);
 
+  // depth factors per layer (1 = moves fully with camera, <1 = further away)
+  function parseParallax(p) {
+    if (!p) return null;
+    const d = { backdrop: 0.6, back: 0.78, mid: 0.9, fig: 1, front: 1, bubbles: 1 };
+    return (p === true) ? d : (typeof p === 'object' ? Object.assign(d, p) : null);
+  }
+
   STICK.buildScene = function (def, warn) {
     def = def && typeof def === 'object' ? def : {};
     const themeName = def.theme || 'blank';
@@ -18,6 +25,7 @@
       floor: def.floor !== false,
       elements: [],
       byId: new Map(),
+      parallax: parseParallax(def.parallax),
     };
     const userEls = Array.isArray(def.elements) ? def.elements : Array.isArray(def.items) ? def.items : [];
     [...(theme.elements || []), ...userEls].forEach((e, i) => {
@@ -190,6 +198,21 @@
         }, parent);
         txt.textContent = p.text != null ? String(p.text) : '';
         return txt;
+      }
+      case 'repeat': {
+        // tile a child shape from `from` to `to` every `step` along an axis —
+        // handy for long/"endless" scrolling backgrounds (ground, trees, posts).
+        const g = mk('g', {}, parent);
+        const child = p.of || p.shape;
+        if (child && child.type) {
+          const from = num(p.from, 0), to = num(p.to, 100), step = Math.max(0.5, num(p.step, 10));
+          const axis = p.axis === 'y' ? 'y' : 'x';
+          for (let v = from; v <= to + 1e-6; v += step) {
+            const gg = mk('g', { transform: axis === 'y' ? `translate(0 ${v})` : `translate(${v} 0)` }, g);
+            STICK.drawSceneElement({ type: child.type, props: child.props || {} }, gg, ink);
+          }
+        }
+        return g;
       }
       default:
         return null;
