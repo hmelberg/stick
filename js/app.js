@@ -342,6 +342,27 @@
           }, g);
           tx.textContent = ln;
         });
+      } else if (o.type === 'think') {
+        const lines = wrapText(o.text, 20);
+        const maxLen = Math.max(...lines.map(l => l.length));
+        const fs = 2.5, lineH = fs * 1.25;
+        const w = maxLen * fs * 0.52 + 4;
+        const h = lines.length * lineH + 3;
+        const cx = Math.max(w / 2 + 2, Math.min(98 - w / 2, head.x + P.fc * 4));
+        const by = Math.max(2, head.y - r * 1.6 - h - 3.4);
+        const g = mk('g', { opacity: alpha.toFixed(2) }, dom.layers.bubbles);
+        // trailing thought puffs from the head up to the cloud (small -> large)
+        const x0 = head.x + P.fc * 0.8, y0 = head.y - r * 1.15, x1 = cx - P.fc * w * 0.15, y1 = by + h - 0.4;
+        [0.28, 0.62].forEach(u => {
+          const rr = 0.5 + u * 0.9;
+          mk('ellipse', { cx: (x0 + (x1 - x0) * u).toFixed(2), cy: (y0 + (y1 - y0) * u).toFixed(2), rx: rr.toFixed(2), ry: (rr * 0.82).toFixed(2), fill: '#fffdf6', stroke: ink, 'stroke-width': 0.22 }, g);
+        });
+        // cloud: a pill-shaped bubble (vs the speech rect + tail)
+        mk('rect', { x: cx - w / 2, y: by, width: w, height: h, rx: h / 2, fill: '#fffdf6', stroke: ink, 'stroke-width': 0.25 }, g);
+        lines.forEach((ln, i) => {
+          const tx = mk('text', { x: cx, y: by + 2 + (i + 0.72) * lineH, 'font-size': fs, fill: ink, 'text-anchor': 'middle', 'font-family': 'Trebuchet MS, Comic Sans MS, sans-serif' }, g);
+          tx.textContent = ln;
+        });
       } else if (o.type === 'emote') {
         const prog = (t - o.t0) / (o.t1 - o.t0);
         const ex = head.x + P.fc * 1.6;

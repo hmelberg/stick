@@ -599,6 +599,22 @@
       ],
     },
 
+    'daydream': {
+      v: 1,
+      scene: { theme: 'classroom' },
+      figures: [
+        { id: 'stu', character: 'student', pos: { x: 76, y: 70 }, facing: 'left', mood: 'bored' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Double maths', dur: 'normal' } },
+        { at: 0.6, target: 'stu', cmd: 'think', args: { text: 'Is it lunch yet?' } },
+        { target: 'stu', cmd: 'mood', args: { name: 'sleepy', animated: true } },
+        { target: 'stu', cmd: 'think', args: { text: 'Pizza would be nice.' } },
+        { at: '<', target: 'stu', cmd: 'emote', args: { symbol: 'idea' } },
+        { cmd: 'scene.caption', args: { text: 'Focus, kid.', dur: 'slow' } },
+      ],
+    },
+
     'guided tour': {
       v: 1,
       scene: { theme: 'blank' },

@@ -421,6 +421,14 @@
     return dur;
   };
 
+  H.think = ctx => { // silent thought bubble (no speech / mouth movement)
+    const fig = figOf(ctx); if (!fig) return 0;
+    const text = String(ctx.args.text != null ? ctx.args.text : '…');
+    const dur = durOf(ctx, clamp(1 + text.length * 0.045, 1.2, 6));
+    ctx.rt.overlays.push({ type: 'think', fig: fig.id, text, t0: ctx.t0, t1: ctx.t0 + dur, args: ctx.args });
+    return dur;
+  };
+
   const EMOTES = {
     question: '?', '?': '?', exclaim: '!', '!': '!', dots: '…', ellipsis: '…', '...': '…',
     heart: '♥', '♥': '♥', music: '♪', note: '♪', '♪': '♪', sparkle: '✦', star: '✦',

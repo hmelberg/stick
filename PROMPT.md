@@ -148,6 +148,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `release` | `{ "hand": "right" }` / `{ "foot": "both" }` | undo reach/pin |
 | `blink` | `{}` | (auto-blink already happens) |
 | `say` | `{ "text": "...", "dur": ..., "sing": false, "voice": {...} }` | speech bubble + mouth movement; dur auto from length. If the viewer turns **sound** on, lines are spoken aloud (default voice: British English, male). `sing: true` makes it sing-song. `voice` (same fields as the figure `voice`, incl. `lang`/`accent`) overrides this line only. |
+| `think` | `{ "text": "...", "dur": ... }` | silent **thought bubble** (cloud + trailing puffs) — for inner monologue, no speech/mouth. |
 | `emote` | `{ "symbol": "?\|!\|...\|zzz\|heart\|music\|sparkle\|idea" }` | floating symbol above head |
 | `scene.caption` | `{ "text": "...", "dur": "slow" }` | narrator text at the bottom |
 | `playClip` | `{ "name": "wave", "repeat": 2 }` | run a clip |
