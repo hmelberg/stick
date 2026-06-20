@@ -45,6 +45,21 @@
 
   const BODY_COLORS = ['#b9cfe4', '#e8cfb4', '#c5dec0', '#e3d3a8', '#d8c2dd', '#bcd8d8'];
 
+  // Resolve a figure's age to 'kid' | 'adult' | 'elderly' from a name, alias, or
+  // number; falls back to the preset/archetype (kid archetype -> kid movement).
+  function normAge(raw, archList, preset) {
+    let a = raw;
+    if (typeof a === 'number') a = a < 13 ? 'kid' : a >= 65 ? 'elderly' : 'adult';
+    if (typeof a === 'string') {
+      a = a.toLowerCase();
+      if (a === 'kid' || a === 'child' || a === 'young') return 'kid';
+      if (a === 'elderly' || a === 'old' || a === 'senior') return 'elderly';
+      if (a === 'adult' || a === 'grown') return 'adult';
+    }
+    if (preset && preset.age) return preset.age;
+    return archList.includes('kid') ? 'kid' : 'adult';
+  }
+
   STICK.normalizeFigure = function (raw, i, warn, defaultStyle) {
     raw = raw && typeof raw === 'object' ? raw : {};
     let preset = {};
@@ -66,6 +81,9 @@
       name: raw.name || String(raw.id || 'fig' + i),
       archetype: archList,
       character: raw.character || null,
+      // age modulates movement (gait + idle): 'kid' | 'adult' | 'elderly'. Accepts
+      // friendly aliases or a number; defaults to 'kid' for the kid archetype.
+      age: normAge(raw.age, archList, preset),
       voice: raw.voice && typeof raw.voice === 'object' ? raw.voice : null,
       style,
       height: num(raw.height, num(preset.height, 20)),
@@ -165,12 +183,24 @@
     slide:    { stride: 1,    hip: 0,  knee: 0,  arm: 0,  elbow: 10, elbowSwing: 0, bob: 0,     lean: -9, lift: 0 },
   };
 
+  // Age modulates how a figure moves (gait + idle), as multipliers on the base.
+  //   kid     — short quick steps, high knees, big bouncy arm swing, upright
+  //   elderly — short shuffle, low knees/feet, small arm swing, slight stoop
+  // `stoop` is an absolute bend/headTilt added to posture (not a multiplier).
+  const AGE = {
+    kid:     { stride: 0.80, hip: 1.0,  knee: 1.20, arm: 1.40, elbow: 1.0,  bob: 1.7, lift: 1.4, lean: 1.0, energy: 1.35, sway: 1.25, bounce: 1.7, stoop: 0 },
+    adult:   { stride: 1.0,  hip: 1.0,  knee: 1.0,  arm: 1.0,  elbow: 1.0,  bob: 1.0, lift: 1.0, lean: 1.0, energy: 1.0,  sway: 1.0,  bounce: 1.0, stoop: 0 },
+    elderly: { stride: 0.72, hip: 0.80, knee: 0.62, arm: 0.55, elbow: 1.15, bob: 0.5, lift: 0.5, lean: 1.0, energy: 0.6,  sway: 0.8,  bounce: 0.4, stoop: 0.06 },
+  };
+  const ageOf = fig => AGE[fig && fig.age] || AGE.adult;
+
   function gaitOffsets(rt, fig, t, g, loco) {
     const p = GAIT[loco.style] || GAIT.walk;
+    const ag = ageOf(fig);
     const x = rt.ch.get(fig.id + '.x', t), y = rt.ch.get(fig.id + '.y', t);
     const traveled = Math.hypot(x - loco.x0, y - loco.y0);
     const ramp = clamp(Math.min((t - loco.t0) / 0.25, (loco.t1 - t) / 0.3, 1), 0, 1);
-    const phi = (traveled / (p.stride * g.h)) * Math.PI * 2;
+    const phi = (traveled / (p.stride * ag.stride * g.h)) * Math.PI * 2; // shorter stride -> more steps
     const o = { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, bobUp: 0, lean: 0, liftL: 0, liftR: 0, ramp };
     if (ramp <= 0) return o;
     const s = Math.sin(phi);
@@ -196,6 +226,10 @@
     o.elL += p.elbow; o.elR += p.elbow;
     o.bobUp = p.bob * g.h * Math.abs(s);
     o.lean = p.lean;
+    // age: scale stride was applied to phi; scale the swing amplitudes here
+    o.hipL *= ag.hip; o.hipR *= ag.hip; o.kneeL *= ag.knee; o.kneeR *= ag.knee;
+    o.shL *= ag.arm; o.shR *= ag.arm; o.elL *= ag.elbow; o.elR *= ag.elbow;
+    o.liftL *= ag.lift; o.liftR *= ag.lift; o.bobUp *= ag.bob; o.lean *= ag.lean;
     for (const k of ['hipL', 'hipR', 'kneeL', 'kneeR', 'shL', 'shR', 'elL', 'elR', 'bobUp', 'lean', 'liftL', 'liftR']) o[k] *= ramp;
     return o;
   }
@@ -211,6 +245,7 @@
   STICK.computeFigure = function (rt, fig, t) {
     const ch = rt.ch, id = fig.id;
     const g = STICK.geom(fig);
+    const ag = ageOf(fig);
     const get = (s, d) => ch.getDef(id + '.' + s, t, d === undefined ? 0 : d);
 
     const x = get('x', 50), y = get('y', 70);
@@ -223,6 +258,7 @@
     const faceFront = clamp(1 - at / 90, 0, 1);                     // eye symmetry: 1 front, 0 by side
     const faceShow = clamp(1 - Math.max(0, at - 90) / 90, 0, 1);   // face fades to blank by the back
     let bend = get('bend'), lean = get('lean'), headTilt = get('headTilt');
+    bend += ag.stoop; headTilt += ag.stoop * 0.6; // elderly stoop a little; kid/adult = 0
     const stanceW = get('stanceW');
     const wSit = clamp(get('sit'), 0, 1), wCr = clamp(get('crouch'), 0, 1), wLie = clamp(get('lie'), 0, 1);
 
@@ -234,12 +270,13 @@
     const prof = (STICK.presets.moods[moodName] || STICK.presets.moods.neutral).idle;
     const idleK = (1 - gait.ramp) * (1 - wLie * 0.7);
     const ph0 = fig.seed * 6.283;
-    const f = 0.22 + 0.12 * prof.energy;
-    bend += 0.012 * (0.5 + prof.sway) * Math.sin(6.283 * f * t + ph0) * idleK;
-    headTilt += 0.018 * prof.sway * Math.sin(6.283 * f * 0.6 * t + ph0 * 1.7) * idleK;
-    const shIdle = 2.2 * prof.sway * Math.sin(6.283 * f * 0.5 * t + ph0 * 0.6) * idleK
-      + prof.bounce * 6 * Math.sin(6.283 * 2.1 * t + ph0) * idleK;
-    const bobIdle = prof.bounce ? 0.035 * g.h * prof.bounce * Math.max(0, Math.sin(6.283 * 2.1 * t + ph0)) * idleK : 0;
+    const sway = prof.sway * ag.sway, bounce = prof.bounce * ag.bounce; // age-modulated liveliness
+    const f = 0.22 + 0.12 * prof.energy * ag.energy;
+    bend += 0.012 * (0.5 + sway) * Math.sin(6.283 * f * t + ph0) * idleK;
+    headTilt += 0.018 * sway * Math.sin(6.283 * f * 0.6 * t + ph0 * 1.7) * idleK;
+    const shIdle = 2.2 * sway * Math.sin(6.283 * f * 0.5 * t + ph0 * 0.6) * idleK
+      + bounce * 6 * Math.sin(6.283 * 2.1 * t + ph0) * idleK;
+    const bobIdle = bounce ? 0.035 * g.h * bounce * Math.max(0, Math.sin(6.283 * 2.1 * t + ph0)) * idleK : 0;
 
     // legs: blended base pose + stance + explicit joints + gait
     const baseHip = wSit * 78 + wCr * 62;

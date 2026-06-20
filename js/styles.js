@@ -157,13 +157,16 @@
     const mx = (0.36 - 0.36 * front) * r, my = 0.48 * r, hw = 0.28 * r;
     const mj = bs ? jit(9, bs, 0.02 * r) : 0;
     fr.mouth.setAttribute('d', `M ${(mx - hw).toFixed(3)} ${my.toFixed(3)} Q ${(mx + mj).toFixed(3)} ${(my + F.smile * 0.36 * r + mj).toFixed(3)} ${(mx + hw).toFixed(3)} ${my.toFixed(3)}`);
+    // The open-mouth oval replaces the lip line at the SAME spot (it used to sit
+    // below it, reading as a second mouth). Fade the line out as the mouth opens.
+    fr.mouth.setAttribute('opacity', Math.max(0, Math.min(1, 1 - F.mouthOpen * 1.6)).toFixed(2));
     if (F.mouthOpen > 0.06) {
       fr.mouthO.setAttribute('visibility', 'visible');
       fr.mouthO.setAttribute('cx', mx.toFixed(3));
-      fr.mouthO.setAttribute('cy', (my + 0.1 * r + 0.1 * r * F.mouthOpen).toFixed(3));
-      fr.mouthO.setAttribute('rx', (0.13 * r).toFixed(3));
-      fr.mouthO.setAttribute('ry', (0.17 * r * F.mouthOpen).toFixed(3));
-    } else fr.mouthO.setAttribute('visibility', 'hidden');
+      fr.mouthO.setAttribute('cy', (my + 0.05 * r).toFixed(3));
+      fr.mouthO.setAttribute('rx', (0.12 * r).toFixed(3));
+      fr.mouthO.setAttribute('ry', (0.16 * r * F.mouthOpen).toFixed(3));
+    } else { fr.mouthO.setAttribute('visibility', 'hidden'); }
   }
 
   /* ---------------- shared hair / hat / glasses ---------------- */
@@ -189,8 +192,12 @@
     } else if (style === 'bun') {
       mk('circle', { cx: -0.8 * r, cy: -0.62 * r, r: 0.3 * r, fill: ink }, parent);
     } else if (style === 'sides') {
-      mk('circle', { cx: -0.72 * r, cy: 0.3 * r, r: 0.27 * r, fill: ink }, parent);
-      mk('path', { d: `M ${-0.1 * r} ${-1.05 * r} Q 0 ${-1.32 * r} ${0.18 * r} ${-1.12 * r}`, ...stroke }, parent);
+      // balding head: short hair low on BOTH sides (by the ears) + a small top wisp.
+      // (Previously a single dark blob that looked like a spot/mic on the cheek.)
+      for (const sx of [-1, 1]) {
+        mk('path', { d: `M ${(sx * 0.9 * r).toFixed(2)} ${(-0.35 * r).toFixed(2)} Q ${(sx * 1.16 * r).toFixed(2)} ${(0.02 * r).toFixed(2)} ${(sx * 0.8 * r).toFixed(2)} ${(0.42 * r).toFixed(2)}`, ...stroke }, parent);
+      }
+      mk('path', { d: `M ${-0.12 * r} ${-1.05 * r} Q 0 ${-1.32 * r} ${0.2 * r} ${-1.12 * r}`, ...stroke }, parent);
     }
   }
 

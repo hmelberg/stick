@@ -62,6 +62,10 @@ All three render the same skeleton, so every command works in every style.
 - `facing`: `front` | `left` | `right` | `back` | a number −2..2 (0 = front, ±1 = full side, ±2 = back). Full 360°: `front` faces the viewer (arms & legs face us); side for walking/writing; `back` shows the back of the head (face hidden, hat/hair kept) — e.g. a professor writing on the board. The `turn` command tweens smoothly through the in-between angles: `{ "cmd": "turn", "target": "prof", "args": { "to": "back" } }` to turn to the board, `{ "to": "front" }` to address the class. Walking always reads as side.
 - `archetype`: `man` | `woman` | `kid` | `person` (sets hair/height defaults).
 - `character`: `professor` (glasses) | `student` | `dancer` (fedora) — stronger presets.
+- `age` (optional): `kid` | `adult` (default) | `elderly` — changes how the figure **moves**,
+  not its size. `kid` = short quick steps, high knees, big bouncy arm swing; `elderly` = short
+  shuffle, low feet, small arm swing, a slight stoop. Accepts a number too (`"age": 8`). The
+  `kid` archetype defaults to `kid` movement. (Size is set separately via `archetype`/`height`.)
 - `voice` (optional): controls spoken audio when the viewer enables sound. By
   default a voice is derived from the figure's archetype + current mood (the
   app-wide fallback is **British English, male**), so you usually omit this.

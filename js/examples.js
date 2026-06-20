@@ -381,6 +381,25 @@
       ],
     },
 
+    'three generations': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'kid', archetype: ['kid'], pos: { x: 14, y: 72 }, mood: 'happy' },
+        { id: 'mum', archetype: ['woman'], age: 'adult', pos: { x: 12, y: 72 } },
+        { id: 'gran', archetype: ['woman'], age: 'elderly', hair: 'bun', pos: { x: 10, y: 72 } },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Same walk, three ages', dur: 'normal' } },
+        { at: 0, target: 'kid', cmd: 'move', args: { style: 'walk', to: { x: 92, y: 72 } }, dur: 6 },
+        { at: 0, target: 'mum', cmd: 'move', args: { style: 'walk', to: { x: 80, y: 72 } }, dur: 6 },
+        { at: 0, target: 'gran', cmd: 'move', args: { style: 'walk', to: { x: 56, y: 72 } }, dur: 6 },
+        { at: 2.2, target: 'kid', cmd: 'say', args: { text: 'Keep up!' } },
+        { at: 3.0, target: 'gran', cmd: 'say', args: { text: 'In my day we shuffled.' } },
+        { at: 6.2, cmd: 'scene.caption', args: { text: 'kid bounces · gran shuffles', dur: 'slow' } },
+      ],
+    },
+
     'guided tour': {
       v: 1,
       scene: { theme: 'blank' },
