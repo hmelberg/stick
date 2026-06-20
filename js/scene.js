@@ -126,7 +126,7 @@
     if (fig) {
       const P = STICK.computeFigure(rt, fig, t);
       if (!rest.length || rest[0] === 'pos' || rest[0] === 'feet') return { ...P.world.pos };
-      if (rest[0] === 'head') return { ...P.world.head };
+      if (rest[0] === 'head' || rest[0] === 'face') return { ...P.world.head };
       if (rest[0] === 'chest' || rest[0] === 'center') return { ...P.world.chest };
       if (rest[0] === 'hand') return { ...(rest[1] === 'left' ? P.world.handL : P.world.handR) };
       if (rest[0] === 'foot') return { ...(rest[1] === 'left' ? P.world.footL : P.world.footR) };
@@ -159,6 +159,30 @@
     }
     rt.warn(`cannot resolve point "${ref}"`);
     return null;
+  };
+
+  /* Bounding box (scene coords) for framing a figure with the camera:
+       "figId" / "figId.body"  -> the whole figure
+       "figId.face" / ".head"  -> a tight head/shoulders close-up (tight:true)
+     Returns null for non-figures so the caller can fall back to a point. */
+  STICK.figureBounds = function (rt, ref, t) {
+    if (typeof ref !== 'string') return null;
+    const parts = ref.split('.');
+    const fig = rt.figs.get(parts[0]);
+    if (!fig) return null;
+    const P = STICK.computeFigure(rt, fig, t);
+    const r = P.g.headR, sub = parts[1];
+    if (sub === 'face' || sub === 'head') {
+      const h = P.world.head; // head center; circle + hair extend ~1.5r around it
+      return { x: h.x - r * 1.7, y: h.y - r * 1.9, w: r * 3.4, h: r * 4.0, tight: true };
+    }
+    const ps = [P.world.head, P.world.chest, P.world.handL, P.world.handR, P.world.footL, P.world.footR, P.world.pos];
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of ps) { if (!p) continue; if (p.x < x0) x0 = p.x; if (p.y < y0) y0 = p.y; if (p.x > x1) x1 = p.x; if (p.y > y1) y1 = p.y; }
+    if (!isFinite(x0)) return null;
+    // pad for head radius/hair (top & sides) and shoe length (bottom)
+    x0 -= r * 0.8; x1 += r * 0.8; y0 -= r * 1.3; y1 += r * 0.5;
+    return { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0), tight: false };
   };
 
   /* ---------------- static scenery SVG ---------------- */

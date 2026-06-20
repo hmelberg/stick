@@ -337,5 +337,73 @@
         { cmd: 'scene.caption', args: { text: 'goodnight.', dur: 'verySlow' } },
       ],
     },
+
+    'floating heads': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'prof', character: 'professor', body: 'bust', pos: { x: 32, y: 46 }, facing: 'front', mood: 'happy' },
+        { id: 'tutor', archetype: ['woman'], body: 'bust', pos: { x: 70, y: 46 }, facing: 'front' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Talking heads (body: "bust")', dur: 'normal' } },
+        { at: 0.3, target: 'prof', cmd: 'raiseArm', dur: 'quick', args: { side: 'right', angle: 150 } },
+        { at: '<', cmd: 'camera.focus', dur: 'normal', args: { on: 'prof.face' } },
+        { target: 'prof', cmd: 'say', args: { text: 'No body needed to explain things.' } },
+        { at: '<', target: 'prof', cmd: 'playClip', args: { name: 'nod' } },
+        { target: 'prof', cmd: 'lowerArm', dur: 'quick', args: { side: 'right' } },
+        { cmd: 'camera.focus', dur: 'normal', args: { on: 'tutor.face' } },
+        { target: 'tutor', cmd: 'say', args: { text: 'Just a head, a neck, and waving arms.' } },
+        { at: '<', target: 'tutor', cmd: 'playClip', args: { name: 'wave' } },
+        { cmd: 'camera.reset', dur: 'normal' },
+        { cmd: 'scene.caption', args: { text: 'Handy for explainers.', dur: 'slow' } },
+      ],
+    },
+
+    'feelings': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'mira', archetype: ['woman'], pos: { x: 50, y: 72 }, facing: 'front', mood: 'neutral' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Subtle emotions, up close', dur: 'normal' } },
+        { at: 0.2, cmd: 'camera.focus', dur: 'normal', args: { on: 'mira.face' } },
+        { target: 'mira', cmd: 'mood', dur: 'slow', args: { name: 'happy', animated: true } },
+        { target: 'mira', cmd: 'say', args: { text: 'A close-up reads the smallest change.' } },
+        { target: 'mira', cmd: 'mood', dur: 'slow', args: { name: 'sad', animated: true } },
+        { at: '<', target: 'mira', cmd: 'say', args: { text: '…or a quiet frown.' } },
+        { target: 'mira', cmd: 'mood', dur: 'slow', args: { name: 'surprised', animated: true } },
+        { at: '<', target: 'mira', cmd: 'emote', args: { symbol: '!' } },
+        { target: 'mira', cmd: 'mood', dur: 'normal', args: { name: 'happy', animated: true } },
+        { cmd: 'camera.reset', dur: 'normal' },
+        { cmd: 'scene.caption', args: { text: 'Zoom in for feeling.', dur: 'slow' } },
+      ],
+    },
+
+    'guided tour': {
+      v: 1,
+      scene: { theme: 'blank' },
+      boards: [{ id: 'bb', rect: { x: 6, y: 8, w: 40, h: 40 }, style: 'chalk' }],
+      figures: [
+        { id: 'guide', character: 'professor', pos: { x: 60, y: 72 }, facing: 'front', mood: 'happy' },
+        { id: 'pup', archetype: ['kid'], pos: { x: 84, y: 74 }, mood: 'happy' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'A little tour (auto-fit zoom)', dur: 'normal' } },
+        { at: 0, target: 'bb', cmd: 'board.write', by: 'guide', dur: 'normal', args: { md: '# Welcome' } },
+        { target: 'guide', cmd: 'say', args: { text: 'Let me show you around.' } },
+        { cmd: 'camera.focus', dur: 'normal', args: { on: 'guide' } },
+        { at: '<', target: 'guide', cmd: 'playClip', args: { name: 'wave' } },
+        { target: 'guide', cmd: 'say', args: { text: 'That is me — whole figure framed.' } },
+        { cmd: 'camera.focus', dur: 'normal', args: { on: 'pup' } },
+        { target: 'pup', cmd: 'say', args: { text: 'And that is me!' } },
+        { at: '<', target: 'pup', cmd: 'playClip', args: { name: 'hopJoy' } },
+        { cmd: 'camera.focus', dur: 'normal', args: { rect: { x: 6, y: 8, w: 40, h: 40 } } },
+        { cmd: 'scene.caption', args: { text: 'A region, framed by rect.', dur: 'normal' } },
+        { cmd: 'camera.reset', dur: 'normal' },
+        { cmd: 'scene.caption', args: { text: 'End of tour.', dur: 'slow' } },
+      ],
+    },
   };
 })();

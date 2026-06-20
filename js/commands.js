@@ -462,18 +462,42 @@
     return dur;
   };
 
-  // Zoom/pan so a board (or any point) fills the frame; reset returns to the scene.
+  // Compute a {cx,cy,z} framing that fits a target: an explicit rect (a region/
+  // "section"), a board, or a figure / figure.face / figure.head (auto-fit to its
+  // bounds). Returns null when there's no fittable box (caller uses a point+scale).
+  const frameBox = (box, pad) => ({
+    cx: box.x + box.w / 2, cy: box.y + box.h / 2,
+    z: clamp((100 - 2 * pad) / Math.max(box.w, box.h), 0.2, 8),
+  });
+  function cameraFrame(rt, a, t) {
+    if (a.rect && typeof a.rect === 'object') {
+      const r = a.rect;
+      const box = { x: num(r.x, 0), y: num(r.y, 0), w: Math.max(1, num(r.w, 1)), h: Math.max(1, num(r.h, 1)) };
+      return frameBox(box, num(a.pad, 6));
+    }
+    const id = a.on != null ? a.on : a.target != null ? a.target : a.to;
+    if (id == null || typeof id === 'number') return null;
+    const board = rt.boards.get(String(id));
+    if (board) { const r = board.rect; return frameBox({ x: r.x, y: r.y, w: r.w, h: r.h }, num(a.pad, 6)); }
+    // figures auto-fit to their bounds, unless the author forces an explicit scale
+    if (a.scale == null) {
+      const b = STICK.figureBounds(rt, id, t);
+      if (b) return frameBox(b, num(a.pad, b.tight ? 4 : 8));
+    }
+    return null;
+  }
+
+  // Zoom/pan so a target fills the frame; reset returns to the scene.
+  //   on: "boardId" | "figId" (whole figure) | "figId.face" (head close-up)
+  //   rect: {x,y,w,h} frames a region; scale: n overrides auto-fit for a point.
   H['camera.focus'] = ctx => {
     const dur = durOf(ctx, DUR.slow);
     const a = ctx.args;
-    const id = a.on != null ? a.on : a.target != null ? a.target : a.to;
-    const board = id != null ? ctx.rt.boards.get(String(id)) : null;
     let cx, cy, z;
-    if (board) {
-      const r = board.rect, pad = num(a.pad, 6);
-      cx = r.x + r.w / 2; cy = r.y + r.h / 2;
-      z = clamp((100 - 2 * pad) / Math.max(r.w, r.h), 0.2, 8);
-    } else {
+    const f = cameraFrame(ctx.rt, a, ctx.t0);
+    if (f) { cx = f.cx; cy = f.cy; z = f.z; }
+    else {
+      const id = a.on != null ? a.on : a.target != null ? a.target : a.to;
       const p = STICK.resolvePoint(ctx.rt, id, ctx.t0);
       if (!p) { ctx.rt.warn('camera.focus: missing/unresolvable "on"'); return 0; }
       cx = p.x; cy = p.y; z = clamp(num(a.scale, 2), 0.2, 8);
@@ -481,6 +505,7 @@
     ctx.rt.ch.tween('cam.z', ctx.t0, dur, z, EASE.inOut);
     ctx.rt.ch.tween('cam.x', ctx.t0, dur, cx, EASE.inOut);
     ctx.rt.ch.tween('cam.y', ctx.t0, dur, cy, EASE.inOut);
+    if (typeof a.tilt === 'number') ctx.rt.ch.tween('cam.rot', ctx.t0, dur, a.tilt, EASE.inOut);
     return dur;
   };
   H['camera.reset'] = ctx => {
@@ -509,20 +534,20 @@
   };
   H['camera.cut'] = ctx => {
     const a = ctx.args, set = (s, v) => ctx.rt.ch.set(s, ctx.t0, v);
-    const id = a.on != null ? a.on : a.to;
-    const board = id != null ? ctx.rt.boards.get(String(id)) : null;
-    if (board) {
-      const r = board.rect, pad = num(a.pad, 6);
-      set('cam.x', r.x + r.w / 2); set('cam.y', r.y + r.h / 2);
-      set('cam.z', clamp((100 - 2 * pad) / Math.max(r.w, r.h), 0.2, 8));
-    } else if (id != null && typeof id !== 'number') {
-      const p = STICK.resolvePoint(ctx.rt, id, ctx.t0);
-      if (p) { set('cam.x', p.x); set('cam.y', p.y); }
-      if (a.scale != null) set('cam.z', clamp(num(a.scale, 1), 0.2, 8));
+    const f = cameraFrame(ctx.rt, a, ctx.t0); // board / figure / figure.face / rect
+    if (f) {
+      set('cam.x', f.cx); set('cam.y', f.cy); set('cam.z', f.z);
     } else {
-      if (typeof a.x === 'number') set('cam.x', a.x);
-      if (typeof a.y === 'number') set('cam.y', a.y);
-      if (a.scale != null) set('cam.z', clamp(num(a.scale, 1), 0.2, 8));
+      const id = a.on != null ? a.on : a.to;
+      if (id != null && typeof id !== 'number') {
+        const p = STICK.resolvePoint(ctx.rt, id, ctx.t0);
+        if (p) { set('cam.x', p.x); set('cam.y', p.y); }
+        if (a.scale != null) set('cam.z', clamp(num(a.scale, 1), 0.2, 8));
+      } else {
+        if (typeof a.x === 'number') set('cam.x', a.x);
+        if (typeof a.y === 'number') set('cam.y', a.y);
+        if (a.scale != null) set('cam.z', clamp(num(a.scale, 1), 0.2, 8));
+      }
     }
     if (typeof a.tilt === 'number') set('cam.rot', a.tilt);
     return 0.02;

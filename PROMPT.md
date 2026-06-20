@@ -86,6 +86,10 @@ All three render the same skeleton, so every command works in every style.
   generic figures) so a crowd doesn't all sound the same — set `voice` only when
   you want a specific character to sound a particular way.
 - `hair`: `none` | `short` | `tuft` | `long` | `bun` | `sides`. Also `glasses: true`, `hat: "fedora"`.
+- `body` (optional): `full` (default) or `bust` — a **floating head + neck + arms** with no
+  torso/legs, e.g. a talking-head professor that gestures while explaining. `bust: true` works too.
+  Position it with `pos` (a bust usually sits higher, e.g. `"pos": { "y": 45 }`); pair it with
+  `camera.focus { on: "id.face" }` for an expressive close-up.
 - Engine adds idle life automatically (breathing, sway, blinking) based on mood.
 
 ### Pose fields
@@ -144,9 +148,9 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `camera.panTo` | `{ "to": ... }` | |
 | `camera.zoom` | `{ "scale": 1.5, "to": ... }` | scale 1 = full scene |
 | `camera.set` | `{ "x": 50, "y": 50, "scale": 1, "tilt": 0 }` | instant |
-| `camera.focus` | `{ "on": "boardId" }` | zoom/pan so a board (or point) fills the frame |
+| `camera.focus` | `{ "on": "id" }` | zoom/pan so the target **fills the frame** (auto-fit). `on` can be a board, a **whole figure** (`"ana"`), or a **face/head close-up** (`"ana.face"` — great for showing subtle emotion). Or frame a region with `{ "rect": { "x":..,"y":..,"w":..,"h":.. } }`. `pad` adjusts margin; `scale` forces a fixed zoom on a point instead of auto-fit. |
 | `camera.reset` | — | back to the whole scene (zoom 1, level) |
-| `camera.cut` | `{ "on": "id", "scale": 2, "tilt": 8 }` | instant cut to a framing |
+| `camera.cut` | `{ "on": "id", "scale": 2, "tilt": 8 }` | instant version of focus — same `on` / `rect` auto-fit (e.g. `{ "on": "ana.face" }`), or explicit `x`/`y`/`scale`. |
 | `camera.tilt` | `{ "to": 8 }` or `{ "by": 5 }` | Dutch-angle roll, in degrees |
 | `camera.shake` | `{ "amount": 1.5 }` | quick camera shake (impact/excitement) |
 | `camera.follow` | `{ "target": "figId", "offset": -6 }` | pan to track a walking figure (use with the move, `"at": "<"`) — for side-scrolling |

@@ -252,6 +252,13 @@
     return { x: P.neck.x + (d.x / l) * stub, y: P.neck.y + (d.y / l) * stub };
   }
 
+  // For a "bust" figure (head + neck + arms only): a short stub just below the
+  // shoulders that the collar tapers to, so the head/arms read as a floating bust.
+  function bustBase(P) {
+    return { x: P.sh.x + (P.pelvis.x - P.sh.x) * 0.32, y: P.sh.y + (P.pelvis.y - P.sh.y) * 0.32 };
+  }
+  const isBust = n => n.fig && n.fig.body === 'bust';
+
   const setTf = (n, P) =>
     n.setAttribute('transform', `translate(${P.x.toFixed(2)} ${P.y.toFixed(2)}) scale(${P.fc} 1) rotate(${P.rot.toFixed(2)})`);
   const headTf = (n, P) =>
@@ -281,11 +288,14 @@
     },
     update(n, P) {
       setTf(n.root, P);
+      const bust = isBust(n);
       const legD = l => `M ${pt(P.pelvis)} L ${pt(l.knee)} L ${pt(l.ank)} L ${pt(l.foot)}`;
       const armD = a => `M ${pt(P.sh)} L ${pt(a.elb)} L ${pt(a.hand)}`;
-      n.far.setAttribute('d', legD(P.legL) + ' ' + armD(P.armL));
-      n.near.setAttribute('d', legD(P.legR) + ' ' + armD(P.armR));
-      n.torso.setAttribute('d', `M ${pt(P.pelvis)} Q ${pt(P.ctrl)} ${pt(P.neck)} L ${pt(neckStub(P))}`);
+      n.far.setAttribute('d', (bust ? '' : legD(P.legL) + ' ') + armD(P.armL));
+      n.near.setAttribute('d', (bust ? '' : legD(P.legR) + ' ') + armD(P.armR));
+      n.torso.setAttribute('d', bust
+        ? `M ${pt(bustBase(P))} L ${pt(P.neck)} L ${pt(neckStub(P))}`
+        : `M ${pt(P.pelvis)} Q ${pt(P.ctrl)} ${pt(P.neck)} L ${pt(neckStub(P))}`);
       n.head.setAttribute('cx', P.headC.x.toFixed(2));
       n.head.setAttribute('cy', P.headC.y.toFixed(2));
       headTf(n.headG, P);
@@ -327,15 +337,16 @@
       const amp = 0.009 * g.h;
       setTf(n.root, P);
 
+      const bust = isBust(n);
       const limbD = (pts, salt) => smoothOpen(wobble(resample(pts, 0.075 * g.h), amp, sd + salt));
       n.far.setAttribute('d',
-        limbD([P.pelvis, P.legL.knee, P.legL.ank], 11) + ' ' +
+        (bust ? '' : limbD([P.pelvis, P.legL.knee, P.legL.ank], 11) + ' ') +
         limbD([P.sh, P.armL.elb, P.armL.hand], 23));
       n.near.setAttribute('d',
-        limbD([P.pelvis, P.legR.knee, P.legR.ank], 37) + ' ' +
+        (bust ? '' : limbD([P.pelvis, P.legR.knee, P.legR.ank], 37) + ' ') +
         limbD([P.sh, P.armR.elb, P.armR.hand], 47));
 
-      const torsoPts = quadPts(P.pelvis, P.ctrl, P.neck, 6);
+      const torsoPts = bust ? [bustBase(P), P.neck] : quadPts(P.pelvis, P.ctrl, P.neck, 6);
       torsoPts.push(neckStub(P));
       n.torso.setAttribute('d', smoothOpen(wobble(torsoPts, amp, sd + 61)));
 
@@ -362,8 +373,8 @@
         { x: l.ank.x - 0.02 * g.h, y: l.ank.y },
         { x: l.ank.x + 0.1 * g.h, y: l.ank.y + 0.06 },
       ], amp * 0.7, sd + salt));
-      n.shoeL.setAttribute('d', shoe(P.legL, 91));
-      n.shoeR.setAttribute('d', shoe(P.legR, 97));
+      n.shoeL.setAttribute('d', bust ? '' : shoe(P.legL, 91));
+      n.shoeR.setAttribute('d', bust ? '' : shoe(P.legR, 97));
 
       updateHand(n.handL, P.armL.elb, P.armL.hand, P.hands.L);
       updateHand(n.handR, P.armR.elb, P.armR.hand, P.hands.R);
@@ -400,26 +411,29 @@
     update(n, P) {
       const g = P.g;
       setTf(n.root, P);
+      const bust = isBust(n);
+      const base = bust ? bustBase(P) : P.pelvis; // bust torso starts below the shoulders
 
-      // torso: rounded shape from hips to shoulders
-      const v = { x: P.neck.x - P.pelvis.x, y: P.neck.y - P.pelvis.y };
+      // torso: rounded shape from hips (or bust base) to shoulders
+      const v = { x: P.neck.x - base.x, y: P.neck.y - base.y };
       const vl = Math.hypot(v.x, v.y) || 1;
       const px = v.y / vl, py = -v.x / vl; // lateral unit
-      const mid = { x: (P.pelvis.x + P.sh.x) / 2 + (P.ctrl.x - (P.pelvis.x + P.neck.x) / 2) * 0.6, y: (P.pelvis.y + P.sh.y) / 2 + (P.ctrl.y - (P.pelvis.y + P.neck.y) / 2) * 0.6 };
-      const hipHW = 0.1 * g.h, midHW = 0.12 * g.h, shHW = 0.135 * g.h;
+      const mid = { x: (base.x + P.sh.x) / 2 + (P.ctrl.x - (base.x + P.neck.x) / 2) * 0.6, y: (base.y + P.sh.y) / 2 + (P.ctrl.y - (base.y + P.neck.y) / 2) * 0.6 };
+      const hipHW = (bust ? 0.085 : 0.1) * g.h, midHW = 0.12 * g.h, shHW = 0.135 * g.h;
       const C = (b, hw) => ({ x: b.x + px * hw, y: b.y + py * hw });
       const D = (b, hw) => ({ x: b.x - px * hw, y: b.y - py * hw });
       n.torsoFill.setAttribute('d', smoothClosed([
-        C(P.pelvis, hipHW), C(mid, midHW), C(P.sh, shHW),
+        C(base, hipHW), C(mid, midHW), C(P.sh, shHW),
         { x: P.sh.x + v.x / vl * 0.03 * g.h, y: P.sh.y + v.y / vl * 0.03 * g.h },
-        D(P.sh, shHW), D(mid, midHW), D(P.pelvis, hipHW),
+        D(P.sh, shHW), D(mid, midHW), D(base, hipHW),
       ]));
       n.neckLine.setAttribute('d', `M ${pt(P.sh)} L ${pt(neckStub(P))}`);
 
       const legD = (l, off) => `M ${(P.pelvis.x + off).toFixed(2)} ${P.pelvis.y.toFixed(2)} L ${pt(l.knee)} L ${pt(l.ank)}`;
-      n.farLeg.setAttribute('d', legD(P.legL, -0.035 * g.h));
-      n.nearLeg.setAttribute('d', legD(P.legR, 0.035 * g.h));
+      n.farLeg.setAttribute('d', bust ? '' : legD(P.legL, -0.035 * g.h));
+      n.nearLeg.setAttribute('d', bust ? '' : legD(P.legR, 0.035 * g.h));
       const shoe = (el, l) => {
+        el.setAttribute('visibility', bust ? 'hidden' : 'visible');
         el.setAttribute('cx', (l.ank.x + 0.05 * g.h).toFixed(2));
         el.setAttribute('cy', (l.ank.y + 0.012 * g.h).toFixed(2));
         el.setAttribute('rx', (0.078 * g.h).toFixed(2));

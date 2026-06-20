@@ -75,6 +75,9 @@
       hair: raw.hair != null ? raw.hair : preset.hair || 'none',
       glasses: raw.glasses != null ? !!raw.glasses : !!preset.glasses,
       hat: raw.hat != null ? raw.hat : preset.hat || null,
+      // body variant: 'full' (default) or 'bust' = floating head + neck + arms (no
+      // torso/legs), handy for a talking-head explainer. `bust: true` is an alias.
+      body: (raw.body === 'bust' || raw.body === 'head' || raw.bust === true) ? 'bust' : (preset.body || 'full'),
       pos: { x: num(raw.pos && raw.pos.x, 50), y: num(raw.pos && raw.pos.y, 70) },
       // yaw: 0 front, ±1 side (left/right), ±2 back (continuous, tweenable)
       facing: (f => f === 'front' || f === 0 ? 0 : f === 'left' ? -1 : f === 'right' ? 1 : f === 'back' ? 2
