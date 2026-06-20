@@ -220,6 +220,8 @@ Types: `rect` (x,y,w,h,fill,rx) · `circle` (cx,cy,r) · `ellipse` · `line` (x1
 `text` (x,y,text,size) · `path` (d) · `repeat` (tile a child shape across a range:
 `{ "of": {"type":"rect","props":{...}}, "from":0, "to":200, "step":28 }`). Layers: `back`, `mid` (default), `front`.
 
+Figures cast a soft **ground shadow** by default (it shrinks as they hop); turn it off with `"scene": { "shadows": false }`.
+
 **Depth & long worlds:** set `"scene": { "parallax": true }` so far layers move slower than near
 ones when the camera pans (fake 3D depth). Coordinates aren't limited to 0–100 — place
 scenery out to the right and use `camera.follow` for a side-scrolling journey. `repeat` makes

@@ -243,19 +243,20 @@
     });
 
     // content layers sit above the backdrops
-    dom.layers = {
-      back: mk('g', {}, dom.cam),
-      mid: mk('g', {}, dom.cam),
-      fig: mk('g', {}, dom.cam),
-      front: mk('g', {}, dom.cam),
-      bubbles: mk('g', {}, dom.cam),
-    };
+    dom.layers = { back: mk('g', {}, dom.cam), mid: mk('g', {}, dom.cam) };
+    dom.shadowG = mk('g', {}, dom.cam); // contact shadows, behind the figures
+    dom.layers.fig = mk('g', {}, dom.cam);
+    dom.layers.front = mk('g', {}, dom.cam);
+    dom.layers.bubbles = mk('g', {}, dom.cam);
     // full-frame colour wash (time-of-day / mood), in screen space over the scene
     dom.tint = mk('rect', { x: 0, y: 0, width: 100, height: 100, fill: '#000', opacity: 0, 'pointer-events': 'none' }, svg);
     dom.fixed = mk('g', {}, svg);
 
+    dom.shadows = new Map();
+    const shadowsOn = !(rt.doc.scene && rt.doc.scene.shadows === false);
     for (const fig of rt.figs.values()) {
       const style = STICK.styles[fig.style] || STICK.styles.sketch;
+      if (shadowsOn && fig.body !== 'bust') dom.shadows.set(fig.id, mk('ellipse', { fill: '#2a2a35', opacity: 0.16 }, dom.shadowG));
       dom.figNodes.set(fig.id, { style, nodes: style.build(fig, dom.layers.fig) });
     }
     dom.objNodes = new Map();
@@ -382,6 +383,13 @@
     for (const fig of rt.figs.values()) {
       const P = STICK.computeFigure(rt, fig, t);
       Ps.set(fig.id, P);
+      const sh = dom.shadows && dom.shadows.get(fig.id);
+      if (sh) { // contact shadow on the ground, shrinking as the figure lifts (hops)
+        const gy = fig.pos.y, k = Math.max(0.12, 1 - Math.max(0, gy - P.y) / 7);
+        sh.setAttribute('cx', P.x.toFixed(2)); sh.setAttribute('cy', (gy + 0.4).toFixed(2));
+        sh.setAttribute('rx', (P.g.h * 0.3 * k).toFixed(2)); sh.setAttribute('ry', (P.g.h * 0.05 * k).toFixed(2));
+        sh.setAttribute('opacity', (0.18 * k).toFixed(3));
+      }
       const entry = dom.figNodes.get(fig.id);
       if (!entry) continue; // dom not yet rebuilt for this rt (defensive)
       entry.style.update(entry.nodes, P, t);
