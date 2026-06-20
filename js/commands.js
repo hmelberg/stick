@@ -68,6 +68,7 @@
   const EXPR = {
     smile: 'smile', eyeOpen: 'eyeOpen', browTilt: 'browTilt', browRaise: 'browRaise',
     mouthOpen: 'mouthOpen', pupilX: 'pupX', pupilY: 'pupY',
+    browSkew: 'browSkew', tears: 'tears', blush: 'blush',
   };
   const STANCE = { together: -1, normal: 0, wide: 1 };
   const SPEED = { walk: 11, run: 26, slide: 22, moonwalk: 7.5 };
@@ -207,9 +208,13 @@
     tw(ctx, fig, 'mouthOpen', ctx.t0, dur, num(E.mouthOpen, 0), ease);
     tw(ctx, fig, 'pupX', ctx.t0, dur, num(E.pupilX, 0), ease);
     tw(ctx, fig, 'pupY', ctx.t0, dur, num(E.pupilY, 0), ease);
+    tw(ctx, fig, 'browSkew', ctx.t0, dur, num(E.browSkew, 0), ease);
+    tw(ctx, fig, 'tears', ctx.t0, dur, num(E.tears, 0), ease);
+    tw(ctx, fig, 'blush', ctx.t0, dur, num(E.blush, 0), ease);
     if (preset.pose) {
       if (typeof preset.pose.bend === 'number') tw(ctx, fig, 'bend', ctx.t0, dur, preset.pose.bend, ease);
       if (typeof preset.pose.headTilt === 'number') tw(ctx, fig, 'headTilt', ctx.t0, dur, preset.pose.headTilt, ease);
+      if (typeof preset.pose.lean === 'number') tw(ctx, fig, 'lean', ctx.t0, dur, preset.pose.lean, ease);
     }
     const prevMood = ctx.rt.ch.getDef(fig.id + '.mood', ctx.t0, 'neutral');
     if (name === 'angry') { st(ctx, fig, 'handL', ctx.t0, 'fist'); st(ctx, fig, 'handR', ctx.t0, 'fist'); }

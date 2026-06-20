@@ -151,6 +151,9 @@
     set('mouthOpen', num(E.mouthOpen, 0));
     set('pupX', num(E.pupilX, 0));
     set('pupY', num(E.pupilY, 0));
+    set('browSkew', num(E.browSkew, 0)); // raise one brow (confused/skeptical)
+    set('tears', num(E.tears, 0));       // crying
+    set('blush', num(E.blush, 0));       // embarrassed / in love
 
     set('mood', base === 'sleep' ? 'sleepy' : fig.mood);
     set('reachLon', 0); set('reachLx', 0); set('reachLy', 0);
@@ -395,6 +398,10 @@
       mouthOpen: clamp(get('mouthOpen'), 0, 1),
       pupX: clamp(get('pupX'), -1, 1),
       pupY: clamp(get('pupY'), -1, 1),
+      browSkew: clamp(get('browSkew'), -1, 1),
+      tears: clamp(get('tears'), 0, 1),
+      blush: clamp(get('blush'), 0, 1),
+      t, // for animating tears
       front: faceFront, show: faceShow,
     };
 

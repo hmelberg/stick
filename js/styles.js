@@ -89,6 +89,9 @@
         : `M ${(-0.86 * r).toFixed(2)} ${(-0.05 * r).toFixed(2)} C ${(-1.06 * r).toFixed(2)} ${(0.95 * r).toFixed(2)} ${(-0.7 * r).toFixed(2)} ${(1.95 * r).toFixed(2)} 0 ${(1.9 * r).toFixed(2)} C ${(0.7 * r).toFixed(2)} ${(1.95 * r).toFixed(2)} ${(1.06 * r).toFixed(2)} ${(0.95 * r).toFixed(2)} ${(0.86 * r).toFixed(2)} ${(-0.05 * r).toFixed(2)} Q ${(0.42 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} 0 ${(0.64 * r).toFixed(2)} Q ${(-0.42 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} ${(-0.86 * r).toFixed(2)} ${(-0.05 * r).toFixed(2)} Z`;
       fr.beard = mk('path', { d, fill: ink, opacity: b === 'stubble' ? 0.4 : 1 }, grp);
     }
+    // cheek blush (embarrassed / in love), behind the eyes
+    fr.blushN = mk('ellipse', { rx: 0.19 * r, ry: 0.1 * r, fill: '#e98a8a', stroke: 'none', visibility: 'hidden' }, grp);
+    fr.blushF = mk('ellipse', { rx: 0.19 * r, ry: 0.1 * r, fill: '#e98a8a', stroke: 'none', visibility: 'hidden' }, grp);
     fr.eyeN = mk('ellipse', { cx: EX_N * r, cy: EY * r, rx: 0.15 * r, fill: ink }, grp);
     fr.eyeF = mk('ellipse', { cx: EX_F * r, cy: EY * r, rx: 0.15 * r, fill: ink }, grp);
     fr.pupN = mk('circle', { r: 0.07 * r, fill: 'var(--paper, #f7f2e9)' }, grp);
@@ -114,6 +117,10 @@
       fr.glTemple = mk('path', gl, grp);
       fr.glTemple2 = mk('path', gl, grp);
     }
+    // tears (crying), on top so they stream over the face
+    const tear = { fill: '#8fbce8', stroke: '#5f93cc', 'stroke-width': 0.02 * r, visibility: 'hidden' };
+    fr.tearN = mk('ellipse', { rx: 0.075 * r, ry: 0.12 * r, ...tear }, grp);
+    fr.tearF = mk('ellipse', { rx: 0.075 * r, ry: 0.12 * r, ...tear }, grp);
     return fr;
   }
 
@@ -148,9 +155,17 @@
     }
     const by = -0.46 * r - F.browRaise * 0.16 * r + (bs ? jit(3, bs, 0.015 * r) : 0);
     const k = -F.browTilt * 0.1 * r;
-    const brow = cx => `M ${(cx - 0.17 * r).toFixed(3)} ${(by - k).toFixed(3)} L ${(cx + 0.17 * r).toFixed(3)} ${(by + k).toFixed(3)}`;
-    fr.browN.setAttribute('d', brow(cxN * r));
-    fr.browF.setAttribute('d', brow(cxF * r));
+    const skew = (F.browSkew || 0) * 0.2 * r; // raise one brow: +far, −near (confused/skeptical)
+    const brow = (cx, raise) => `M ${(cx - 0.17 * r).toFixed(3)} ${(by - k - raise).toFixed(3)} L ${(cx + 0.17 * r).toFixed(3)} ${(by + k - raise).toFixed(3)}`;
+    fr.browN.setAttribute('d', brow(cxN * r, skew < 0 ? -skew : 0));
+    fr.browF.setAttribute('d', brow(cxF * r, skew > 0 ? skew : 0));
+    if (fr.blushN) { // cheek blush
+      const show = F.blush > 0.02, op = (F.blush * 0.6).toFixed(2);
+      for (const [bl, cx] of [[fr.blushN, cxN], [fr.blushF, cxF]]) {
+        bl.setAttribute('visibility', show ? 'visible' : 'hidden');
+        if (show) { bl.setAttribute('cx', (cx * r).toFixed(2)); bl.setAttribute('cy', (0.16 * r).toFixed(2)); bl.setAttribute('opacity', op); }
+      }
+    }
     if (fr.glassN) { // lenses over the (moving) eyes; bridge across the nose; a temple to each ear
       const lensR = 0.27 * r, ey = EY * r, xn = cxN * r, xf = cxF * r;
       fr.glassN.setAttribute('cx', xn.toFixed(2)); fr.glassN.setAttribute('cy', ey.toFixed(2));
@@ -179,6 +194,18 @@
       fr.mouthO.setAttribute('rx', (0.12 * r).toFixed(3));
       fr.mouthO.setAttribute('ry', (0.16 * r * F.mouthOpen).toFixed(3));
     } else { fr.mouthO.setAttribute('visibility', 'hidden'); }
+    if (fr.tearN) { // tears stream from under the eyes and fall (animated off F.t)
+      const show = F.tears > 0.05, tt = F.t || 0;
+      for (const [tr, cx, ph] of [[fr.tearN, cxN, 0], [fr.tearF, cxF, 0.5]]) {
+        tr.setAttribute('visibility', show ? 'visible' : 'hidden');
+        if (show) {
+          const u = ((tt * 1.1 + ph) % 1 + 1) % 1; // 0..1 down the cheek
+          tr.setAttribute('cx', (cx * r).toFixed(2));
+          tr.setAttribute('cy', ((0.04 + u * 0.95) * r).toFixed(2));
+          tr.setAttribute('opacity', (Math.min(1, F.tears) * (1 - u * 0.8)).toFixed(2));
+        }
+      }
+    }
   }
 
   /* ---------------- shared hair / hat / glasses ---------------- */

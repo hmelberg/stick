@@ -27,6 +27,15 @@
     sad:       { expr: { smile: -0.5, eyeOpen: 0.55, browTilt: 0.7,   browRaise: 0.2,  mouthOpen: 0 },    pose: { bend: 0.14,  headTilt: 0.12 },  idle: { energy: 0.2, sway: 0.6, bounce: 0 } },
     surprised: { expr: { smile: 0.05, eyeOpen: 1,    browTilt: 0,     browRaise: 1,    mouthOpen: 0.7 },  pose: { bend: -0.04, headTilt: -0.04 }, idle: { energy: 0.6, sway: 0.3, bounce: 0 } },
     sleepy:    { expr: { smile: 0.02, eyeOpen: 0.18, browTilt: 0.2,   browRaise: 0,    mouthOpen: 0.08 }, pose: { bend: 0.12,  headTilt: 0.18 },  idle: { energy: 0.15, sway: 0.8, bounce: 0 } },
+    laughing:  { expr: { smile: 1,    eyeOpen: 0.8,  browTilt: 0,     browRaise: 0.5,  mouthOpen: 0.55 }, pose: { bend: -0.05, headTilt: -0.1 },  idle: { energy: 1.5, sway: 0.5, bounce: 1.1 } },
+    crying:    { expr: { smile: -0.6, eyeOpen: 0.3,  browTilt: 0.8,   browRaise: 0.2,  mouthOpen: 0.32, tears: 1 },        pose: { bend: 0.12,  headTilt: 0.14 }, idle: { energy: 0.5, sway: 0.6, bounce: 0.3 } },
+    scared:    { expr: { smile: -0.3, eyeOpen: 1,    browTilt: 0.2,   browRaise: 1,    mouthOpen: 0.4 },  pose: { bend: 0.06,  headTilt: 0.05, lean: -0.12 }, idle: { energy: 1.3, sway: 0.3, bounce: 0 } },
+    worried:   { expr: { smile: -0.2, eyeOpen: 0.8,  browTilt: 0.5,   browRaise: 0.5,  mouthOpen: 0 },    pose: { bend: 0.08,  headTilt: 0.08 }, idle: { energy: 0.4, sway: 0.7, bounce: 0 } },
+    proud:     { expr: { smile: 0.45, eyeOpen: 0.8,  browTilt: -0.15, browRaise: 0,    mouthOpen: 0 },    pose: { bend: -0.06, headTilt: -0.14, lean: -0.04 }, idle: { energy: 0.4, sway: 0.3, bounce: 0 } },
+    disgusted: { expr: { smile: -0.5, eyeOpen: 0.6,  browTilt: -0.4,  browRaise: 0.1,  mouthOpen: 0.12, browSkew: 0.5 },  pose: { bend: 0.02,  headTilt: -0.05, lean: -0.05 }, idle: { energy: 0.4, sway: 0.4, bounce: 0 } },
+    confused:  { expr: { smile: -0.05, eyeOpen: 0.9, browTilt: 0,     browRaise: 0.4,  mouthOpen: 0.05, browSkew: 1, pupilX: 0.4 }, pose: { bend: 0.03, headTilt: 0.15 }, idle: { energy: 0.4, sway: 0.6, bounce: 0 } },
+    embarrassed:{ expr: { smile: 0.15, eyeOpen: 0.7, browTilt: 0.3,   browRaise: 0.2,  mouthOpen: 0, blush: 1, pupilY: 0.5 }, pose: { bend: 0.06, headTilt: 0.12 }, idle: { energy: 0.3, sway: 0.5, bounce: 0 } },
+    love:      { expr: { smile: 0.8,  eyeOpen: 0.6,  browTilt: 0,     browRaise: 0.5,  mouthOpen: 0.1, blush: 0.8 },     pose: { bend: -0.03, headTilt: 0.06 }, idle: { energy: 0.7, sway: 0.6, bounce: 0.2 } },
   };
 
   // No hair by default for everyone — set `hair` explicitly to add it.

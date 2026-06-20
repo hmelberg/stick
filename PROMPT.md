@@ -108,10 +108,13 @@ All three render the same skeleton, so every command works in every style.
 
 ### Expression fields (all optional)
 `smile` −1..1 · `eyeOpen` 0..1 · `browTilt` −1 (angry)..1 (sad) · `browRaise` 0..1 ·
-`mouthOpen` 0..1 · `pupilX`/`pupilY` −1..1 (gaze direction).
+`mouthOpen` 0..1 · `pupilX`/`pupilY` −1..1 (gaze direction) ·
+`browSkew` −1..1 (raise one eyebrow — quizzical) · `tears` 0..1 (crying) · `blush` 0..1 (cheeks).
 
 ### Moods (presets for face + posture + idle motion)
-`neutral` `happy` `ecstatic` `bored` `thinking` `angry` `sad` `surprised` `sleepy`
+`neutral` `happy` `ecstatic` `laughing` `bored` `thinking` `angry` `sad` `crying`
+`surprised` `scared` `worried` `confused` `disgusted` `proud` `embarrassed` `love` `sleepy`
+(pair `love` with `emote: { symbol: "heart" }` for the full effect.)
 
 ## Timeline events
 
