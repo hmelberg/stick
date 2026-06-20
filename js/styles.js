@@ -175,11 +175,11 @@
   }
 
   /* ---------------- shared hair / hat / glasses ---------------- */
-  // long hair: a strand down each side of the head ending in an inward curl.
+  // long hair: a strand down each side of the head, the tip flicking outward in a curl.
   function longStrand(sx, r) {
     return `M ${(sx * 0.28 * r).toFixed(2)} ${(-1.0 * r).toFixed(2)}`
-      + ` Q ${(sx * 1.2 * r).toFixed(2)} ${(-0.5 * r).toFixed(2)} ${(sx * 1.02 * r).toFixed(2)} ${(0.62 * r).toFixed(2)}`
-      + ` Q ${(sx * 0.96 * r).toFixed(2)} ${(1.34 * r).toFixed(2)} ${(sx * 0.46 * r).toFixed(2)} ${(1.12 * r).toFixed(2)}`;
+      + ` Q ${(sx * 1.2 * r).toFixed(2)} ${(-0.5 * r).toFixed(2)} ${(sx * 1.0 * r).toFixed(2)} ${(0.72 * r).toFixed(2)}`
+      + ` Q ${(sx * 0.95 * r).toFixed(2)} ${(1.36 * r).toFixed(2)} ${(sx * 1.42 * r).toFixed(2)} ${(1.12 * r).toFixed(2)}`;
   }
 
   function hairStroke(fig, r, parent, ink) {
