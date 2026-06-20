@@ -547,6 +547,37 @@
   };
   H['scene.untint'] = ctx => { const dur = durOf(ctx, DUR.slow); ctx.rt.ch.tween('tint.a', ctx.t0, dur, 0, EASE.inOut); return dur; };
 
+  // Arrow / connector between two anchors (a single path: shaft + arrowhead).
+  // Endpoints are resolved once, at creation time. Becomes an object you can recolour/hide.
+  function arrowD(a, b, hs, twoWay) {
+    const ang = Math.atan2(b.y - a.y, b.x - a.x);
+    const head = (p, dir) => {
+      const h1x = p.x - dir * hs * Math.cos(ang - 0.42), h1y = p.y - dir * hs * Math.sin(ang - 0.42);
+      const h2x = p.x - dir * hs * Math.cos(ang + 0.42), h2y = p.y - dir * hs * Math.sin(ang + 0.42);
+      return ` M ${p.x.toFixed(2)} ${p.y.toFixed(2)} L ${h1x.toFixed(2)} ${h1y.toFixed(2)} M ${p.x.toFixed(2)} ${p.y.toFixed(2)} L ${h2x.toFixed(2)} ${h2y.toFixed(2)}`;
+    };
+    let d = `M ${a.x.toFixed(2)} ${a.y.toFixed(2)} L ${b.x.toFixed(2)} ${b.y.toFixed(2)}` + head(b, 1);
+    if (twoWay) d += head(a, -1);
+    return d;
+  }
+  H.arrow = H.connect = ctx => {
+    const a = ctx.args, rt = ctx.rt;
+    const from = STICK.resolvePoint(rt, a.from, ctx.t0), to = STICK.resolvePoint(rt, a.to, ctx.t0);
+    if (!from || !to) { rt.warn('arrow: needs "from" and "to"'); return 0; }
+    let id = a.id || ('arrow' + rt.objs.size);
+    if (rt.objs.has(id) || rt.figs.has(id)) { let i = 2; while (rt.objs.has(id + i) || rt.figs.has(id + i)) i++; id += i; }
+    const obj = {
+      id, shape: 'path', layer: a.layer || 'mid', hidden: false, directional: false, baseAngle: 0, opacity: 1,
+      props: { d: arrowD(from, to, num(a.head, 2.2), !!a.twoWay), stroke: a.color || '#2a2a35', strokeWidth: num(a.width, 0.4), fill: 'none' },
+      pivot: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
+    };
+    rt.objs.set(id, obj);
+    STICK.initObjectChannels(rt, obj);
+    const dur = durOf(ctx, 0.02);
+    if (dur > 0.05) { rt.ch.set(id + '.opacity', ctx.t0, 0); rt.ch.tween(id + '.opacity', ctx.t0, dur, 1, EASE.inOut); }
+    return dur > 0.05 ? dur : 0;
+  };
+
   H['camera.reset'] = ctx => {
     const dur = durOf(ctx, DUR.slow);
     ctx.rt.ch.tween('cam.z', ctx.t0, dur, 1, EASE.inOut);

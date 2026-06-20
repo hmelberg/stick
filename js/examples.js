@@ -615,6 +615,26 @@
       ],
     },
 
+    'flowchart': {
+      v: 1,
+      scene: { theme: 'blank' },
+      objects: [
+        { id: 'idea', shape: 'text', layer: 'mid', props: { x: 24, y: 30, text: 'Idea', size: 5, fill: '#2a2a35' } },
+        { id: 'ship', shape: 'text', layer: 'mid', props: { x: 70, y: 30, text: 'Ship it', size: 5, fill: '#2a2a35' } },
+        { id: 'prof', shape: 'text', layer: 'mid', props: { x: 47, y: 56, text: 'Profit?', size: 5, fill: '#2a2a35' } },
+      ],
+      figures: [
+        { id: 'p', archetype: ['man'], pos: { x: 14, y: 70 }, facing: 'right', mood: 'happy' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'The plan', dur: 'normal' } },
+        { at: 0.5, cmd: 'arrow', dur: 'fast', args: { from: { x: 33, y: 29 }, to: { x: 61, y: 29 }, color: '#3a86e0' } },
+        { cmd: 'arrow', dur: 'fast', args: { from: { x: 71, y: 35 }, to: { x: 51, y: 52 }, color: '#3a86e0' } },
+        { target: 'p', cmd: 'point', args: { hand: 'right', to: 'prof' } },
+        { target: 'p', cmd: 'say', args: { text: 'Foolproof.' } },
+      ],
+    },
+
     'guided tour': {
       v: 1,
       scene: { theme: 'blank' },

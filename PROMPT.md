@@ -165,6 +165,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `camera.follow` | `{ "target": "figId", "offset": -6 }` | pan to track a walking figure (use with the move, `"at": "<"`) — for side-scrolling |
 | `scene.fade` / `scene.cut` | `{ "to": "street" }` or `{ "bg": "#...", "elements": [...] }` | change the backdrop (new setting) — fade for a soft transition, cut for instant |
 | `scene.tint` | `{ "to": "sunset" }` or `{ "color": "#ff7a3d", "amount": 0.3 }` | full-frame colour wash (time-of-day / mood). Presets: `sunset` `dawn` `dusk` `night` `day` `alert` `dream` `cold` `warm` `spooky`. `scene.untint` clears it. |
+| `arrow` (alias `connect`) | `{ "from": ..., "to": ..., "color": "#3a86e0" }` | draw an arrow/connector between two anchors (points, `figId.head`, object/board ids). Becomes an object (give it an `id` to recolour/hide). `twoWay`, `width`, `head` size; a `dur` fades it in. Endpoints are fixed at creation time. |
 | `give` (alias `hold`) | `{ "prop": "apple", "hand": "right" }` | put a prop in a hand — it then **follows the hand**. `prop` is a library name or an existing object id. The arm eases to a holding pose. Options: `scale`, `color`, `follow` (force/forbid arm-rotation), `angle` (fixed aim). |
 | `drop` (alias `putDown`) | `{ "hand": "right", "to": "ground" }` | release the held prop; it stays where dropped, or settles to a point / `"ground"`. |
 | `throw` | `{ "hand": "right", "to": "bob.chest", "spin": 2 }` | toss the held prop along an arc to a target (point/anchor), with spin. `height` controls the arc. |
