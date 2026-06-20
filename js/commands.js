@@ -887,8 +887,10 @@
     const hand = handOf(a.hand) || 'R';
     const ref = a.prop != null ? a.prop : a.object;
     if (ref == null) { ctx.rt.warn('give: missing "prop"'); return 0; }
-    let obj = ctx.rt.objs.get(String(ref));
-    if (!obj) obj = STICK.makeProp(ctx.rt, String(ref), { figId: fig.id, scale: a.scale, color: a.color, id: a.id });
+    const popts = { figId: fig.id, scale: a.scale, color: a.color, id: a.id };
+    let obj;
+    if (typeof ref === 'object') obj = STICK.makePropDef(ctx.rt, ref, popts);          // inline custom prop
+    else obj = ctx.rt.objs.get(String(ref)) || STICK.makeProp(ctx.rt, String(ref), popts); // existing id or library
     if (!obj) return 0;
     const dur = durOf(ctx, DUR.quick);
     ctx.rt.grips.push({ obj: obj.id, fig: fig.id, hand, t0: ctx.t0, t1: Infinity, follow: a.follow != null ? !!a.follow : null });

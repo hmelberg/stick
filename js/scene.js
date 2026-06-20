@@ -73,9 +73,13 @@
       hidden: !!raw.hidden,
     };
     obj.opacity = num(obj.props.opacity, 1);
-    obj.pivot = (raw.pivot && typeof raw.pivot === 'object' && typeof raw.pivot.x === 'number')
-      ? { x: raw.pivot.x, y: num(raw.pivot.y, 0) }
+    // grip/pivot + optional directional aim, so an authored object can be held like a prop
+    const grip = raw.grip && typeof raw.grip === 'object' ? raw.grip : raw.pivot;
+    obj.pivot = (grip && typeof grip === 'object' && typeof grip.x === 'number')
+      ? { x: grip.x, y: num(grip.y, 0) }
       : STICK.objectPivot(obj);
+    obj.directional = !!raw.directional;
+    obj.baseAngle = num(raw.baseAngle, 0);
     return obj;
   };
 

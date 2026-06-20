@@ -31,26 +31,43 @@
     pencil: { shape: 'path', props: { d: 'M -0.4 -0.3 L 2.6 -0.3 L 3.1 0 L 2.6 0.3 L -0.4 0.3 Z', fill: '#f4a261', stroke: INK, strokeWidth: 0.12 }, directional: true },
   };
 
-  // Build a normalized object from a library entry, register it + its channels.
-  // opts: { figId, id, scale, color }. Returns the object (or null on unknown name).
-  STICK.makeProp = function (rt, name, opts) {
+  const OBJ_SHAPES = ['circle', 'rect', 'ellipse', 'line', 'path', 'text'];
+
+  // Build a held-prop object from a definition (library entry or inline def):
+  // { shape, props, grip?:{x,y}, directional?, baseAngle?, scale?, layer? }.
+  // Registers it + its channels. opts: { figId, id, scale, color }.
+  function buildProp(rt, def, opts, fallbackName) {
     opts = opts || {};
-    const def = STICK.props[name];
-    if (!def) { rt.warn(`unknown prop "${name}"`); return null; }
-    let id = opts.id != null ? String(opts.id) : ((opts.figId ? opts.figId + '_' : '') + name);
+    let id = opts.id != null ? String(opts.id) : ((opts.figId ? opts.figId + '_' : '') + (fallbackName || 'prop'));
     if (rt.objs.has(id) || rt.figs.has(id)) { let i = 2; while (rt.objs.has(id + i) || rt.figs.has(id + i)) i++; id += i; }
     const props = Object.assign({}, def.props);
     if (opts.color) props.fill = opts.color;
+    // grip = hand-contact point in the def's own coords (library props author it at 0,0)
+    const grip = def.grip && typeof def.grip === 'object' ? { x: num(def.grip.x, 0), y: num(def.grip.y, 0) } : { x: 0, y: 0 };
     const obj = {
       id, shape: def.shape, layer: def.layer || 'fig', props, hidden: false,
       directional: !!def.directional, baseAngle: num(def.baseAngle, 0),
-      opacity: 1, pivot: { x: 0, y: 0 }, // grip authored at the origin
+      opacity: 1, pivot: grip,
     };
     rt.objs.set(id, obj);
     STICK.initObjectChannels(rt, obj);
     const sc = num(opts.scale, num(def.scale, 1));
     if (sc !== 1) rt.ch.setBase(id + '.scale', sc);
     return obj;
+  }
+
+  // Materialise a named library prop. Returns the object (or null on unknown name).
+  STICK.makeProp = function (rt, name, opts) {
+    const def = STICK.props[name];
+    if (!def) { rt.warn(`unknown prop "${name}"`); return null; }
+    return buildProp(rt, def, opts, name);
+  };
+
+  // Materialise a custom prop from an inline definition the author provides.
+  STICK.makePropDef = function (rt, def, opts) {
+    if (!def || typeof def !== 'object') return null;
+    if (!OBJ_SHAPES.includes(def.shape)) { rt.warn(`inline prop: unknown shape ${JSON.stringify(def.shape)}`); return null; }
+    return buildProp(rt, def, opts, def.id || (opts && opts.id) || 'prop');
   };
 
   // Forearm angle (deg) for a held hand — used to aim directional props.

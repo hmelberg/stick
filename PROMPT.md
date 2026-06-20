@@ -169,6 +169,10 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 ### Props (held objects)
 Library names for `give`/`throw`/`pickUp`: **loose (upright)** — `apple` `ball` `cup` `coffee` `book` `phone` `balloon` `briefcase` `sign`; **directional (point along the arm)** — `gun` `sword` `wand` `pencil`. The prop is created automatically the first time you `give` it (object id = `<figId>_<prop>`, e.g. `ann_apple`), so you can later `throw`/`pickUp`/`handOff` it. `drop`/`throw`/`handOff` with no `hand` act on the right hand if it holds something, else the left.
 
+**Custom props (not in the library):** `give` also accepts an inline prop definition — author any shape and the engine makes it grabbable:
+`{ "cmd": "give", "target": "ana", "args": { "prop": { "shape": "path", "props": { "d": "M 0 0 L 0 -4 L 2.6 -3 L 0 -2 Z", "fill": "#e74c3c" }, "grip": { "x": 0, "y": 0 }, "directional": false }, "hand": "right" } }`
+`grip` is the hand-contact point in your shape's own coordinates (where the hand holds it); `directional: true` makes it aim along the forearm. The same `grip`/`directional` fields also work on objects declared in the top-level `objects` array, so a custom object can be held by id too. (Each prop is a single shape/path.)
+
 ### Joint angle convention
 Degrees. `0` = limb hanging straight down, **positive = forward** (in facing
 direction), `90` = horizontal forward, `180` = straight up, negative = backward.
