@@ -85,8 +85,8 @@
     if (fig.beard) { // drawn first so it sits behind the eyes/mouth; fades with the face toward the back
       const b = fig.beard === 'goatee' || fig.beard === 'stubble' ? fig.beard : 'full';
       const d = b === 'goatee'
-        ? `M ${(-0.24 * r).toFixed(2)} ${(0.66 * r).toFixed(2)} Q 0 ${(0.58 * r).toFixed(2)} ${(0.24 * r).toFixed(2)} ${(0.66 * r).toFixed(2)} Q ${(0.3 * r).toFixed(2)} ${(1.04 * r).toFixed(2)} 0 ${(1.1 * r).toFixed(2)} Q ${(-0.3 * r).toFixed(2)} ${(1.04 * r).toFixed(2)} ${(-0.24 * r).toFixed(2)} ${(0.66 * r).toFixed(2)} Z`
-        : `M ${(-0.82 * r).toFixed(2)} ${(0.2 * r).toFixed(2)} C ${(-0.92 * r).toFixed(2)} ${(0.74 * r).toFixed(2)} ${(-0.45 * r).toFixed(2)} ${(1.14 * r).toFixed(2)} 0 ${(1.1 * r).toFixed(2)} C ${(0.45 * r).toFixed(2)} ${(1.14 * r).toFixed(2)} ${(0.92 * r).toFixed(2)} ${(0.74 * r).toFixed(2)} ${(0.82 * r).toFixed(2)} ${(0.2 * r).toFixed(2)} Q ${(0.4 * r).toFixed(2)} ${(0.64 * r).toFixed(2)} 0 ${(0.68 * r).toFixed(2)} Q ${(-0.4 * r).toFixed(2)} ${(0.64 * r).toFixed(2)} ${(-0.82 * r).toFixed(2)} ${(0.2 * r).toFixed(2)} Z`;
+        ? `M ${(-0.27 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} Q 0 ${(0.5 * r).toFixed(2)} ${(0.27 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} Q ${(0.36 * r).toFixed(2)} ${(1.5 * r).toFixed(2)} 0 ${(1.68 * r).toFixed(2)} Q ${(-0.36 * r).toFixed(2)} ${(1.5 * r).toFixed(2)} ${(-0.27 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} Z`
+        : `M ${(-0.86 * r).toFixed(2)} ${(-0.05 * r).toFixed(2)} C ${(-1.06 * r).toFixed(2)} ${(0.95 * r).toFixed(2)} ${(-0.7 * r).toFixed(2)} ${(1.95 * r).toFixed(2)} 0 ${(1.9 * r).toFixed(2)} C ${(0.7 * r).toFixed(2)} ${(1.95 * r).toFixed(2)} ${(1.06 * r).toFixed(2)} ${(0.95 * r).toFixed(2)} ${(0.86 * r).toFixed(2)} ${(-0.05 * r).toFixed(2)} Q ${(0.42 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} 0 ${(0.64 * r).toFixed(2)} Q ${(-0.42 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} ${(-0.86 * r).toFixed(2)} ${(-0.05 * r).toFixed(2)} Z`;
       fr.beard = mk('path', { d, fill: ink, opacity: b === 'stubble' ? 0.4 : 1 }, grp);
     }
     fr.eyeN = mk('ellipse', { cx: EX_N * r, cy: EY * r, rx: 0.15 * r, fill: ink }, grp);
@@ -319,7 +319,7 @@
       n.farG = farG;
       n.far = mk('path', { ...limb, 'stroke-width': w * 0.9 }, farG);
       n.torso = mk('path', limb, root);
-      n.head = mk('circle', { r, fill: 'var(--paper, #f7f2e9)', stroke: ink, 'stroke-width': w * 0.85 }, root);
+      n.head = mk('circle', { r, fill: 'var(--paper, #f7f2e9)', stroke: ink, 'stroke-width': w * 0.58 }, root);
       n.headG = mk('g', {}, root);
       hairStroke(fig, r, n.headG, ink);
       n.face = buildFace(n.headG, fig, r, { nose: false });
@@ -362,8 +362,8 @@
       n.handL = buildHand(farG, g, ink);
       n.torso = mk('path', limb, root);
       n.headFill = mk('path', { fill: 'var(--paper, #f7f2e9)', stroke: 'none' }, root);
-      n.headStroke = mk('path', { ...limb, 'stroke-width': w * 0.85 }, root);
-      n.headStroke2 = mk('path', { ...limb, 'stroke-width': w * 0.45, opacity: 0.35 }, root);
+      n.headStroke = mk('path', { ...limb, 'stroke-width': w * 0.58 }, root);
+      n.headStroke2 = mk('path', { ...limb, 'stroke-width': w * 0.34, opacity: 0.35 }, root);
       n.headG = mk('g', {}, root);
       hairStroke(fig, r, n.headG, ink);
       n.face = buildFace(n.headG, fig, r, { nose: true });
@@ -447,7 +447,7 @@
       n.neckLine = mk('path', { ...limb, 'stroke-width': w * 0.8 }, root);
       n.nearLeg = mk('path', limb, root);
       n.shoeR = mk('ellipse', { fill: ink }, root);
-      n.head = mk('circle', { r, fill: 'var(--paper, #f7f2e9)', stroke: ink, 'stroke-width': w * 0.8 }, root);
+      n.head = mk('circle', { r, fill: 'var(--paper, #f7f2e9)', stroke: ink, 'stroke-width': w * 0.56 }, root);
       n.headG = mk('g', {}, root);
       hairToon(fig, r, n.headG, ink);
       n.face = buildFace(n.headG, fig, r, { nose: true });
