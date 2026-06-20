@@ -19,6 +19,12 @@
   };
   const pt = p => p.x.toFixed(2) + ' ' + p.y.toFixed(2);
   const rad = d => (d * Math.PI) / 180;
+  // Depth shading for the "far" limbs: faded in side view, but equal to the near
+  // side when facing front/back (P.lateral ~ 1) where the limbs are symmetric.
+  const farOpacity = (base, P) => {
+    const lat = P && P.lateral != null ? P.lateral : 1;
+    return (1 - (1 - lat) * (1 - base)).toFixed(3);
+  };
 
   /* ---------------- seeded wobble (deterministic in t — scrub-safe) ---------------- */
   const srand = (i, seed) => {
@@ -93,6 +99,13 @@
     }
     fr.mouth = mk('path', { stroke: ink, 'stroke-width': fw * 1.5, fill: 'none', 'stroke-linecap': 'round' }, grp);
     fr.mouthO = mk('ellipse', { fill: ink }, grp);
+    if (fig.glasses) { // built here (not buildExtras) so the lenses track the eyes as the face turns
+      const gl = { stroke: ink, 'stroke-width': fw, fill: 'none' };
+      fr.glassN = mk('circle', { r: 0.27 * r, ...gl }, grp);
+      fr.glassF = mk('circle', { r: 0.27 * r, ...gl }, grp);
+      fr.glBridge = mk('path', gl, grp);
+      fr.glTemple = mk('path', gl, grp);
+    }
     return fr;
   }
 
@@ -130,6 +143,15 @@
     const brow = cx => `M ${(cx - 0.17 * r).toFixed(3)} ${(by - k).toFixed(3)} L ${(cx + 0.17 * r).toFixed(3)} ${(by + k).toFixed(3)}`;
     fr.browN.setAttribute('d', brow(cxN * r));
     fr.browF.setAttribute('d', brow(cxF * r));
+    if (fr.glassN) { // lenses sit over the (moving) eyes; bridge + one temple
+      const lensR = 0.27 * r, ey = EY * r, xn = cxN * r, xf = cxF * r;
+      fr.glassN.setAttribute('cx', xn.toFixed(2)); fr.glassN.setAttribute('cy', ey.toFixed(2));
+      fr.glassF.setAttribute('cx', xf.toFixed(2)); fr.glassF.setAttribute('cy', ey.toFixed(2));
+      const lo = Math.min(xn, xf), hi = Math.max(xn, xf);
+      fr.glBridge.setAttribute('d', `M ${(lo + lensR).toFixed(2)} ${ey.toFixed(2)} L ${(hi - lensR).toFixed(2)} ${ey.toFixed(2)}`);
+      const outer = Math.abs(xf) >= Math.abs(xn) ? xf : xn, dir = outer >= 0 ? 1 : -1;
+      fr.glTemple.setAttribute('d', `M ${(outer + dir * lensR).toFixed(2)} ${(ey - 0.03 * r).toFixed(2)} L ${(dir * 0.95 * r).toFixed(2)} ${(-0.34 * r).toFixed(2)}`);
+    }
     if (fr.nose) fr.nose.setAttribute('opacity', (1 - front).toFixed(2)); // nose is a profile feature
 
     const mx = (0.36 - 0.36 * front) * r, my = 0.48 * r, hw = 0.28 * r;
@@ -203,14 +225,7 @@
   }
 
   function buildExtras(parent, fig, r, ink, faceGrp) {
-    const fw = 0.09 * r;
-    if (fig.glasses) {
-      const gl = { stroke: ink, 'stroke-width': fw, fill: 'none' };
-      const gp = faceGrp || parent; // glasses are a front feature — fade with the face toward the back
-      mk('circle', { cx: EX_N * r, cy: EY * r, r: 0.27 * r, ...gl }, gp);
-      mk('circle', { cx: EX_F * r, cy: EY * r, r: 0.27 * r, ...gl }, gp);
-      mk('path', { d: `M ${-0.13 * r} ${EY * r} L ${-0.85 * r} ${-0.28 * r}`, ...gl }, gp);
-    }
+    // glasses are built inside buildFace now (so the lenses track the eyes)
     if (fig.hat === 'fedora') {
       mk('path', { d: `M ${-1.25 * r} ${-0.55 * r} L ${1.05 * r} ${-0.55 * r}`, stroke: ink, 'stroke-width': 0.16 * r, 'stroke-linecap': 'round', fill: 'none' }, parent);
       mk('path', { d: `M ${-0.7 * r} ${-0.58 * r} L ${-0.58 * r} ${-1.3 * r} Q 0 ${-1.44 * r} ${0.5 * r} ${-1.28 * r} L ${0.62 * r} ${-0.58 * r} Z`, fill: ink }, parent);
@@ -275,6 +290,7 @@
       const limb = { stroke: ink, 'stroke-width': w, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
       const n = { fig, g };
       const farG = mk('g', { opacity: 0.62 }, root);
+      n.farG = farG;
       n.far = mk('path', { ...limb, 'stroke-width': w * 0.9 }, farG);
       n.torso = mk('path', limb, root);
       n.head = mk('circle', { r, fill: 'var(--paper, #f7f2e9)', stroke: ink, 'stroke-width': w * 0.85 }, root);
@@ -288,6 +304,7 @@
     },
     update(n, P) {
       setTf(n.root, P);
+      n.farG.setAttribute('opacity', farOpacity(0.62, P));
       const bust = isBust(n);
       const legD = l => `M ${pt(P.pelvis)} L ${pt(l.knee)} L ${pt(l.ank)} L ${pt(l.foot)}`;
       const armD = a => `M ${pt(P.sh)} L ${pt(a.elb)} L ${pt(a.hand)}`;
@@ -313,6 +330,7 @@
       const limb = { stroke: ink, 'stroke-width': w, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
       const n = { fig, g, w };
       const farG = mk('g', { opacity: 0.6 }, root);
+      n.farG = farG;
       n.far = mk('path', { ...limb, 'stroke-width': w * 0.85 }, farG);
       n.shoeL = mk('path', { ...limb, 'stroke-width': w * 1.15 }, farG);
       n.handL = buildHand(farG, g, ink);
@@ -336,6 +354,7 @@
       const sd = n.fig.seed * 53 + frame * 101;
       const amp = 0.009 * g.h;
       setTf(n.root, P);
+      n.farG.setAttribute('opacity', farOpacity(0.6, P));
 
       const bust = isBust(n);
       const limbD = (pts, salt) => smoothOpen(wobble(resample(pts, 0.075 * g.h), amp, sd + salt));
@@ -390,6 +409,7 @@
       const limb = { stroke: ink, 'stroke-width': w * 1.05, fill: 'none', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
       const n = { fig, g };
       const farG = mk('g', { opacity: 0.78 }, root);
+      n.farG = farG;
       n.farLeg = mk('path', limb, farG);
       n.shoeL = mk('ellipse', { fill: ink }, farG);
       n.farArm = mk('path', limb, farG);
@@ -411,6 +431,7 @@
     update(n, P) {
       const g = P.g;
       setTf(n.root, P);
+      n.farG.setAttribute('opacity', farOpacity(0.78, P));
       const bust = isBust(n);
       const base = bust ? bustBase(P) : P.pelvis; // bust torso starts below the shoulders
 

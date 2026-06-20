@@ -118,6 +118,9 @@
     set('shL', 0); set('shR', 0); set('elL', 8); set('elR', 8);
     set('hipL', 0); set('hipR', 0); set('kneeL', 0); set('kneeR', 0);
     set('handL', 'relaxed'); set('handR', 'relaxed');
+    // A "bust" (floating head + arms) has no legs, so straight-down arms read as
+    // legs. Rest its arms bent and forward so they clearly look like gesturing arms.
+    if (fig.body === 'bust') { set('shL', 22); set('shR', 22); set('elL', 64); set('elR', 64); }
 
     const E = { ...mood.expr, ...fig.expression };
     if (base === 'sleep') E.eyeOpen = 0.04;
@@ -156,10 +159,10 @@
   }
 
   const GAIT = {
-    walk:     { stride: 0.62, hip: 27, knee: 34, kneePh: 1.1, arm: 19, elbow: 10, elbowSwing: 7, bob: 0.017, lean: 2 },
-    run:      { stride: 0.95, hip: 44, knee: 65, kneePh: 1.0, arm: 32, elbow: 70, elbowSwing: 0, bob: 0.045, lean: 10 },
-    moonwalk: { stride: 0.45, hip: 13, knee: 0,  kneePh: 0,   arm: 0,  elbow: 6,  elbowSwing: 0, bob: 0.004, lean: -7 },
-    slide:    { stride: 1,    hip: 0,  knee: 0,  kneePh: 0,   arm: 0,  elbow: 10, elbowSwing: 0, bob: 0,     lean: -9 },
+    walk:     { stride: 0.62, hip: 27, knee: 38, kneePh: 1.1, arm: 19, elbow: 10, elbowSwing: 7, bob: 0.017, lean: 2,  lift: 0.05 },
+    run:      { stride: 0.95, hip: 44, knee: 65, kneePh: 1.0, arm: 32, elbow: 70, elbowSwing: 0, bob: 0.045, lean: 10, lift: 0.10 },
+    moonwalk: { stride: 0.45, hip: 13, knee: 0,  kneePh: 0,   arm: 0,  elbow: 6,  elbowSwing: 0, bob: 0.004, lean: -7, lift: 0 },
+    slide:    { stride: 1,    hip: 0,  knee: 0,  kneePh: 0,   arm: 0,  elbow: 10, elbowSwing: 0, bob: 0,     lean: -9, lift: 0 },
   };
 
   function gaitOffsets(rt, fig, t, g, loco) {
@@ -168,7 +171,7 @@
     const traveled = Math.hypot(x - loco.x0, y - loco.y0);
     const ramp = clamp(Math.min((t - loco.t0) / 0.25, (loco.t1 - t) / 0.3, 1), 0, 1);
     const phi = (traveled / (p.stride * g.h)) * Math.PI * 2;
-    const o = { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, bobUp: 0, lean: 0, ramp };
+    const o = { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, bobUp: 0, lean: 0, liftL: 0, liftR: 0, ramp };
     if (ramp <= 0) return o;
     const s = Math.sin(phi);
     if (loco.style === 'slide') {
@@ -184,11 +187,15 @@
       o.kneeR = p.knee * Math.max(0, Math.sin(phi - p.kneePh + Math.PI));
       o.shL = -p.arm * s; o.shR = p.arm * s;
       o.elL = p.elbowSwing * Math.sin(phi + 1); o.elR = p.elbowSwing * Math.sin(phi + 1 + Math.PI);
+      // lift the swing foot off the ground (in phase with the knee bend) so the
+      // walk reads as stepping, not skating along the floor
+      o.liftL = p.lift * g.h * Math.max(0, Math.sin(phi - p.kneePh));
+      o.liftR = p.lift * g.h * Math.max(0, Math.sin(phi - p.kneePh + Math.PI));
     }
     o.elL += p.elbow; o.elR += p.elbow;
     o.bobUp = p.bob * g.h * Math.abs(s);
     o.lean = p.lean;
-    for (const k of ['hipL', 'hipR', 'kneeL', 'kneeR', 'shL', 'shR', 'elL', 'elR', 'bobUp', 'lean']) o[k] *= ramp;
+    for (const k of ['hipL', 'hipR', 'kneeL', 'kneeR', 'shL', 'shR', 'elL', 'elR', 'bobUp', 'lean', 'liftL', 'liftR']) o[k] *= ramp;
     return o;
   }
 
@@ -219,7 +226,7 @@
     const wSit = clamp(get('sit'), 0, 1), wCr = clamp(get('crouch'), 0, 1), wLie = clamp(get('lie'), 0, 1);
 
     const loco = activeLoco(rt, id, t);
-    const gait = loco ? gaitOffsets(rt, fig, t, g, loco) : { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, bobUp: 0, lean: 0, ramp: 0 };
+    const gait = loco ? gaitOffsets(rt, fig, t, g, loco) : { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, bobUp: 0, lean: 0, liftL: 0, liftR: 0, ramp: 0 };
 
     // idle life: breathing, sway, joy-bounce — scaled down while walking
     const moodName = ch.getDef(id + '.mood', t, 'neutral');
@@ -303,7 +310,7 @@
 
     // legs (FK, then pin-IK)
     const hw = 0.075 * g.h; // hip half-spread when facing front
-    const mkLeg = (hipA, kneeA, pinName, side) => {
+    const mkLeg = (hipA, kneeA, pinName, side, lift) => {
       let knee = add(pelvis, dirDown(hipA), g.thigh);
       let ank = add(knee, dirDown(hipA - kneeA), g.shin);
       const pin = ch.getDef(id + '.' + pinName, t, null);
@@ -317,6 +324,8 @@
         knee = mixP(knee, kneeF, fa); ank = mixP(ank, ankF, fa);
         footX = g.foot * (1 - fa) + eta * g.foot * 0.55 * fa;
       }
+      // raise the swing foot (and knee a touch) for step clearance — ignored when pinned
+      if (lift) { knee.y -= lift * 0.35; ank.y -= lift; }
       if (pin && typeof pin === 'object') {
         const ik = ik2(pelvis, toLocal(pin), g.thigh, g.shin, -1);
         knee = ik.mid; ank = ik.end;
@@ -324,8 +333,8 @@
       const foot = { x: ank.x + footX, y: ank.y + 0.12 };
       return { knee, ank, foot };
     };
-    const legL = mkLeg(hipLA, kneeLA, 'pinFL', 'L');
-    const legR = mkLeg(hipRA, kneeRA, 'pinFR', 'R');
+    const legL = mkLeg(hipLA, kneeLA, 'pinFL', 'L', gait.liftL);
+    const legR = mkLeg(hipRA, kneeRA, 'pinFR', 'R', gait.liftR);
 
     // face
     const blink = blinkAmt(t, fig.seed);
@@ -342,6 +351,7 @@
 
     return {
       x, y, fc, rot, g, pelvis, neck, ctrl, sh, headC, headA,
+      lateral: lateralAmt, // 1 = facing front/back (limbs symmetric), 0 = full side
       legL, legR, armL, armR, face, toWorld,
       hands: {
         L: ch.getDef(id + '.handL', t, 'open'),
