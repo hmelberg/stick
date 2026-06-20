@@ -522,6 +522,23 @@
     if (typeof a.tilt === 'number') ctx.rt.ch.tween('cam.rot', ctx.t0, dur, a.tilt, EASE.inOut);
     return dur;
   };
+  // full-frame colour wash for time-of-day / mood. Named presets or color+amount.
+  const TINTS = {
+    sunset: ['#ff7a3d', 0.32], dawn: ['#ffb27a', 0.24], day: ['#000000', 0],
+    night: ['#16223f', 0.46], dusk: ['#3a3560', 0.34], alert: ['#ff2a2a', 0.3],
+    dream: ['#9b6ee0', 0.26], cold: ['#5aa0e0', 0.22], warm: ['#ffb44a', 0.2], spooky: ['#163a2a', 0.4],
+  };
+  H['scene.tint'] = ctx => {
+    const a = ctx.args, dur = durOf(ctx, DUR.slow);
+    let color = a.color, amount = a.amount;
+    const name = a.to || a.name;
+    if (name && TINTS[name]) { color = color || TINTS[name][0]; if (amount == null) amount = TINTS[name][1]; }
+    if (color != null) ctx.rt.ch.set('tint.color', ctx.t0, String(color));
+    ctx.rt.ch.tween('tint.a', ctx.t0, dur, clamp(num(amount, 0.3), 0, 1), EASE.inOut);
+    return dur;
+  };
+  H['scene.untint'] = ctx => { const dur = durOf(ctx, DUR.slow); ctx.rt.ch.tween('tint.a', ctx.t0, dur, 0, EASE.inOut); return dur; };
+
   H['camera.reset'] = ctx => {
     const dur = durOf(ctx, DUR.slow);
     ctx.rt.ch.tween('cam.z', ctx.t0, dur, 1, EASE.inOut);

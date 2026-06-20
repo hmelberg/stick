@@ -250,6 +250,8 @@
       front: mk('g', {}, dom.cam),
       bubbles: mk('g', {}, dom.cam),
     };
+    // full-frame colour wash (time-of-day / mood), in screen space over the scene
+    dom.tint = mk('rect', { x: 0, y: 0, width: 100, height: 100, fill: '#000', opacity: 0, 'pointer-events': 'none' }, svg);
     dom.fixed = mk('g', {}, svg);
 
     for (const fig of rt.figs.values()) {
@@ -416,6 +418,11 @@
     if (dom.boardNodes) for (const board of rt.boards.values()) {
       const node = dom.boardNodes.get(board.id);
       if (node) STICK.updateBoard(node, t);
+    }
+    if (dom.tint) { // time-of-day / mood colour wash
+      const ta = rt.ch.getDef('tint.a', t, 0);
+      dom.tint.setAttribute('opacity', (ta || 0).toFixed(3));
+      if (ta > 0.001) dom.tint.setAttribute('fill', rt.ch.getDef('tint.color', t, '#000') || '#000');
     }
     drawOverlays(rt, dom, t, Ps);
 

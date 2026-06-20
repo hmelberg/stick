@@ -582,6 +582,23 @@
       ],
     },
 
+    'sunset': {
+      v: 1,
+      scene: { theme: 'street' },
+      figures: [
+        { id: 'sam', archetype: ['man'], pos: { x: 30, y: 70 }, facing: 'right', mood: 'happy' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Golden hour', dur: 'normal' } },
+        { at: 0.4, cmd: 'scene.tint', dur: 'slow', args: { to: 'sunset' } },
+        { at: '<', target: 'sam', cmd: 'move', args: { style: 'walk', to: { x: 64, y: 70 } }, dur: 3 },
+        { target: 'sam', cmd: 'say', args: { text: 'What a view.' } },
+        { cmd: 'scene.tint', dur: 'verySlow', args: { to: 'night', amount: 0.5 } },
+        { at: '<+slow', target: 'sam', cmd: 'mood', args: { name: 'sleepy', animated: true } },
+        { cmd: 'scene.caption', args: { text: 'Night falls.', dur: 'slow' } },
+      ],
+    },
+
     'guided tour': {
       v: 1,
       scene: { theme: 'blank' },

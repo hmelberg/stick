@@ -144,6 +144,8 @@
     rt.ch.setBase('cam.z', 1);
     rt.ch.setBase('cam.rot', 0);
     rt.ch.setBase('cam.shake', 0);
+    rt.ch.setBase('tint.a', 0);
+    rt.ch.setBase('tint.color', '#000000');
 
     const cur = { start: 0, end: 0, origin: 0 };
     const tl = Array.isArray(doc.timeline) ? doc.timeline : [];
