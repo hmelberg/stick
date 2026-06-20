@@ -704,6 +704,31 @@
       ],
     },
 
+    'flowers': {
+      v: 1,
+      scene: { theme: 'blank' },
+      objects: [
+        { id: 'snow', shape: 'group', layer: 'mid', props: { children: [
+          { type: 'circle', props: { cx: 80, cy: 66, r: 4, fill: '#ffffff', stroke: '#2a2a35', strokeWidth: 0.22 } },
+          { type: 'circle', props: { cx: 80, cy: 59.5, r: 3, fill: '#ffffff', stroke: '#2a2a35', strokeWidth: 0.22 } },
+          { type: 'circle', props: { cx: 80, cy: 54.2, r: 2.2, fill: '#ffffff', stroke: '#2a2a35', strokeWidth: 0.22 } },
+          { type: 'circle', props: { cx: 79.2, cy: 53.7, r: 0.32, fill: '#2a2a35' } },
+          { type: 'circle', props: { cx: 80.8, cy: 53.7, r: 0.32, fill: '#2a2a35' } },
+          { type: 'path', props: { d: 'M 80 54.5 L 81.4 55', stroke: '#e67e22', strokeWidth: 0.35 } },
+        ] } },
+      ],
+      figures: [
+        { id: 'amy', archetype: ['woman'], hair: 'long', pos: { x: 32, y: 70 }, facing: 'right', mood: 'love' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'For you', dur: 'normal' } },
+        { at: 0.4, target: 'amy', cmd: 'give', args: { prop: 'flower', hand: 'right' } },
+        { target: 'amy', cmd: 'say', args: { text: 'A flower!' } },
+        { at: '<', target: 'amy', cmd: 'emote', args: { symbol: 'heart' } },
+        { target: 'snow', cmd: 'spin', args: { turns: 1 } },
+      ],
+    },
+
     'guided tour': {
       v: 1,
       scene: { theme: 'blank' },

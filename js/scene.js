@@ -47,7 +47,7 @@
      Objects are simple shapes (no skeleton) that move/scale/rotate/fade/recolor
      via channels objId.tx/.ty/.scale/.rot/.opacity/.fill. Geometry is authored
      exactly like a scene element; the pivot is the shape's natural centre. */
-  const OBJ_SHAPES = ['circle', 'rect', 'ellipse', 'line', 'path', 'text'];
+  const OBJ_SHAPES = ['circle', 'rect', 'ellipse', 'line', 'path', 'text', 'group'];
 
   STICK.objectPivot = function (obj) {
     const p = obj.props;
@@ -57,6 +57,7 @@
       case 'ellipse': return { x: num(p.cx, 0), y: num(p.cy, 0) };
       case 'line': return { x: (num(p.x1, 0) + num(p.x2, 10)) / 2, y: (num(p.y1, 0) + num(p.y2, 10)) / 2 };
       case 'text': return { x: num(p.x, 50), y: num(p.y, 50) };
+      case 'group': return { x: num(p.cx, 0), y: num(p.cy, 0) }; // children authored around (cx,cy)
       default: return { x: num(p.cx, 50), y: num(p.cy, 50) }; // path: optional cx/cy hint
     }
   };
@@ -226,6 +227,13 @@
         }, parent);
         txt.textContent = p.text != null ? String(p.text) : '';
         return txt;
+      }
+      case 'group': {
+        // several shapes as one object/prop (one transform). children: [{type/shape, props}]
+        const g = mk('g', {}, parent);
+        const kids = p.children || p.shapes || [];
+        for (const ch of kids) if (ch) STICK.drawSceneElement({ type: ch.type || ch.shape, props: ch.props || {} }, g, ink);
+        return g;
       }
       case 'repeat': {
         // tile a child shape from `from` to `to` every `step` along an axis —

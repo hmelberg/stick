@@ -25,6 +25,15 @@
     sign:    { shape: 'path', props: { d: 'M -0.18 0 L 0.18 0 L 0.18 -3.2 L -0.18 -3.2 Z M -1.9 -3.1 L 1.9 -3.1 L 1.9 -5.3 L -1.9 -5.3 Z', fill: '#e9c46a', stroke: INK, strokeWidth: 0.16 } },
     box:     { shape: 'rect', props: { x: -2.4, y: -1.9, w: 4.8, h: 3.8, rx: 0.2, fill: '#b07d4b', stroke: INK, strokeWidth: 0.18 } }, // good held two-handed
     banner:  { shape: 'rect', props: { x: -4, y: -1.3, w: 8, h: 2.6, rx: 0.3, fill: '#c0392b', stroke: INK, strokeWidth: 0.16 } },
+    flower:  { shape: 'group', props: { children: [
+      { type: 'rect', props: { x: -0.16, y: -3.2, w: 0.32, h: 3.2, fill: '#2e7d32' } },
+      { type: 'circle', props: { cx: 0.95, cy: -3.9, r: 0.72, fill: '#e8556f' } },
+      { type: 'circle', props: { cx: -0.95, cy: -3.9, r: 0.72, fill: '#e8556f' } },
+      { type: 'circle', props: { cx: 0, cy: -4.75, r: 0.72, fill: '#e8556f' } },
+      { type: 'circle', props: { cx: 0.62, cy: -3.1, r: 0.72, fill: '#e8556f' } },
+      { type: 'circle', props: { cx: -0.62, cy: -3.1, r: 0.72, fill: '#e8556f' } },
+      { type: 'circle', props: { cx: 0, cy: -3.9, r: 0.64, fill: '#f4c430' } },
+    ] } },
 
     // --- directional, point along the forearm (+x) ---
     gun:    { shape: 'path', props: { d: 'M -0.1 -0.9 L 2.7 -0.9 L 2.7 -0.3 L 0.75 -0.3 L 0.75 1.2 L -0.1 1.2 Z', fill: '#34495e', stroke: INK, strokeWidth: 0.14 }, directional: true },
@@ -33,7 +42,7 @@
     pencil: { shape: 'path', props: { d: 'M -0.4 -0.3 L 2.6 -0.3 L 3.1 0 L 2.6 0.3 L -0.4 0.3 Z', fill: '#f4a261', stroke: INK, strokeWidth: 0.12 }, directional: true },
   };
 
-  const OBJ_SHAPES = ['circle', 'rect', 'ellipse', 'line', 'path', 'text'];
+  const OBJ_SHAPES = ['circle', 'rect', 'ellipse', 'line', 'path', 'text', 'group'];
 
   // Build a held-prop object from a definition (library entry or inline def):
   // { shape, props, grip?:{x,y}, directional?, baseAngle?, scale?, layer? }.

@@ -248,7 +248,7 @@ scene element. List them at the top level in `"objects"`:
 ]
 ```
 
-- `shape`: `circle` `rect` `ellipse` `line` `path` `text` (same props as scene elements).
+- `shape`: `circle` `rect` `ellipse` `line` `path` `text` `group` (same props as scene elements). A **`group`** is several shapes as one object — `"props": { "children": [ { "type": "circle", "props": {…} }, { "type": "path", "props": {…} } ] }` — moved/scaled/rotated together (a snowman, a flower, a labelled box). Children keep their own colours.
 - `layer`: `back` `mid` `fig` `front` (default `front`).
 - `hidden: true` starts it invisible (then `appear`).
 - The object's pivot (centre of scale/rotation) is the shape's natural centre,
