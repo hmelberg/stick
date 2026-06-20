@@ -160,6 +160,14 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `camera.shake` | `{ "amount": 1.5 }` | quick camera shake (impact/excitement) |
 | `camera.follow` | `{ "target": "figId", "offset": -6 }` | pan to track a walking figure (use with the move, `"at": "<"`) — for side-scrolling |
 | `scene.fade` / `scene.cut` | `{ "to": "street" }` or `{ "bg": "#...", "elements": [...] }` | change the backdrop (new setting) — fade for a soft transition, cut for instant |
+| `give` (alias `hold`) | `{ "prop": "apple", "hand": "right" }` | put a prop in a hand — it then **follows the hand**. `prop` is a library name or an existing object id. The arm eases to a holding pose. Options: `scale`, `color`, `follow` (force/forbid arm-rotation), `angle` (fixed aim). |
+| `drop` (alias `putDown`) | `{ "hand": "right", "to": "ground" }` | release the held prop; it stays where dropped, or settles to a point / `"ground"`. |
+| `throw` | `{ "hand": "right", "to": "bob.chest", "spin": 2 }` | toss the held prop along an arc to a target (point/anchor), with spin. `height` controls the arc. |
+| `pickUp` | `{ "object": "ann_ball", "hand": "right" }` | reach to a prop already on stage (by object id or point) and grab it. |
+| `handOff` | `{ "to": "bob", "toHand": "left" }` | pass the held prop to another figure's hand. Position the two figures close together first. |
+
+### Props (held objects)
+Library names for `give`/`throw`/`pickUp`: **loose (upright)** — `apple` `ball` `cup` `coffee` `book` `phone` `balloon` `briefcase` `sign`; **directional (point along the arm)** — `gun` `sword` `wand` `pencil`. The prop is created automatically the first time you `give` it (object id = `<figId>_<prop>`, e.g. `ann_apple`), so you can later `throw`/`pickUp`/`handOff` it. `drop`/`throw`/`handOff` with no `hand` act on the right hand if it holds something, else the left.
 
 ### Joint angle convention
 Degrees. `0` = limb hanging straight down, **positive = forward** (in facing

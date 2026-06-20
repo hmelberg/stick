@@ -363,6 +363,13 @@
     }
   }
 
+  // Latest grip holding this object at time t (later grips win — handoffs).
+  function activeGrip(rt, objId, t) {
+    let g = null;
+    if (rt.grips) for (const gr of rt.grips) if (gr.obj === objId && t >= gr.t0 && t < gr.t1) g = gr;
+    return g;
+  }
+
   /* ---------------- frame ---------------- */
   function draw() {
     const rt = state.rt, dom = state.dom;
@@ -380,12 +387,28 @@
     for (const obj of rt.objs.values()) {
       const node = dom.objNodes && dom.objNodes.get(obj.id);
       if (!node) continue;
-      const tx = rt.ch.get(obj.id + '.tx', t), ty = rt.ch.get(obj.id + '.ty', t);
-      const sc = rt.ch.getDef(obj.id + '.scale', t, 1), rot = rt.ch.get(obj.id + '.rot', t);
+      const sc = rt.ch.getDef(obj.id + '.scale', t, 1);
       const op = rt.ch.getDef(obj.id + '.opacity', t, 1);
       const px = obj.pivot.x, py = obj.pivot.y;
-      node.g.setAttribute('transform',
-        `translate(${tx.toFixed(3)} ${ty.toFixed(3)}) translate(${px} ${py}) rotate(${rot.toFixed(2)}) scale(${sc.toFixed(4)}) translate(${(-px)} ${(-py)})`);
+      // held? follow the holder's hand (overriding tx/ty/rot); else channel-driven.
+      const grip = activeGrip(rt, obj.id, t);
+      const gP = grip && Ps.get(grip.fig);
+      if (gP) {
+        const handW = grip.hand === 'L' ? gP.world.handL : gP.world.handR;
+        const tx = handW.x - px, ty = handW.y - py;
+        const directional = grip.follow == null ? obj.directional : grip.follow;
+        let rot = 0, scY = sc;
+        if (directional) {
+          rot = STICK.propAngle(gP, grip.hand, obj.baseAngle || 0);
+          if (Math.cos(rot * Math.PI / 180) < 0) scY = -sc; // keep upright when aiming left
+        }
+        node.g.setAttribute('transform',
+          `translate(${tx.toFixed(3)} ${ty.toFixed(3)}) translate(${px} ${py}) rotate(${rot.toFixed(2)}) scale(${sc.toFixed(4)} ${scY.toFixed(4)}) translate(${(-px)} ${(-py)})`);
+      } else {
+        const tx = rt.ch.get(obj.id + '.tx', t), ty = rt.ch.get(obj.id + '.ty', t), rot = rt.ch.get(obj.id + '.rot', t);
+        node.g.setAttribute('transform',
+          `translate(${tx.toFixed(3)} ${ty.toFixed(3)}) translate(${px} ${py}) rotate(${rot.toFixed(2)}) scale(${sc.toFixed(4)}) translate(${(-px)} ${(-py)})`);
+      }
       node.g.setAttribute('opacity', op.toFixed(3));
       const fill = rt.ch.getDef(obj.id + '.fill', t, null);
       if (fill != null && fill !== node.lastFill) { node.shapeEl.setAttribute('fill', fill); node.lastFill = fill; }

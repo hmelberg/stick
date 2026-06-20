@@ -101,6 +101,7 @@
       doc, ch: new Channels(), warnings, warn,
       overlays: [],   // {type:'say'|'emote'|'caption', fig?, text|symbol, t0, t1}
       loco: [],       // {fig, t0, t1, style, x0, y0}
+      grips: [],      // {obj, fig, hand:'L'|'R', t0, t1, follow} — props held in a hand
       figs: new Map(),
       objs: new Map(), // animatable simple shapes (id -> normalized object)
       boards: new Map(), // writable panels (id -> normalized board with write blocks)

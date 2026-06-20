@@ -858,6 +858,138 @@
     return durOf(ctx, 0.3);
   };
 
+  /* ------------------------------ held props ------------------------------ */
+  const handOf = v => (v === 'left' ? 'L' : v === 'right' ? 'R' : null);
+  // the open grip (t1 = ∞) on a figure's hand (any hand if `hand` is null)
+  function openGripHand(rt, figId, hand, t) {
+    let g = null;
+    for (const gr of rt.grips) if (gr.fig === figId && gr.hand === hand && t >= gr.t0 && gr.t1 === Infinity) g = gr;
+    return g;
+  }
+  // hand specified -> that hand; unspecified -> prefer the right hand, else the left.
+  function openGrip(rt, figId, hand, t) {
+    if (hand != null) return openGripHand(rt, figId, hand, t);
+    return openGripHand(rt, figId, 'R', t) || openGripHand(rt, figId, 'L', t);
+  }
+  const HOLD_SH = 35, HOLD_EL = 110; // default "holding" arm pose
+  function holdPose(ctx, figId, hand, t, dur) {
+    ctx.rt.ch.tween(figId + '.sh' + hand, t, dur, HOLD_SH, EASE.inOut);
+    ctx.rt.ch.tween(figId + '.el' + hand, t, dur, HOLD_EL, EASE.inOut);
+  }
+  function handWorldAt(rt, fig, hand, t) {
+    const P = STICK.computeFigure(rt, fig, t);
+    return { P, w: hand === 'L' ? P.world.handL : P.world.handR };
+  }
+
+  H.give = H.hold = ctx => {
+    const fig = figOf(ctx); if (!fig) return 0;
+    const a = ctx.args;
+    const hand = handOf(a.hand) || 'R';
+    const ref = a.prop != null ? a.prop : a.object;
+    if (ref == null) { ctx.rt.warn('give: missing "prop"'); return 0; }
+    let obj = ctx.rt.objs.get(String(ref));
+    if (!obj) obj = STICK.makeProp(ctx.rt, String(ref), { figId: fig.id, scale: a.scale, color: a.color, id: a.id });
+    if (!obj) return 0;
+    const dur = durOf(ctx, DUR.quick);
+    ctx.rt.grips.push({ obj: obj.id, fig: fig.id, hand, t0: ctx.t0, t1: Infinity, follow: a.follow != null ? !!a.follow : null });
+    if (typeof a.angle === 'number') obj.baseAngle = a.angle - 0, obj.directional = true; // pin a fixed aim
+    if (a.pose !== false) holdPose(ctx, fig.id, hand, ctx.t0, dur);
+    return dur;
+  };
+
+  H.drop = H.putDown = ctx => {
+    const fig = figOf(ctx); if (!fig) return 0;
+    const a = ctx.args, hand = handOf(a.hand);
+    const grip = openGrip(ctx.rt, fig.id, hand, ctx.t0);
+    if (!grip) { ctx.rt.warn('drop: nothing held'); return 0; }
+    grip.t1 = ctx.t0;
+    const obj = ctx.rt.objs.get(grip.obj), px = obj.pivot.x, py = obj.pivot.y;
+    const { P, w } = handWorldAt(ctx.rt, fig, grip.hand, ctx.t0);
+    const dur = durOf(ctx, DUR.quick);
+    ctx.rt.ch.set(grip.obj + '.tx', ctx.t0, w.x - px);
+    ctx.rt.ch.set(grip.obj + '.ty', ctx.t0, w.y - py);
+    if (obj.directional) ctx.rt.ch.set(grip.obj + '.rot', ctx.t0, STICK.propAngle(P, grip.hand, obj.baseAngle || 0));
+    const to = a.to != null ? (a.to === 'ground' ? { x: w.x, y: 70 } : STICK.resolvePoint(ctx.rt, a.to, ctx.t0)) : null;
+    if (to) {
+      if (typeof to.x === 'number') ctx.rt.ch.tween(grip.obj + '.tx', ctx.t0, dur, to.x - px, EASE.inOut);
+      if (typeof to.y === 'number') ctx.rt.ch.tween(grip.obj + '.ty', ctx.t0, dur, to.y - py, EASE.out);
+    }
+    ctx.rt.ch.tween(fig.id + '.sh' + grip.hand, ctx.t0, dur, 8, EASE.inOut);
+    ctx.rt.ch.tween(fig.id + '.el' + grip.hand, ctx.t0, dur, 8, EASE.inOut);
+    return dur;
+  };
+
+  H.throw = ctx => {
+    const fig = figOf(ctx); if (!fig) return 0;
+    const a = ctx.args, hand = handOf(a.hand);
+    const grip = openGrip(ctx.rt, fig.id, hand, ctx.t0);
+    if (!grip) { ctx.rt.warn('throw: nothing held'); return 0; }
+    const to = STICK.resolvePoint(ctx.rt, a.to, ctx.t0);
+    if (!to) { ctx.rt.warn('throw: missing "to"'); return 0; }
+    grip.t1 = ctx.t0;
+    const dur = durOf(ctx, DUR.normal);
+    const obj = ctx.rt.objs.get(grip.obj), px = obj.pivot.x, py = obj.pivot.y;
+    const { w } = handWorldAt(ctx.rt, fig, grip.hand, ctx.t0);
+    const x0 = w.x - px, y0 = w.y - py, x1 = to.x - px, y1 = to.y - py;
+    const height = num(a.height, Math.max(7, Math.abs(x1 - x0) * 0.4)); // arc apex above the chord
+    ctx.rt.ch.set(grip.obj + '.tx', ctx.t0, x0);
+    ctx.rt.ch.set(grip.obj + '.ty', ctx.t0, y0);
+    const N = 10;
+    for (let k = 1; k <= N; k++) {
+      const u = k / N;
+      const xk = x0 + (x1 - x0) * u, yk = y0 + (y1 - y0) * u - 4 * height * u * (1 - u);
+      ctx.rt.ch.tween(grip.obj + '.tx', ctx.t0 + dur * (k - 1) / N, dur / N, xk, EASE.linear);
+      ctx.rt.ch.tween(grip.obj + '.ty', ctx.t0 + dur * (k - 1) / N, dur / N, yk, EASE.linear);
+    }
+    const spin = num(a.spin, 2);
+    ctx.rt.ch.set(grip.obj + '.rot', ctx.t0, 0);
+    ctx.rt.ch.tween(grip.obj + '.rot', ctx.t0, dur, 360 * spin * (x1 >= x0 ? 1 : -1), EASE.linear);
+    // throwing arm: snap overhead, then follow through down
+    tw(ctx, fig, 'sh' + grip.hand, ctx.t0, dur * 0.3, 150, EASE.out);
+    tw(ctx, fig, 'el' + grip.hand, ctx.t0, dur * 0.3, 12, EASE.out);
+    tw(ctx, fig, 'sh' + grip.hand, ctx.t0 + dur * 0.3, dur * 0.5, 18, EASE.inOut);
+    return dur;
+  };
+
+  H.pickUp = ctx => {
+    const fig = figOf(ctx); if (!fig) return 0;
+    const a = ctx.args, hand = handOf(a.hand) || 'R';
+    const ref = a.object != null ? a.object : a.prop;
+    const obj = (ref != null && typeof ref !== 'object') ? ctx.rt.objs.get(String(ref)) : null;
+    const to = obj
+      ? { x: ctx.rt.ch.get(obj.id + '.tx', ctx.t0) + obj.pivot.x, y: ctx.rt.ch.get(obj.id + '.ty', ctx.t0) + obj.pivot.y }
+      : STICK.resolvePoint(ctx.rt, ref, ctx.t0);
+    if (!obj || !to) { ctx.rt.warn('pickUp: needs an existing object id on stage'); return 0; }
+    const reach = durOf(ctx, DUR.quick);
+    const { w } = handWorldAt(ctx.rt, fig, hand, ctx.t0);
+    if (cv(ctx, fig, 'reach' + hand + 'on') < 0.01) { st(ctx, fig, 'reach' + hand + 'x', ctx.t0, w.x); st(ctx, fig, 'reach' + hand + 'y', ctx.t0, w.y); }
+    tw(ctx, fig, 'reach' + hand + 'x', ctx.t0, reach, to.x, EASE.inOut);
+    tw(ctx, fig, 'reach' + hand + 'y', ctx.t0, reach, to.y, EASE.inOut);
+    tw(ctx, fig, 'reach' + hand + 'on', ctx.t0, reach, 1, EASE.inOut);
+    const tGrab = ctx.t0 + reach;
+    ctx.rt.grips.push({ obj: obj.id, fig: fig.id, hand, t0: tGrab, t1: Infinity, follow: null });
+    tw(ctx, fig, 'reach' + hand + 'on', tGrab, DUR.quick, 0, EASE.inOut);
+    holdPose(ctx, fig.id, hand, tGrab, DUR.quick);
+    return reach + DUR.quick;
+  };
+
+  H.handOff = ctx => {
+    const fig = figOf(ctx); if (!fig) return 0;
+    const a = ctx.args, hand = handOf(a.hand);
+    const grip = openGrip(ctx.rt, fig.id, hand, ctx.t0);
+    if (!grip) { ctx.rt.warn('handOff: nothing held'); return 0; }
+    const toFig = ctx.rt.figs.get(String(a.to));
+    if (!toFig) { ctx.rt.warn('handOff: unknown "to" figure'); return 0; }
+    const toHand = handOf(a.toHand) || 'L';
+    const dur = durOf(ctx, DUR.quick), tHand = ctx.t0 + dur;
+    grip.t1 = tHand;
+    ctx.rt.grips.push({ obj: grip.obj, fig: toFig.id, hand: toHand, t0: tHand, t1: Infinity, follow: grip.follow });
+    holdPose(ctx, toFig.id, toHand, ctx.t0, dur); // receiver reaches into the hold
+    ctx.rt.ch.tween(fig.id + '.sh' + grip.hand, tHand, DUR.quick, 8, EASE.inOut); // giver relaxes
+    ctx.rt.ch.tween(fig.id + '.el' + grip.hand, tHand, DUR.quick, 8, EASE.inOut);
+    return dur + DUR.quick;
+  };
+
   STICK.commands = H;
 
   STICK.expandEvent = function (rt, ev, cur, inheritTarget, depth) {

@@ -423,6 +423,82 @@
       ],
     },
 
+    'props': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'ann', archetype: ['woman'], hair: 'long', pos: { x: 24, y: 72 }, facing: 'right' },
+        { id: 'ben', archetype: ['man'], beard: true, pos: { x: 72, y: 72 }, facing: 'left' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Heads up!', dur: 'normal' } },
+        { at: 0.4, target: 'ann', cmd: 'give', args: { prop: 'ball', hand: 'right' } },
+        { at: 0.9, target: 'ann', cmd: 'say', args: { text: 'Catch!' } },
+        { at: 1.9, target: 'ann', cmd: 'throw', args: { hand: 'right', to: { x: 67, y: 62 }, spin: 2 } },
+        { at: 3.1, target: 'ben', cmd: 'pickUp', args: { object: 'ann_ball', hand: 'right' } },
+        { at: 4.1, target: 'ben', cmd: 'say', args: { text: 'Thanks!' } },
+        { at: 4.5, target: 'ben', cmd: 'give', args: { prop: 'coffee', hand: 'left' } },
+        { at: 5.3, target: 'ben', cmd: 'handOff', args: { to: 'ann', hand: 'left', toHand: 'right' } },
+        { at: '<', target: 'ben', cmd: 'say', args: { text: 'Coffee?' } },
+        { at: 6.6, cmd: 'scene.caption', args: { text: 'give · throw · catch · hand off', dur: 'slow' } },
+      ],
+    },
+
+    'cheers': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'mia', archetype: ['woman'], hair: 'long', pos: { x: 36, y: 72 }, facing: 'right', mood: 'happy' },
+        { id: 'leo', archetype: ['man'], beard: true, pos: { x: 62, y: 72 }, facing: 'left', mood: 'happy' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'A toast', dur: 'normal' } },
+        { at: 0.3, target: 'mia', cmd: 'give', args: { prop: 'coffee', hand: 'right' } },
+        { at: 0.3, target: 'leo', cmd: 'give', args: { prop: 'coffee', hand: 'left' } },
+        { at: 1.2, target: 'mia', cmd: 'raiseArm', args: { side: 'right', angle: 70 } },
+        { at: '<', target: 'leo', cmd: 'raiseArm', args: { side: 'left', angle: 70 } },
+        { target: 'mia', cmd: 'say', args: { text: 'To props!' } },
+        { at: '<', target: 'leo', cmd: 'say', args: { text: 'Cheers!' } },
+        { target: ['mia', 'leo'], cmd: 'playClip', args: { name: 'nod' } },
+      ],
+    },
+
+    'en garde': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'kai', archetype: ['man'], pos: { x: 42, y: 72 }, facing: 'right', mood: 'angry' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'En garde!', dur: 'normal' } },
+        { at: 0.3, target: 'kai', cmd: 'give', args: { prop: 'sword', hand: 'right' } },
+        { at: 0.8, target: 'kai', cmd: 'raiseArm', args: { side: 'right', angle: 92 } },
+        { target: 'kai', cmd: 'say', args: { text: 'Have at you!' } },
+        { target: 'kai', cmd: 'raiseArm', dur: 'fast', args: { side: 'right', angle: 130 } },
+        { target: 'kai', cmd: 'raiseArm', dur: 'fast', args: { side: 'right', angle: 70 } },
+        { target: 'kai', cmd: 'raiseArm', dur: 'fast', args: { side: 'right', angle: 95 } },
+        { cmd: 'scene.caption', args: { text: 'Touché.', dur: 'slow' } },
+      ],
+    },
+
+    'balloon': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'pip', archetype: ['kid'], hair: 'tuft', pos: { x: 28, y: 72 }, facing: 'right', mood: 'happy' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'My balloon!', dur: 'normal' } },
+        { at: 0.3, target: 'pip', cmd: 'give', args: { prop: 'balloon', hand: 'right', color: '#e74c3c' } },
+        { at: 1.0, target: 'pip', cmd: 'move', args: { style: 'walk', to: { x: 56, y: 72 } }, dur: 2.2 },
+        { at: 3.6, target: 'pip', cmd: 'drop', args: { hand: 'right', to: { x: 64, y: 6 } } },
+        { at: '<', target: 'pip', cmd: 'mood', args: { name: 'surprised' } },
+        { at: '+fast', target: 'pip', cmd: 'lookAt', args: { to: { x: 64, y: 10 } } },
+        { target: 'pip', cmd: 'say', args: { text: 'Come back!' } },
+        { cmd: 'scene.caption', args: { text: '(gone)', dur: 'slow' } },
+      ],
+    },
+
     'guided tour': {
       v: 1,
       scene: { theme: 'blank' },
