@@ -59,6 +59,7 @@ All three render the same skeleton, so every command works in every style.
 }
 ```
 
+- `facing`: `left` | `right` | `front` (faces the viewer) | a number −1..1 (0 = front, ±1 = full side). Use `front` for a character talking/gesturing **to camera** (arms & legs face us); side for walking or writing at a board. The `turn` command tweens it — `{ "cmd": "turn", "target": "prof", "args": { "to": "left" } }` to glance aside, `{ "to": "front" }` to address the class. Walking always reads as side.
 - `archetype`: `man` | `woman` | `kid` | `person` (sets hair/height defaults).
 - `character`: `professor` (glasses) | `student` | `dancer` (fedora) — stronger presets.
 - `voice` (optional): controls spoken audio when the viewer enables sound. By

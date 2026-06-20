@@ -177,13 +177,15 @@
         { id: 'bb', rect: { x: 5, y: 6, w: 56, h: 60 }, style: 'chalk' },
       ],
       figures: [
-        { id: 'prof', character: 'professor', pos: { x: 70, y: 70 }, facing: 'left' },
+        { id: 'prof', character: 'professor', pos: { x: 70, y: 70 }, facing: 'front' },
       ],
       timeline: [
         { at: 0, cmd: 'scene.caption', args: { text: 'Econ 101', dur: 'normal' } },
         { at: 0, target: 'bb', cmd: 'board.write', by: 'prof', dur: 'normal', args: { md: '# {amber|Supply} & {sky|Demand}' } },
         { target: 'prof', cmd: 'say', args: { text: 'Two curves, one story.' } },
+        { target: 'prof', cmd: 'turn', args: { to: 'left' } }, // glance at the board
         { target: 'bb', cmd: 'board.draw', by: 'prof', dur: 'slow', args: { chart: 'supply-demand', xlabel: 'Quantity', ylabel: 'Price' } },
+        { at: '<+slow', target: 'prof', cmd: 'turn', args: { to: 'front' } }, // back to the class
         { target: 'bb', cmd: 'board.highlight', args: { target: 'demand', color: 'sky', dur: 2.2 } },
         { at: '<', target: 'prof', cmd: 'say', args: { text: 'Demand slopes down.' } },
         { target: 'bb', cmd: 'board.highlight', args: { target: 'supply', color: 'amber', dur: 2.2 } },

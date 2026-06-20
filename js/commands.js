@@ -120,12 +120,17 @@
     return dur;
   };
 
+  const turnVal = d => d === 'front' || d === 0 ? 0 : d === 'left' ? -1 : d === 'right' ? 1
+    : (typeof d === 'number' && isFinite(d)) ? clamp(d, -1, 1) : 1;
   H.facing = ctx => {
     const fig = figOf(ctx); if (!fig) return 0;
-    const d = ctx.args.dir != null ? ctx.args.dir : ctx.args.to;
-    st(ctx, fig, 'facing', ctx.t0, d === 'left' || d === -1 ? -1 : 1);
+    const v = turnVal(ctx.args.dir != null ? ctx.args.dir : ctx.args.to);
+    const durA = ctx.ev.dur != null ? ctx.ev.dur : ctx.args.dur;
+    if (durA != null) { const dur = durOf(ctx, DUR.quick); tw(ctx, fig, 'facing', ctx.t0, dur, v, EASE.inOut); return dur; } // turn smoothly (passes through front)
+    st(ctx, fig, 'facing', ctx.t0, v);
     return 0.02;
   };
+  H.turn = ctx => { ctx.ev = Object.assign({}, ctx.ev, { dur: ctx.ev.dur != null ? ctx.ev.dur : (ctx.args.dur != null ? ctx.args.dur : 'quick') }); return H.facing(ctx); };
 
   /* ------------------------------ pose ------------------------------ */
   const BASES = { stand: [0, 0, 0], sit: [1, 0, 0], crouch: [0, 1, 0], lie: [0, 0, 1], sleep: [0, 0, 1] };
@@ -711,6 +716,19 @@
   // nearest it, drifting down a little as the block proceeds. IK clamps the reach.
   function writeHandSync(ctx, fig, board, t0, dur) {
     const rt = ctx.rt, r = board.rect, pad = board.pad;
+    // front-facing writer: keep facing us and gesticulate (the chalk hand writes)
+    if (Math.abs(rt.ch.get(fig.id + '.facing', t0)) < 0.5) {
+      const steps = Math.max(2, Math.min(8, Math.round(dur / 0.7))), seg = dur / steps;
+      for (let k = 0; k <= steps; k++) {
+        const tk = t0 + seg * k, even = k % 2 === 0;
+        tw(ctx, fig, 'shR', tk, seg, even ? 44 : 18, EASE.inOut);
+        tw(ctx, fig, 'shL', tk, seg, even ? 16 : 42, EASE.inOut);
+        tw(ctx, fig, 'elR', tk, seg, 38, EASE.inOut);
+        tw(ctx, fig, 'elL', tk, seg, 38, EASE.inOut);
+      }
+      for (const j of ['shR', 'shL', 'elR', 'elL']) tw(ctx, fig, j, t0 + dur, 0.4, 8, EASE.inOut);
+      return;
+    }
     const figX = rt.ch.get(fig.id + '.x', t0);
     const fromRight = figX > r.x + r.w / 2;
     st(ctx, fig, 'facing', t0, fromRight ? -1 : 1);

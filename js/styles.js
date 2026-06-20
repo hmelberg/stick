@@ -97,13 +97,18 @@
 
   function updateFace(fr, F, bs) {
     const r = fr.r;
+    // turn the 3/4 face toward a symmetric front face as F.front -> 1
+    const front = F.front || 0;
+    const cxN = EX_N + (-0.30 - EX_N) * front;
+    const cxF = EX_F + (0.30 - EX_F) * front;
     const happyArcs = F.smile > 0.65 && F.eyeOpen > 0.72;
     const ry = Math.max(0.022 * r, 0.19 * r * F.eyeOpen);
-    for (const [eye, cx] of [[fr.eyeN, EX_N], [fr.eyeF, EX_F]]) {
+    for (const [eye, cx] of [[fr.eyeN, cxN], [fr.eyeF, cxF]]) {
+      eye.setAttribute('cx', (cx * r).toFixed(3));
       eye.setAttribute('ry', ry.toFixed(3));
       eye.setAttribute('visibility', happyArcs ? 'hidden' : 'visible');
     }
-    for (const [arc, cx] of [[fr.arcN, EX_N], [fr.arcF, EX_F]]) {
+    for (const [arc, cx] of [[fr.arcN, cxN], [fr.arcF, cxF]]) {
       arc.setAttribute('visibility', happyArcs ? 'visible' : 'hidden');
       if (happyArcs) {
         const c = cx * r;
@@ -111,20 +116,21 @@
       }
     }
     const showPup = !happyArcs && F.eyeOpen > 0.35;
-    for (const [pup, cx] of [[fr.pupN, EX_N], [fr.pupF, EX_F]]) {
+    for (const [pup, cx] of [[fr.pupN, cxN], [fr.pupF, cxF]]) {
       pup.setAttribute('visibility', showPup ? 'visible' : 'hidden');
       if (showPup) {
-        pup.setAttribute('cx', (cx * r + 0.02 * r + F.pupX * 0.055 * r).toFixed(3));
+        pup.setAttribute('cx', (cx * r + (1 - front) * 0.02 * r + F.pupX * 0.055 * r).toFixed(3));
         pup.setAttribute('cy', (EY * r + F.pupY * 0.05 * r).toFixed(3));
       }
     }
     const by = -0.46 * r - F.browRaise * 0.16 * r + (bs ? jit(3, bs, 0.015 * r) : 0);
     const k = -F.browTilt * 0.1 * r;
     const brow = cx => `M ${(cx - 0.17 * r).toFixed(3)} ${(by - k).toFixed(3)} L ${(cx + 0.17 * r).toFixed(3)} ${(by + k).toFixed(3)}`;
-    fr.browN.setAttribute('d', brow(EX_N * r));
-    fr.browF.setAttribute('d', brow(EX_F * r));
+    fr.browN.setAttribute('d', brow(cxN * r));
+    fr.browF.setAttribute('d', brow(cxF * r));
+    if (fr.nose) fr.nose.setAttribute('opacity', (1 - front).toFixed(2)); // nose is a profile feature
 
-    const mx = 0.36 * r, my = 0.48 * r, hw = 0.28 * r;
+    const mx = (0.36 - 0.36 * front) * r, my = 0.48 * r, hw = 0.28 * r;
     const mj = bs ? jit(9, bs, 0.02 * r) : 0;
     fr.mouth.setAttribute('d', `M ${(mx - hw).toFixed(3)} ${my.toFixed(3)} Q ${(mx + mj).toFixed(3)} ${(my + F.smile * 0.36 * r + mj).toFixed(3)} ${(mx + hw).toFixed(3)} ${my.toFixed(3)}`);
     if (F.mouthOpen > 0.06) {

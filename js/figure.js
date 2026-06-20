@@ -76,7 +76,9 @@
       glasses: raw.glasses != null ? !!raw.glasses : !!preset.glasses,
       hat: raw.hat != null ? raw.hat : preset.hat || null,
       pos: { x: num(raw.pos && raw.pos.x, 50), y: num(raw.pos && raw.pos.y, 70) },
-      facing: raw.facing === 'left' || raw.facing === -1 ? -1 : 1,
+      // -1 = full left profile, 0 = front, +1 = full right profile (continuous)
+      facing: (f => f === 'front' || f === 0 ? 0 : f === 'left' ? -1 : f === 'right' ? 1
+        : (typeof f === 'number' && isFinite(f)) ? clamp(f, -1, 1) : 1)(raw.facing),
       pose: raw.pose || {},
       expression: raw.expression || {},
       mood: raw.mood || preset.mood || 'neutral',
@@ -201,7 +203,9 @@
     const get = (s, d) => ch.getDef(id + '.' + s, t, d === undefined ? 0 : d);
 
     const x = get('x', 50), y = get('y', 70);
-    const fc = get('facing', 1) >= 0 ? 1 : -1;
+    const turn = clamp(get('facing', 1), -1, 1);
+    const fc = turn >= 0 ? 1 : -1;
+    const frontAmt = clamp(1 - Math.abs(turn), 0, 1); // 1 = facing us, 0 = full profile
     let bend = get('bend'), lean = get('lean'), headTilt = get('headTilt');
     const stanceW = get('stanceW');
     const wSit = clamp(get('sit'), 0, 1), wCr = clamp(get('crouch'), 0, 1), wLie = clamp(get('lie'), 0, 1);
@@ -261,12 +265,24 @@
 
     // arms (FK, then reach-IK blend)
     const armFollow = torsoA * 0.5;
+    const sw = 0.13 * g.h; // shoulder half-spread when facing front
     const mkArm = (side, rest) => {
       const a = get('sh' + side) + (side === 'L' ? gait.shL : gait.shR) + shIdle * 0.6 + armFollow + rest;
       const e = get('el' + side) + (side === 'L' ? gait.elL : gait.elR);
+      // sagittal (side) pose
       let elb = add(sh, dirDown(a), g.upper);
       let hand = add(elb, dirDown(a + e), g.fore);
       const on = clamp(get('reach' + side + 'on'), 0, 1);
+      // frontal (front) pose — same joint angles, but the arm swings out to the
+      // body's side instead of forward; faded out while reaching
+      const fa = frontAmt * (1 - on);
+      if (fa > 0.001) {
+        const eta = side === 'L' ? -1 : 1;
+        const shF = { x: sh.x + eta * sw, y: sh.y };
+        const elbF = { x: shF.x + eta * sind(a) * g.upper, y: shF.y + cosd(a) * g.upper };
+        const handF = { x: elbF.x + eta * sind(a + e) * g.fore, y: elbF.y + cosd(a + e) * g.fore };
+        elb = mixP(elb, elbF, fa); hand = mixP(hand, handF, fa);
+      }
       if (on > 0.01) {
         const tgt = toLocal({ x: get('reach' + side + 'x'), y: get('reach' + side + 'y') });
         const ik = ik2(sh, tgt, g.upper, g.fore, 1);
@@ -278,19 +294,30 @@
     const armL = mkArm('L', -3), armR = mkArm('R', 3);
 
     // legs (FK, then pin-IK)
-    const mkLeg = (hipA, kneeA, pinName) => {
+    const hw = 0.075 * g.h; // hip half-spread when facing front
+    const mkLeg = (hipA, kneeA, pinName, side) => {
       let knee = add(pelvis, dirDown(hipA), g.thigh);
       let ank = add(knee, dirDown(hipA - kneeA), g.shin);
       const pin = ch.getDef(id + '.' + pinName, t, null);
+      // frontal pose: legs planted apart, ~straight down (faded out when walking/pinned)
+      const fa = frontAmt * (pin ? 0 : 1) * (1 - gait.ramp);
+      let footX = g.foot;
+      if (fa > 0.001) {
+        const eta = side === 'L' ? -1 : 1, spread = 7;
+        const kneeF = { x: pelvis.x + eta * hw + eta * sind(spread) * g.thigh, y: pelvis.y + cosd(spread) * g.thigh };
+        const ankF = { x: kneeF.x + eta * sind(spread) * g.shin, y: kneeF.y + cosd(spread) * g.shin };
+        knee = mixP(knee, kneeF, fa); ank = mixP(ank, ankF, fa);
+        footX = g.foot * (1 - fa) + eta * g.foot * 0.55 * fa;
+      }
       if (pin && typeof pin === 'object') {
         const ik = ik2(pelvis, toLocal(pin), g.thigh, g.shin, -1);
         knee = ik.mid; ank = ik.end;
       }
-      const foot = { x: ank.x + g.foot, y: ank.y + 0.12 };
+      const foot = { x: ank.x + footX, y: ank.y + 0.12 };
       return { knee, ank, foot };
     };
-    const legL = mkLeg(hipLA, kneeLA, 'pinFL');
-    const legR = mkLeg(hipRA, kneeRA, 'pinFR');
+    const legL = mkLeg(hipLA, kneeLA, 'pinFL', 'L');
+    const legR = mkLeg(hipRA, kneeRA, 'pinFR', 'R');
 
     // face
     const blink = blinkAmt(t, fig.seed);
@@ -302,6 +329,7 @@
       mouthOpen: clamp(get('mouthOpen'), 0, 1),
       pupX: clamp(get('pupX'), -1, 1),
       pupY: clamp(get('pupY'), -1, 1),
+      front: frontAmt,
     };
 
     return {
