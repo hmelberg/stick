@@ -151,6 +151,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `think` | `{ "text": "...", "dur": ... }` | silent **thought bubble** (cloud + trailing puffs) — for inner monologue, no speech/mouth. |
 | `emote` | `{ "symbol": "?\|!\|...\|zzz\|heart\|music\|sparkle\|idea" }` | floating symbol above head |
 | `burst` | `{ "count": 18, "color": ["#e0533a","#3a86e0"] }` | confetti / particle burst — tiny shapes fan out, arc, and fade. With a figure `target` it bursts over the head; or `{ "at": point }`. `spread` widens the fan. |
+| `sfx` | `{ "name": "boing" }` | play a synth sound effect when the viewer turns **sound** on (also captured into WebM export). Names: `pop` `click` `ding` `bell` `boing`/`bounce` `thud` `whoosh` `swoosh` `zap` `laser` `pluck`/`beep` `coin`/`success` `buzz`/`fail`. Pair with `hop`, `throw`, `camera.shake`, `burst` using `"at": "<"`. |
 | `scene.caption` | `{ "text": "...", "dur": "slow" }` | narrator text at the bottom |
 | `playClip` | `{ "name": "wave", "repeat": 2 }` | run a clip |
 | `wait` | — (use `dur`) | beat of stillness |

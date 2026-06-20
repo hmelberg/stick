@@ -173,20 +173,68 @@
     };
   })();
 
-  /* Fire each say line as the playhead crosses its start; reset on loop/seek-back. */
+  /* Synthesised cartoon sound effects (Web Audio). Gated by the same sound toggle
+     as speech; unlike speechSynthesis these also get captured into a WebM export. */
+  const Sfx = (function () {
+    let ctx = null;
+    const ac = () => {
+      if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ctx = null; } }
+      if (ctx && ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+      return ctx;
+    };
+    function tone(c, t, freq, dur, type, vol, freqEnd) {
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+      if (freqEnd != null) o.frequency.exponentialRampToValueAtTime(Math.max(20, freqEnd), t + dur);
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+      o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + 0.03);
+    }
+    function noise(c, t, dur, vol, lp) {
+      const n = Math.max(1, Math.floor(c.sampleRate * dur)), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const src = c.createBufferSource(); src.buffer = buf;
+      const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(lp || 2000, t);
+      src.connect(f); f.connect(g); g.connect(c.destination); src.start(t); src.stop(t + dur + 0.03);
+      return f;
+    }
+    const R = {
+      pop:    c => { const t = c.currentTime; tone(c, t, 520, 0.12, 'sine', 0.3, 170); },
+      ding:   c => { const t = c.currentTime; tone(c, t, 1320, 0.55, 'sine', 0.25); tone(c, t, 1980, 0.5, 'sine', 0.1); },
+      boing:  c => { const t = c.currentTime; const o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(380, t); o.frequency.linearRampToValueAtTime(150, t + 0.16); o.frequency.linearRampToValueAtTime(240, t + 0.32); g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.4); o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + 0.42); },
+      thud:   c => { const t = c.currentTime; tone(c, t, 120, 0.18, 'sine', 0.4, 55); noise(c, t, 0.07, 0.14, 380); },
+      whoosh: c => { const t = c.currentTime; const f = noise(c, t, 0.4, 0.18, 700); f.frequency.linearRampToValueAtTime(3200, t + 0.4); },
+      swoosh: c => { const t = c.currentTime; const f = noise(c, t, 0.32, 0.16, 3000); f.frequency.exponentialRampToValueAtTime(400, t + 0.32); },
+      zap:    c => { const t = c.currentTime; tone(c, t, 900, 0.2, 'sawtooth', 0.2, 110); },
+      laser:  c => { const t = c.currentTime; tone(c, t, 1300, 0.28, 'sawtooth', 0.2, 180); },
+      pluck:  c => { const t = c.currentTime; tone(c, t, 660, 0.18, 'triangle', 0.3, 440); },
+      coin:   c => { const t = c.currentTime; tone(c, t, 988, 0.08, 'square', 0.2); tone(c, t + 0.08, 1319, 0.22, 'square', 0.2); },
+      bell:   c => { const t = c.currentTime; tone(c, t, 784, 0.7, 'sine', 0.22); tone(c, t, 1568, 0.6, 'sine', 0.08); },
+      buzz:   c => { const t = c.currentTime; tone(c, t, 110, 0.3, 'square', 0.18); },
+    };
+    R.bounce = R.boing; R.click = R.pop; R.fail = R.buzz; R.success = R.coin; R.beep = R.pluck;
+    return {
+      available: !!(window.AudioContext || window.webkitAudioContext),
+      play(name) { const c = ac(); if (!c) return; const r = R[name]; if (r) { try { r(c); } catch (e) {} } },
+    };
+  })();
+
+  /* Fire each say line / sound effect as the playhead crosses its start; reset on loop/seek-back. */
   function processSpeech() {
-    if (!Speech.available) return;
     const rt = state.rt; if (!rt) return;
     const t = state.t;
     if (t < state.lastSpeakT - 0.001) { state.spoken.clear(); Speech.cancel(); state.lastSpeakT = -1; }
     if (state.sound) {
       for (const o of rt.overlays) {
-        if (o.type !== 'say') continue;
+        if (o.type !== 'say' && o.type !== 'sfx') continue;
         if (o.t0 > state.lastSpeakT && o.t0 <= t && !state.spoken.has(o)) {
           state.spoken.add(o);
-          const fig = rt.figs.get(o.fig);
-          const mood = rt.ch.getDef(o.fig + '.mood', o.t0, fig ? fig.mood : 'neutral');
-          Speech.speak(o.text, fig, mood, o.args, state.speed, rt.figs.size > 1);
+          if (o.type === 'sfx') { Sfx.play(o.name); }
+          else if (Speech.available) {
+            const fig = rt.figs.get(o.fig);
+            const mood = rt.ch.getDef(o.fig + '.mood', o.t0, fig ? fig.mood : 'neutral');
+            Speech.speak(o.text, fig, mood, o.args, state.speed, rt.figs.size > 1);
+          }
         }
       }
     }

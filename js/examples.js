@@ -685,6 +685,25 @@
       ],
     },
 
+    'sound effects': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'bo', archetype: ['man'], pos: { x: 30, y: 70 }, facing: 'right', mood: 'happy' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Turn sound on 🔊', dur: 'normal' } },
+        { at: 1.0, target: 'bo', cmd: 'hop', args: { height: 3 } },
+        { at: '<', cmd: 'sfx', args: { name: 'boing' } },
+        { target: 'bo', cmd: 'give', args: { prop: 'ball', hand: 'right' } },
+        { target: 'bo', cmd: 'throw', args: { hand: 'right', to: { x: 80, y: 62 } } },
+        { at: '<', cmd: 'sfx', args: { name: 'whoosh' } },
+        { at: '+slow', cmd: 'sfx', args: { name: 'coin' } },
+        { at: '<', target: 'bo', cmd: 'burst', args: { count: 16 } },
+        { target: 'bo', cmd: 'say', args: { text: 'Ta-da!' } },
+      ],
+    },
+
     'guided tour': {
       v: 1,
       scene: { theme: 'blank' },

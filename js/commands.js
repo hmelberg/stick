@@ -459,6 +459,13 @@
     return dur;
   };
 
+  H.sfx = ctx => { // play a synthesised sound effect (when the viewer has sound on)
+    const name = ctx.args.name != null ? ctx.args.name : ctx.args.sound;
+    if (name == null) { ctx.rt.warn('sfx: missing "name"'); return 0; }
+    ctx.rt.overlays.push({ type: 'sfx', name: String(name), t0: ctx.t0, t1: ctx.t0 + 0.6 });
+    return 0;
+  };
+
   H.think = ctx => { // silent thought bubble (no speech / mouth movement)
     const fig = figOf(ctx); if (!fig) return 0;
     const text = String(ctx.args.text != null ? ctx.args.text : '…');
