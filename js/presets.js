@@ -29,17 +29,18 @@
     sleepy:    { expr: { smile: 0.02, eyeOpen: 0.18, browTilt: 0.2,   browRaise: 0,    mouthOpen: 0.08 }, pose: { bend: 0.12,  headTilt: 0.18 },  idle: { energy: 0.15, sway: 0.8, bounce: 0 } },
   };
 
+  // No hair by default for everyone — set `hair` explicitly to add it.
   STICK.presets.archetypes = {
     person: {},
-    man:    { hair: 'short' },
-    woman:  { hair: 'long' },
-    kid:    { hair: 'tuft', height: 13, headScale: 1.35 }, // same head, shorter body
+    man:    {},
+    woman:  {},
+    kid:    { height: 13, headScale: 1.35 },               // same head, shorter body
   };
 
   STICK.presets.characters = {
-    professor: { hair: 'sides', glasses: true, height: 21, mood: 'neutral' },
-    student:   { hair: 'short', height: 19, mood: 'bored' },
-    dancer:    { hair: 'none', hat: 'fedora', height: 20 },
+    professor: { glasses: true, height: 21, mood: 'neutral' }, // bald + glasses (no bald-spot hair)
+    student:   { height: 19, mood: 'bored' },
+    dancer:    { hat: 'fedora', height: 20 },
   };
 
   /* Built-in clips, written in the same event language users write.

@@ -60,7 +60,7 @@ All three render the same skeleton, so every command works in every style.
 ```
 
 - `facing`: `front` | `left` | `right` | `back` | a number −2..2 (0 = front, ±1 = full side, ±2 = back). Full 360°: `front` faces the viewer (arms & legs face us); side for walking/writing; `back` shows the back of the head (face hidden, hat/hair kept) — e.g. a professor writing on the board. The `turn` command tweens smoothly through the in-between angles: `{ "cmd": "turn", "target": "prof", "args": { "to": "back" } }` to turn to the board, `{ "to": "front" }` to address the class. Walking always reads as side.
-- `archetype`: `man` | `woman` | `kid` | `person` (sets hair/height defaults).
+- `archetype`: `man` | `woman` | `kid` | `person` (sets height defaults). Everyone is **bald by default** — add `hair` to give it.
 - `character`: `professor` (glasses) | `student` | `dancer` (fedora) — stronger presets.
 - `age` (optional): `kid` | `adult` (default) | `elderly` — changes how the figure **moves**,
   not its size. `kid` = short quick steps, high knees, big bouncy arm swing; `elderly` = short
@@ -89,7 +89,7 @@ All three render the same skeleton, so every command works in every style.
   (different pitch/rate, a different system voice, and a mix of male/female for
   generic figures) so a crowd doesn't all sound the same — set `voice` only when
   you want a specific character to sound a particular way.
-- `hair`: `none` | `short` | `tuft` | `long` | `bun` | `sides`. Also `glasses: true`, `hat: "fedora"`.
+- `hair`: `none` (default) | `short` | `tuft` | `long` (long, curled — good for women/girls) | `bun` | `sides`. Also `glasses: true`, `hat: "fedora"`.
 - `body` (optional): `full` (default) or `bust` — a **floating head + neck + arms** with no
   torso/legs, e.g. a talking-head professor that gestures while explaining. `bust: true` works too.
   Position it with `pos` (a bust usually sits higher, e.g. `"pos": { "y": 45 }`); pair it with

@@ -105,6 +105,7 @@
       fr.glassF = mk('circle', { r: 0.27 * r, ...gl }, grp);
       fr.glBridge = mk('path', gl, grp);
       fr.glTemple = mk('path', gl, grp);
+      fr.glTemple2 = mk('path', gl, grp);
     }
     return fr;
   }
@@ -143,14 +144,18 @@
     const brow = cx => `M ${(cx - 0.17 * r).toFixed(3)} ${(by - k).toFixed(3)} L ${(cx + 0.17 * r).toFixed(3)} ${(by + k).toFixed(3)}`;
     fr.browN.setAttribute('d', brow(cxN * r));
     fr.browF.setAttribute('d', brow(cxF * r));
-    if (fr.glassN) { // lenses sit over the (moving) eyes; bridge + one temple
+    if (fr.glassN) { // lenses over the (moving) eyes; bridge across the nose; a temple to each ear
       const lensR = 0.27 * r, ey = EY * r, xn = cxN * r, xf = cxF * r;
       fr.glassN.setAttribute('cx', xn.toFixed(2)); fr.glassN.setAttribute('cy', ey.toFixed(2));
       fr.glassF.setAttribute('cx', xf.toFixed(2)); fr.glassF.setAttribute('cy', ey.toFixed(2));
       const lo = Math.min(xn, xf), hi = Math.max(xn, xf);
+      const ty = (ey - 0.03 * r).toFixed(2), ear = (-0.34 * r).toFixed(2);
       fr.glBridge.setAttribute('d', `M ${(lo + lensR).toFixed(2)} ${ey.toFixed(2)} L ${(hi - lensR).toFixed(2)} ${ey.toFixed(2)}`);
-      const outer = Math.abs(xf) >= Math.abs(xn) ? xf : xn, dir = outer >= 0 ? 1 : -1;
-      fr.glTemple.setAttribute('d', `M ${(outer + dir * lensR).toFixed(2)} ${(ey - 0.03 * r).toFixed(2)} L ${(dir * 0.95 * r).toFixed(2)} ${(-0.34 * r).toFixed(2)}`);
+      // temple to the far (+x) ear is always visible; the near (−x) temple shows
+      // only toward the front (it'd be hidden behind the head in a 3/4 view)
+      fr.glTemple.setAttribute('d', `M ${(hi + lensR).toFixed(2)} ${ty} L ${(0.95 * r).toFixed(2)} ${ear}`);
+      fr.glTemple2.setAttribute('d', `M ${(lo - lensR).toFixed(2)} ${ty} L ${(-0.95 * r).toFixed(2)} ${ear}`);
+      fr.glTemple2.setAttribute('opacity', front.toFixed(2));
     }
     if (fr.nose) fr.nose.setAttribute('opacity', (1 - front).toFixed(2)); // nose is a profile feature
 
@@ -170,6 +175,13 @@
   }
 
   /* ---------------- shared hair / hat / glasses ---------------- */
+  // long hair: a strand down each side of the head ending in an inward curl.
+  function longStrand(sx, r) {
+    return `M ${(sx * 0.28 * r).toFixed(2)} ${(-1.0 * r).toFixed(2)}`
+      + ` Q ${(sx * 1.2 * r).toFixed(2)} ${(-0.5 * r).toFixed(2)} ${(sx * 1.02 * r).toFixed(2)} ${(0.62 * r).toFixed(2)}`
+      + ` Q ${(sx * 0.96 * r).toFixed(2)} ${(1.34 * r).toFixed(2)} ${(sx * 0.46 * r).toFixed(2)} ${(1.12 * r).toFixed(2)}`;
+  }
+
   function hairStroke(fig, r, parent, ink) {
     const stroke = { stroke: ink, 'stroke-width': 0.16 * r, fill: 'none', 'stroke-linecap': 'round' };
     const style = fig.hair;
@@ -187,8 +199,7 @@
         ...stroke,
       }, parent);
     } else if (style === 'long') {
-      mk('path', { d: `M ${0.15 * r} ${-0.99 * r} Q ${-1.1 * r} ${-0.8 * r} ${-0.95 * r} ${0.6 * r}`, ...stroke }, parent);
-      mk('path', { d: `M ${-0.35 * r} ${-0.93 * r} Q ${-1.3 * r} ${-0.45 * r} ${-1.1 * r} ${0.8 * r}`, ...stroke }, parent);
+      for (const sx of [-1, 1]) mk('path', { d: longStrand(sx, r), ...stroke }, parent);
     } else if (style === 'bun') {
       mk('circle', { cx: -0.8 * r, cy: -0.62 * r, r: 0.3 * r, fill: ink }, parent);
     } else if (style === 'sides') {
@@ -212,15 +223,14 @@
       }
       mk('path', { d: smoothClosed(outer.concat(inner)), fill: ink }, parent);
     } else if (style === 'long') {
-      mk('path', { d: `M ${0.15 * r} ${-0.99 * r} Q ${-1.1 * r} ${-0.8 * r} ${-0.95 * r} ${0.6 * r}`, stroke: ink, 'stroke-width': 0.3 * r, fill: 'none', 'stroke-linecap': 'round' }, parent);
-      mk('path', { d: `M ${-0.35 * r} ${-0.93 * r} Q ${-1.3 * r} ${-0.45 * r} ${-1.1 * r} ${0.8 * r}`, stroke: ink, 'stroke-width': 0.34 * r, fill: 'none', 'stroke-linecap': 'round' }, parent);
       const outer = [], inner = [];
-      for (let k = 0; k <= 5; k++) {
-        const th = rad(170 - k * (140 / 5));
+      for (let k = 0; k <= 6; k++) {
+        const th = rad(180 - k * (180 / 6));
         outer.push({ x: Math.cos(th) * r * 1.12, y: -Math.sin(th) * r * 1.12 });
-        inner.unshift({ x: Math.cos(th) * r * 0.85, y: -Math.sin(th) * r * 0.85 });
+        inner.unshift({ x: Math.cos(th) * r * 0.82, y: -Math.sin(th) * r * 0.82 });
       }
-      mk('path', { d: smoothClosed(outer.concat(inner)), fill: ink }, parent);
+      mk('path', { d: smoothClosed(outer.concat(inner)), fill: ink }, parent); // hair cap over the top
+      for (const sx of [-1, 1]) mk('path', { d: longStrand(sx, r), stroke: ink, 'stroke-width': 0.3 * r, fill: 'none', 'stroke-linecap': 'round' }, parent);
     } else if (style === 'tuft' || style === 'curly') {
       mk('path', {
         d: `M ${0.05 * r} ${-1.02 * r} Q ${-0.1 * r} ${-1.5 * r} ${0.4 * r} ${-1.42 * r} Q ${0.15 * r} ${-1.36 * r} ${0.22 * r} ${-1.06 * r}`,

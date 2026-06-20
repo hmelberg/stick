@@ -381,13 +381,36 @@
       ],
     },
 
+    'family walk': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'dad', archetype: ['man'], hair: 'short', pos: { x: 16, y: 72 } },
+        { id: 'mum', archetype: ['woman'], hair: 'long', pos: { x: 13, y: 72 } },
+        { id: 'girl', archetype: ['kid'], hair: 'long', pos: { x: 10, y: 72 }, mood: 'happy' },
+        { id: 'boy', archetype: ['kid'], hair: 'tuft', pos: { x: 7, y: 72 }, mood: 'happy' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Family outing', dur: 'normal' } },
+        { at: 0, target: 'dad', cmd: 'move', args: { style: 'walk', to: { x: 84, y: 72 } }, dur: 7 },
+        { at: 0, target: 'mum', cmd: 'move', args: { style: 'walk', to: { x: 80, y: 72 } }, dur: 7 },
+        { at: 0, target: 'girl', cmd: 'move', args: { style: 'walk', to: { x: 75, y: 72 } }, dur: 7 },
+        { at: 0, target: 'boy', cmd: 'move', args: { style: 'walk', to: { x: 70, y: 72 } }, dur: 7 },
+        { at: 2.0, target: 'boy', cmd: 'say', args: { text: 'Are we there yet?' } },
+        { at: 3.2, target: 'dad', cmd: 'say', args: { text: 'Almost!' } },
+        { at: 4.4, target: 'girl', cmd: 'say', args: { text: 'Race you!' } },
+        { at: '<', target: 'girl', cmd: 'playClip', args: { name: 'hopJoy' } },
+        { at: 6.2, cmd: 'scene.caption', args: { text: '(the kids bounce, the grown-ups trudge)', dur: 'slow' } },
+      ],
+    },
+
     'three generations': {
       v: 1,
       scene: { theme: 'blank' },
       figures: [
         { id: 'kid', archetype: ['kid'], pos: { x: 14, y: 72 }, mood: 'happy' },
         { id: 'mum', archetype: ['woman'], age: 'adult', pos: { x: 12, y: 72 } },
-        { id: 'gran', archetype: ['woman'], age: 'elderly', hair: 'bun', pos: { x: 10, y: 72 } },
+        { id: 'gran', archetype: ['woman'], age: 'elderly', pos: { x: 10, y: 72 } },
       ],
       timeline: [
         { at: 0, cmd: 'scene.caption', args: { text: 'Same walk, three ages', dur: 'normal' } },
