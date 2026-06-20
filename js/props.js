@@ -23,6 +23,8 @@
     balloon: { shape: 'path', props: { d: 'M 0 0 C -1.7 -1.7 -1.5 -4.4 0 -4.4 C 1.5 -4.4 1.7 -1.7 0 0 Z', fill: '#8e44ad', stroke: INK, strokeWidth: 0.14 } },
     briefcase: { shape: 'path', props: { d: 'M -1.8 -1 L 1.8 -1 L 1.8 1.5 L -1.8 1.5 Z M -0.7 -1 L -0.7 -1.7 L 0.7 -1.7 L 0.7 -1', fill: '#7f5539', stroke: INK, strokeWidth: 0.16 } },
     sign:    { shape: 'path', props: { d: 'M -0.18 0 L 0.18 0 L 0.18 -3.2 L -0.18 -3.2 Z M -1.9 -3.1 L 1.9 -3.1 L 1.9 -5.3 L -1.9 -5.3 Z', fill: '#e9c46a', stroke: INK, strokeWidth: 0.16 } },
+    box:     { shape: 'rect', props: { x: -2.4, y: -1.9, w: 4.8, h: 3.8, rx: 0.2, fill: '#b07d4b', stroke: INK, strokeWidth: 0.18 } }, // good held two-handed
+    banner:  { shape: 'rect', props: { x: -4, y: -1.3, w: 8, h: 2.6, rx: 0.3, fill: '#c0392b', stroke: INK, strokeWidth: 0.16 } },
 
     // --- directional, point along the forearm (+x) ---
     gun:    { shape: 'path', props: { d: 'M -0.1 -0.9 L 2.7 -0.9 L 2.7 -0.3 L 0.75 -0.3 L 0.75 1.2 L -0.1 1.2 Z', fill: '#34495e', stroke: INK, strokeWidth: 0.14 }, directional: true },

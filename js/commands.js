@@ -978,26 +978,31 @@
   };
 
   /* ------------------------------ held props ------------------------------ */
-  const handOf = v => (v === 'left' ? 'L' : v === 'right' ? 'R' : null);
+  const handOf = v => (v === 'left' ? 'L' : v === 'right' ? 'R' : v === 'both' ? 'B' : null);
+  const handsOf = h => (h === 'B' ? ['L', 'R'] : [h]); // a grip's underlying hand(s)
   // the open grip (t1 = ∞) on a figure's hand (any hand if `hand` is null)
   function openGripHand(rt, figId, hand, t) {
     let g = null;
     for (const gr of rt.grips) if (gr.fig === figId && gr.hand === hand && t >= gr.t0 && gr.t1 === Infinity) g = gr;
     return g;
   }
-  // hand specified -> that hand; unspecified -> prefer the right hand, else the left.
+  // hand specified -> that hand; unspecified -> prefer right, then left, then two-handed.
   function openGrip(rt, figId, hand, t) {
     if (hand != null) return openGripHand(rt, figId, hand, t);
-    return openGripHand(rt, figId, 'R', t) || openGripHand(rt, figId, 'L', t);
+    return openGripHand(rt, figId, 'R', t) || openGripHand(rt, figId, 'L', t) || openGripHand(rt, figId, 'B', t);
   }
   const HOLD_SH = 35, HOLD_EL = 110; // default "holding" arm pose
   function holdPose(ctx, figId, hand, t, dur) {
-    ctx.rt.ch.tween(figId + '.sh' + hand, t, dur, HOLD_SH, EASE.inOut);
-    ctx.rt.ch.tween(figId + '.el' + hand, t, dur, HOLD_EL, EASE.inOut);
+    for (const h of handsOf(hand)) {
+      ctx.rt.ch.tween(figId + '.sh' + h, t, dur, HOLD_SH, EASE.inOut);
+      ctx.rt.ch.tween(figId + '.el' + h, t, dur, HOLD_EL, EASE.inOut);
+    }
   }
+  const handPoint = (P, hand) => hand === 'L' ? P.world.handL : hand === 'B'
+    ? { x: (P.world.handL.x + P.world.handR.x) / 2, y: (P.world.handL.y + P.world.handR.y) / 2 } : P.world.handR;
   function handWorldAt(rt, fig, hand, t) {
     const P = STICK.computeFigure(rt, fig, t);
-    return { P, w: hand === 'L' ? P.world.handL : P.world.handR };
+    return { P, w: handPoint(P, hand) };
   }
 
   H.give = H.hold = ctx => {
@@ -1029,14 +1034,16 @@
     const dur = durOf(ctx, DUR.quick);
     ctx.rt.ch.set(grip.obj + '.tx', ctx.t0, w.x - px);
     ctx.rt.ch.set(grip.obj + '.ty', ctx.t0, w.y - py);
-    if (obj.directional) ctx.rt.ch.set(grip.obj + '.rot', ctx.t0, STICK.propAngle(P, grip.hand, obj.baseAngle || 0));
+    if (obj.directional && grip.hand !== 'B') ctx.rt.ch.set(grip.obj + '.rot', ctx.t0, STICK.propAngle(P, grip.hand, obj.baseAngle || 0));
     const to = a.to != null ? (a.to === 'ground' ? { x: w.x, y: 70 } : STICK.resolvePoint(ctx.rt, a.to, ctx.t0)) : null;
     if (to) {
       if (typeof to.x === 'number') ctx.rt.ch.tween(grip.obj + '.tx', ctx.t0, dur, to.x - px, EASE.inOut);
       if (typeof to.y === 'number') ctx.rt.ch.tween(grip.obj + '.ty', ctx.t0, dur, to.y - py, EASE.out);
     }
-    ctx.rt.ch.tween(fig.id + '.sh' + grip.hand, ctx.t0, dur, 8, EASE.inOut);
-    ctx.rt.ch.tween(fig.id + '.el' + grip.hand, ctx.t0, dur, 8, EASE.inOut);
+    for (const h of handsOf(grip.hand)) {
+      ctx.rt.ch.tween(fig.id + '.sh' + h, ctx.t0, dur, 8, EASE.inOut);
+      ctx.rt.ch.tween(fig.id + '.el' + h, ctx.t0, dur, 8, EASE.inOut);
+    }
     return dur;
   };
 

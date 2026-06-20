@@ -425,14 +425,21 @@
       const grip = activeGrip(rt, obj.id, t);
       const gP = grip && Ps.get(grip.fig);
       if (gP) {
-        const handW = grip.hand === 'L' ? gP.world.handL : gP.world.handR;
-        const tx = handW.x - px, ty = handW.y - py;
-        const directional = grip.follow == null ? obj.directional : grip.follow;
-        let rot = 0, scY = sc;
-        if (directional) {
-          rot = STICK.propAngle(gP, grip.hand, obj.baseAngle || 0);
-          if (Math.cos(rot * Math.PI / 180) < 0) scY = -sc; // keep upright when aiming left
+        let handW, rot = 0, scY = sc;
+        if (grip.hand === 'B') { // two-handed: midpoint of both hands, oriented along the hand line
+          const hl = gP.world.handL, hr = gP.world.handR;
+          handW = { x: (hl.x + hr.x) / 2, y: (hl.y + hr.y) / 2 };
+          rot = Math.atan2(hr.y - hl.y, hr.x - hl.x) * 180 / Math.PI + (obj.baseAngle || 0);
+          if (Math.cos(rot * Math.PI / 180) < 0) { rot += 180; scY = -sc; } // keep upright
+        } else {
+          handW = grip.hand === 'L' ? gP.world.handL : gP.world.handR;
+          const directional = grip.follow == null ? obj.directional : grip.follow;
+          if (directional) {
+            rot = STICK.propAngle(gP, grip.hand, obj.baseAngle || 0);
+            if (Math.cos(rot * Math.PI / 180) < 0) scY = -sc; // keep upright when aiming left
+          }
         }
+        const tx = handW.x - px, ty = handW.y - py;
         node.g.setAttribute('transform',
           `translate(${tx.toFixed(3)} ${ty.toFixed(3)}) translate(${px} ${py}) rotate(${rot.toFixed(2)}) scale(${sc.toFixed(4)} ${scY.toFixed(4)}) translate(${(-px)} ${(-py)})`);
       } else {

@@ -667,6 +667,24 @@
       ],
     },
 
+    'moving day': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'mover', archetype: ['man'], pos: { x: 18, y: 70 }, facing: 'right', mood: 'neutral' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Moving day', dur: 'normal' } },
+        { at: 0.4, target: 'mover', cmd: 'give', args: { prop: 'box', hand: 'both' } },
+        { target: 'mover', cmd: 'say', args: { text: 'Heavy…' } },
+        { at: '<', target: 'mover', cmd: 'mood', args: { name: 'worried', animated: true } },
+        { target: 'mover', cmd: 'move', args: { style: 'walk', to: { x: 78, y: 70 } }, dur: 3 },
+        { target: 'mover', cmd: 'drop', args: { hand: 'both', to: 'ground' } },
+        { at: '<', target: 'mover', cmd: 'mood', args: { name: 'happy', animated: true } },
+        { cmd: 'scene.caption', args: { text: 'Just 40 more.', dur: 'slow' } },
+      ],
+    },
+
     'guided tour': {
       v: 1,
       scene: { theme: 'blank' },
