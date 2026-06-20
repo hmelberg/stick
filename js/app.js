@@ -29,14 +29,46 @@
 
     const clampN = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
     // best-effort name hints; pitch/rate do the real differentiating
-    const FEMALE = /female|woman|samantha|victoria|karen|moira|tessa|fiona|zira|susan|allison|ava|serena|google uk english female/i;
-    const MALE = /male|man|daniel|alex|fred|david|george|thomas|oliver|rishi|aaron|google uk english male/i;
+    const FEMALE = /female|woman|samantha|victoria|karen|moira|tessa|fiona|zira|susan|allison|ava|serena|kate|google uk english female/i;
+    const MALE = /male|man|daniel|arthur|alex|fred|david|george|thomas|oliver|rishi|aaron|google uk english male/i;
 
-    function pickVoice(kind) {
+    // Default voice for any figure: British English, male. Override per figure
+    // or per `say` line with voice.lang / voice.accent (see normLang aliases).
+    const DEFAULT_LANG = 'en-GB';
+    // Friendly accent/language names -> BCP-47 tags, so an LLM can write
+    // "british" or "french" instead of memorising locale codes. Bare codes
+    // ("en-GB", "fr", "pt-BR") also work and skip this table.
+    const LANG_ALIAS = {
+      british: 'en-GB', 'british english': 'en-GB', uk: 'en-GB', english: 'en-GB', 'en-uk': 'en-GB',
+      american: 'en-US', 'american english': 'en-US', us: 'en-US',
+      australian: 'en-AU', aussie: 'en-AU', irish: 'en-IE', scottish: 'en-GB', indian: 'en-IN', 'south african': 'en-ZA',
+      french: 'fr-FR', 'canadian french': 'fr-CA',
+      spanish: 'es-ES', 'mexican spanish': 'es-MX', 'latin american spanish': 'es-419',
+      german: 'de-DE', italian: 'it-IT',
+      portuguese: 'pt-PT', brazilian: 'pt-BR', 'brazilian portuguese': 'pt-BR',
+      dutch: 'nl-NL', russian: 'ru-RU', polish: 'pl-PL', swedish: 'sv-SE', norwegian: 'nb-NO', danish: 'da-DK', finnish: 'fi-FI',
+      turkish: 'tr-TR', greek: 'el-GR', czech: 'cs-CZ',
+      japanese: 'ja-JP', korean: 'ko-KR', chinese: 'zh-CN', mandarin: 'zh-CN', cantonese: 'zh-HK',
+      hindi: 'hi-IN', arabic: 'ar-SA', hebrew: 'he-IL', thai: 'th-TH', vietnamese: 'vi-VN', indonesian: 'id-ID',
+    };
+    function normLang(lang) {
+      if (!lang) return null;
+      const s = String(lang).trim().toLowerCase();
+      return LANG_ALIAS[s] || s.replace(/_/g, '-');
+    }
+
+    function pickVoice(kind, lang) {
       if (!voices.length) return null;
-      const en = voices.filter(v => /^en[-_]?/i.test(v.lang));
-      const pool = en.length ? en : voices;
-      const re = kind === 'female' ? FEMALE : kind === 'male' ? MALE : null;
+      const want = (normLang(lang) || DEFAULT_LANG).toLowerCase();
+      const byLang = v => (v.lang || '').toLowerCase().replace(/_/g, '-');
+      // narrow to the requested locale, then the language family (en-* etc.),
+      // then everything — so a missing en-GB still yields some English voice.
+      let pool = voices.filter(v => byLang(v).startsWith(want));
+      if (!pool.length) { const fam = want.slice(0, 2); pool = voices.filter(v => byLang(v).startsWith(fam)); }
+      if (!pool.length) pool = voices;
+      // female/male by name hint; default prefers male per the app default;
+      // child stays gender-neutral (raised pitch does the work).
+      const re = kind === 'female' ? FEMALE : kind === 'child' ? null : MALE;
       if (re) { const m = pool.find(v => re.test(v.name)); if (m) return m; }
       return pool[0] || null;
     }
@@ -79,11 +111,12 @@
       if (typeof ov.rate === 'number') rate = ov.rate;
       else if (typeof ov.rate === 'string') rate *= (SCALE_R[ov.rate] || 1);
       if (typeof ov.volume === 'number') volume = ov.volume;
+      const lang = ov.lang || ov.accent || ov.language || null; // friendly name or BCP-47
       return {
         pitch: clampN(pitch, 0.1, 2),
         rate: clampN(rate, 0.4, 2.2),
         volume: clampN(volume, 0, 1),
-        voice: pickVoice(kind),
+        voice: pickVoice(kind, lang),
         sing: !!((sayArgs && sayArgs.sing) || ov.sing),
       };
     }
@@ -92,7 +125,7 @@
       const u = new SpeechSynthesisUtterance(text);
       u.pitch = p.pitch; u.volume = p.volume;
       u.rate = clampN(p.rate * (speed || 1), 0.1, 10);
-      if (p.voice) u.voice = p.voice;
+      if (p.voice) { u.voice = p.voice; if (p.voice.lang) u.lang = p.voice.lang; }
       return u;
     }
 

@@ -63,9 +63,24 @@ All three render the same skeleton, so every command works in every style.
 - `archetype`: `man` | `woman` | `kid` | `person` (sets hair/height defaults).
 - `character`: `professor` (glasses) | `student` | `dancer` (fedora) — stronger presets.
 - `voice` (optional): controls spoken audio when the viewer enables sound. By
-  default a voice is derived from the figure's archetype + current mood, so you
-  usually omit this. Override with `{ "gender": "male\|female\|child", "pitch":
-  0.1..2 or "high\|low", "rate": 0.4..2.2 or "fast\|slow", "volume": 0..1 }`.
+  default a voice is derived from the figure's archetype + current mood (the
+  app-wide fallback is **British English, male**), so you usually omit this.
+  Override with any of:
+  - `gender`: `male` | `female` | `child`
+  - `lang` (a.k.a. `accent`): the language/accent. Use a friendly name —
+    `british` (default), `american`, `australian`, `irish`, `indian`, `french`,
+    `spanish`, `german`, `italian`, `brazilian`, `japanese`, `chinese`, `hindi`,
+    `arabic`, … — or a BCP-47 code like `en-GB`, `fr-FR`, `pt-BR`. Prefer the
+    friendly name; it is portable across machines. The text you put in `say` is
+    **not** translated — set `lang` only to change the accent/voice, and write
+    the line in that language yourself if you want it spoken correctly.
+  - `pitch`: `0.1..2` or `high` | `low`
+  - `rate`: `0.4..2.2` or `fast` | `slow`
+  - `volume`: `0..1`
+  - `sing`: `true` for a sing-song melody
+  Example — a French narrator: `"voice": { "lang": "french", "gender": "female" }`.
+  Availability of a specific accent depends on the viewer's browser/OS voices;
+  if it's missing, the closest same-language voice (then any voice) is used.
 - `hair`: `none` | `short` | `tuft` | `long` | `bun` | `sides`. Also `glasses: true`, `hat: "fedora"`.
 - Engine adds idle life automatically (breathing, sway, blinking) based on mood.
 
@@ -116,7 +131,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `hands` | `{ "hand": "right", "shape": "fist" }` or `{ "left": "fist", "right": "open" }` | mitten hand shapes: `relaxed` `open` `fist` `point` `spread` (sketch/toon styles). `point` cmd and angry mood set them automatically. |
 | `release` | `{ "hand": "right" }` / `{ "foot": "both" }` | undo reach/pin |
 | `blink` | `{}` | (auto-blink already happens) |
-| `say` | `{ "text": "...", "dur": ..., "sing": false, "voice": {...} }` | speech bubble + mouth movement; dur auto from length. If the viewer turns **sound** on, lines are spoken aloud (browser voices). `sing: true` makes it sing-song. `voice` overrides this line only. |
+| `say` | `{ "text": "...", "dur": ..., "sing": false, "voice": {...} }` | speech bubble + mouth movement; dur auto from length. If the viewer turns **sound** on, lines are spoken aloud (default voice: British English, male). `sing: true` makes it sing-song. `voice` (same fields as the figure `voice`, incl. `lang`/`accent`) overrides this line only. |
 | `emote` | `{ "symbol": "?\|!\|...\|zzz\|heart\|music\|sparkle\|idea" }` | floating symbol above head |
 | `scene.caption` | `{ "text": "...", "dur": "slow" }` | narrator text at the bottom |
 | `playClip` | `{ "name": "wave", "repeat": 2 }` | run a clip |
