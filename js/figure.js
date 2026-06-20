@@ -159,10 +159,10 @@
   }
 
   const GAIT = {
-    walk:     { stride: 0.62, hip: 27, knee: 38, kneePh: 1.1, arm: 19, elbow: 10, elbowSwing: 7, bob: 0.017, lean: 2,  lift: 0.05 },
-    run:      { stride: 0.95, hip: 44, knee: 65, kneePh: 1.0, arm: 32, elbow: 70, elbowSwing: 0, bob: 0.045, lean: 10, lift: 0.10 },
-    moonwalk: { stride: 0.45, hip: 13, knee: 0,  kneePh: 0,   arm: 0,  elbow: 6,  elbowSwing: 0, bob: 0.004, lean: -7, lift: 0 },
-    slide:    { stride: 1,    hip: 0,  knee: 0,  kneePh: 0,   arm: 0,  elbow: 10, elbowSwing: 0, bob: 0,     lean: -9, lift: 0 },
+    walk:     { stride: 0.62, hip: 27, knee: 38, arm: 19, elbow: 10, elbowSwing: 7, bob: 0.017, lean: 2,  lift: 0.05 },
+    run:      { stride: 0.95, hip: 44, knee: 65, arm: 32, elbow: 70, elbowSwing: 0, bob: 0.045, lean: 10, lift: 0.10 },
+    moonwalk: { stride: 0.45, hip: 13, knee: 0,  arm: 0,  elbow: 6,  elbowSwing: 0, bob: 0.004, lean: -7, lift: 0 },
+    slide:    { stride: 1,    hip: 0,  knee: 0,  arm: 0,  elbow: 10, elbowSwing: 0, bob: 0,     lean: -9, lift: 0 },
   };
 
   function gaitOffsets(rt, fig, t, g, loco) {
@@ -183,14 +183,15 @@
       o.shL = -8; o.shR = -8;
     } else {
       o.hipL = p.hip * s; o.hipR = -p.hip * s;
-      o.kneeL = p.knee * Math.max(0, Math.sin(phi - p.kneePh));
-      o.kneeR = p.knee * Math.max(0, Math.sin(phi - p.kneePh + Math.PI));
+      // A leg is in *swing* (foot recovering forward, off the ground) while its hip
+      // sweeps forward — cos(phi) > 0 for the left leg, anti-phase for the right.
+      // Bend the knee AND lift the foot there so the step clears the ground and
+      // reads as forward walking (not a planted-foot skate / backward moonwalk).
+      const swingL = Math.max(0, Math.cos(phi)), swingR = Math.max(0, -Math.cos(phi));
+      o.kneeL = p.knee * swingL; o.kneeR = p.knee * swingR;
       o.shL = -p.arm * s; o.shR = p.arm * s;
       o.elL = p.elbowSwing * Math.sin(phi + 1); o.elR = p.elbowSwing * Math.sin(phi + 1 + Math.PI);
-      // lift the swing foot off the ground (in phase with the knee bend) so the
-      // walk reads as stepping, not skating along the floor
-      o.liftL = p.lift * g.h * Math.max(0, Math.sin(phi - p.kneePh));
-      o.liftR = p.lift * g.h * Math.max(0, Math.sin(phi - p.kneePh + Math.PI));
+      o.liftL = p.lift * g.h * swingL; o.liftR = p.lift * g.h * swingR;
     }
     o.elL += p.elbow; o.elR += p.elbow;
     o.bobUp = p.bob * g.h * Math.abs(s);
