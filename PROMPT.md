@@ -132,7 +132,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 
 | cmd | args | notes |
 |---|---|---|
-| `move` | `{ "style": "walk\|run\|slide\|moonwalk", "to": {x,y} or "anchor" }` | duration auto from distance if `dur` omitted. Auto-faces travel direction (moonwalk faces backwards). Legs animate automatically. |
+| `move` | `{ "style": "walk\|run\|slide\|moonwalk", "to": {x,y} or "anchor" }` | duration auto from distance if `dur` omitted. Auto-faces travel direction (moonwalk faces backwards). Legs animate automatically. Add `"via": [p1, p2, …]` to walk a **path** through waypoints (a stroll, a detour, an arc). |
 | `hop` | `{ "height": 2.2 }` | small jump in place |
 | `mood` | `{ "name": "bored", "animated": true }` | tween to a mood preset. **Intensity:** add `"intensity": 1.5` (1 = preset strength, 0–2.5), or just say it — `{ "name": "very angry" }` / `"slightly sad"` (also `really/super/extremely`, `a bit/mildly`). |
 | `expression` | any expression fields | tween individual face channels |

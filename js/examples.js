@@ -635,6 +635,22 @@
       ],
     },
 
+    'detour': {
+      v: 1,
+      scene: { theme: 'blank' },
+      objects: [
+        { id: 'puddle', shape: 'ellipse', layer: 'back', props: { cx: 50, cy: 70, rx: 9, ry: 1.8, fill: '#9cc3e0' } },
+      ],
+      figures: [
+        { id: 'sam', archetype: ['man'], pos: { x: 12, y: 70 }, facing: 'right', mood: 'happy' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Mind the puddle', dur: 'normal' } },
+        { at: 0.6, target: 'sam', cmd: 'move', args: { style: 'walk', to: { x: 86, y: 70 }, via: [{ x: 40, y: 70 }, { x: 50, y: 58 }, { x: 60, y: 70 }] }, dur: 4 },
+        { target: 'sam', cmd: 'say', args: { text: 'Phew.' } },
+      ],
+    },
+
     'guided tour': {
       v: 1,
       scene: { theme: 'blank' },

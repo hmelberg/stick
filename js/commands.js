@@ -84,20 +84,25 @@
     let style = a.style || 'walk';
     if (!SPEED[style]) { rt.warn(`unknown move style "${style}" — walking`); style = 'walk'; }
     const x0 = cv(ctx, fig, 'x'), y0 = cv(ctx, fig, 'y');
-    const dist = Math.hypot(to.x - x0, to.y - y0);
-    const dur = ctx.ev.dur != null || ctx.args.dur != null
-      ? durOf(ctx, 1)
-      : clamp(dist / SPEED[style], 0.35, 6);
-    const dx = to.x - x0;
-    if (a.face !== false && a.autoFace !== false && Math.abs(dx) > 0.5) {
-      // moonwalkers face away from where they're going — that's the joke
-      st(ctx, fig, 'facing', ctx.t0, (dx > 0 ? 1 : -1) * (style === 'moonwalk' ? -1 : 1));
-    }
+    // optional `via` waypoints -> a polyline path: start -> via... -> to
+    const via = Array.isArray(a.via) ? a.via.map(p => STICK.resolvePoint(rt, p, ctx.t0)).filter(Boolean) : [];
+    const pts = [{ x: x0, y: y0 }, ...via, to];
+    const segLen = []; let total = 0;
+    for (let i = 1; i < pts.length; i++) { const L = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); segLen.push(L); total += L; }
+    if (total < 0.4) return 0;
+    const dur = ctx.ev.dur != null || ctx.args.dur != null ? durOf(ctx, 1) : clamp(total / SPEED[style], 0.35, 8);
     const ease = style === 'slide' ? EASE.out : EASE.sine;
-    tw(ctx, fig, 'x', ctx.t0, dur, to.x, ease);
-    tw(ctx, fig, 'y', ctx.t0, dur, to.y, ease);
-    if (dist > 0.5 && style !== 'slide') rt.loco.push({ fig: fig.id, t0: ctx.t0, t1: ctx.t0 + dur, style, x0, y0 });
-    if (style === 'slide') rt.loco.push({ fig: fig.id, t0: ctx.t0, t1: ctx.t0 + dur, style, x0, y0 });
+    const autoFace = a.face !== false && a.autoFace !== false;
+    let tAcc = ctx.t0;
+    for (let i = 1; i < pts.length; i++) {
+      const segDur = dur * (segLen[i - 1] / total), dx = pts[i].x - pts[i - 1].x;
+      if (autoFace && Math.abs(dx) > 0.5) st(ctx, fig, 'facing', tAcc, (dx > 0 ? 1 : -1) * (style === 'moonwalk' ? -1 : 1));
+      const segEase = pts.length === 2 ? ease : EASE.linear; // constant speed along a multi-point path
+      tw(ctx, fig, 'x', tAcc, segDur, pts[i].x, segEase);
+      tw(ctx, fig, 'y', tAcc, segDur, pts[i].y, segEase);
+      tAcc += segDur;
+    }
+    rt.loco.push({ fig: fig.id, t0: ctx.t0, t1: ctx.t0 + dur, style, x0, y0 });
     return dur;
   };
   H.walk = ctx => { ctx.args = { ...ctx.args, style: 'walk' }; return H.move(ctx); };
@@ -716,8 +721,19 @@
     const dur = durOf(ctx, DUR.normal), ease = easeOf(ctx, EASE.inOut);
     const to = STICK.resolvePoint(ctx.rt, ctx.args.to, ctx.t0);
     if (!to) { ctx.rt.warn('moveTo: missing/unresolvable "to"'); return 0; }
-    tw(ctx, o, 'tx', ctx.t0, dur, to.x - o.pivot.x, ease);
-    tw(ctx, o, 'ty', ctx.t0, dur, to.y - o.pivot.y, ease);
+    const via = Array.isArray(ctx.args.via) ? ctx.args.via.map(p => STICK.resolvePoint(ctx.rt, p, ctx.t0)).filter(Boolean) : [];
+    const cx = o.pivot.x + ctx.rt.ch.get(o.id + '.tx', ctx.t0), cy = o.pivot.y + ctx.rt.ch.get(o.id + '.ty', ctx.t0);
+    const pts = [{ x: cx, y: cy }, ...via, to];
+    const segLen = []; let total = 0;
+    for (let i = 1; i < pts.length; i++) { const L = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); segLen.push(L); total += L; }
+    if (total < 0.01) return dur;
+    let tAcc = ctx.t0;
+    for (let i = 1; i < pts.length; i++) {
+      const segDur = dur * (segLen[i - 1] / total), segEase = pts.length === 2 ? ease : EASE.linear;
+      tw(ctx, o, 'tx', tAcc, segDur, pts[i].x - o.pivot.x, segEase);
+      tw(ctx, o, 'ty', tAcc, segDur, pts[i].y - o.pivot.y, segEase);
+      tAcc += segDur;
+    }
     return dur;
   };
 
