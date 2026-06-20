@@ -93,6 +93,8 @@
       hair: raw.hair != null ? raw.hair : preset.hair || 'none',
       glasses: raw.glasses != null ? !!raw.glasses : !!preset.glasses,
       hat: raw.hat != null ? raw.hat : preset.hat || null,
+      // beard: true / 'full' | 'goatee' | 'stubble' (a face feature; default none)
+      beard: raw.beard === true ? 'full' : (typeof raw.beard === 'string' ? raw.beard : (preset.beard || null)),
       // body variant: 'full' (default) or 'bust' = floating head + neck + arms (no
       // torso/legs), handy for a talking-head explainer. `bust: true` is an alias.
       body: (raw.body === 'bust' || raw.body === 'head' || raw.bust === true) ? 'bust' : (preset.body || 'full'),

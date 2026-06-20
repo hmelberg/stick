@@ -82,6 +82,13 @@
     const fw = 0.09 * r;
     const grp = mk('g', {}, parent); // whole face in one group, so it can fade out toward the back
     const fr = { r, ink, opts, g: grp };
+    if (fig.beard) { // drawn first so it sits behind the eyes/mouth; fades with the face toward the back
+      const b = fig.beard === 'goatee' || fig.beard === 'stubble' ? fig.beard : 'full';
+      const d = b === 'goatee'
+        ? `M ${(-0.24 * r).toFixed(2)} ${(0.66 * r).toFixed(2)} Q 0 ${(0.58 * r).toFixed(2)} ${(0.24 * r).toFixed(2)} ${(0.66 * r).toFixed(2)} Q ${(0.3 * r).toFixed(2)} ${(1.04 * r).toFixed(2)} 0 ${(1.1 * r).toFixed(2)} Q ${(-0.3 * r).toFixed(2)} ${(1.04 * r).toFixed(2)} ${(-0.24 * r).toFixed(2)} ${(0.66 * r).toFixed(2)} Z`
+        : `M ${(-0.82 * r).toFixed(2)} ${(0.2 * r).toFixed(2)} C ${(-0.92 * r).toFixed(2)} ${(0.74 * r).toFixed(2)} ${(-0.45 * r).toFixed(2)} ${(1.14 * r).toFixed(2)} 0 ${(1.1 * r).toFixed(2)} C ${(0.45 * r).toFixed(2)} ${(1.14 * r).toFixed(2)} ${(0.92 * r).toFixed(2)} ${(0.74 * r).toFixed(2)} ${(0.82 * r).toFixed(2)} ${(0.2 * r).toFixed(2)} Q ${(0.4 * r).toFixed(2)} ${(0.64 * r).toFixed(2)} 0 ${(0.68 * r).toFixed(2)} Q ${(-0.4 * r).toFixed(2)} ${(0.64 * r).toFixed(2)} ${(-0.82 * r).toFixed(2)} ${(0.2 * r).toFixed(2)} Z`;
+      fr.beard = mk('path', { d, fill: ink, opacity: b === 'stubble' ? 0.4 : 1 }, grp);
+    }
     fr.eyeN = mk('ellipse', { cx: EX_N * r, cy: EY * r, rx: 0.15 * r, fill: ink }, grp);
     fr.eyeF = mk('ellipse', { cx: EX_F * r, cy: EY * r, rx: 0.15 * r, fill: ink }, grp);
     fr.pupN = mk('circle', { r: 0.07 * r, fill: 'var(--paper, #f7f2e9)' }, grp);
@@ -186,10 +193,11 @@
     const stroke = { stroke: ink, 'stroke-width': 0.16 * r, fill: 'none', 'stroke-linecap': 'round' };
     const style = fig.hair;
     if (style === 'short' || style === 'spiky') {
+      const spiky = style === 'spiky'; // 'short' is a small, close-cropped suggestion; 'spiky' stays bold
       let d = '';
       for (let k = 0; k <= 6; k++) {
-        const th = rad(160 - k * (140 / 6));
-        const R = r * (k % 2 ? 1.26 : 1.02);
+        const th = rad(148 - k * (116 / 6));
+        const R = r * (k % 2 ? (spiky ? 1.24 : 1.06) : 0.99);
         d += (k ? 'L' : 'M') + ` ${(Math.cos(th) * R).toFixed(2)} ${(-Math.sin(th) * R).toFixed(2)} `;
       }
       mk('path', { d, ...stroke }, parent);
@@ -215,11 +223,12 @@
   function hairToon(fig, r, parent, ink) {
     const style = fig.hair;
     if (style === 'short' || style === 'spiky') {
+      const oR = style === 'spiky' ? 1.16 : 1.05; // 'short' is a thin close cap
       const outer = [], inner = [];
       for (let k = 0; k <= 6; k++) {
-        const th = rad(165 - k * (150 / 6));
-        outer.push({ x: Math.cos(th) * r * 1.14, y: -Math.sin(th) * r * 1.14 });
-        inner.unshift({ x: Math.cos(th) * r * 0.86, y: -Math.sin(th) * r * 0.86 });
+        const th = rad(160 - k * (140 / 6));
+        outer.push({ x: Math.cos(th) * r * oR, y: -Math.sin(th) * r * oR });
+        inner.unshift({ x: Math.cos(th) * r * 0.9, y: -Math.sin(th) * r * 0.9 });
       }
       mk('path', { d: smoothClosed(outer.concat(inner)), fill: ink }, parent);
     } else if (style === 'long') {

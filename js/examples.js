@@ -385,7 +385,7 @@
       v: 1,
       scene: { theme: 'blank' },
       figures: [
-        { id: 'dad', archetype: ['man'], hair: 'short', pos: { x: 16, y: 72 } },
+        { id: 'dad', archetype: ['man'], hair: 'short', beard: true, pos: { x: 16, y: 72 } },
         { id: 'mum', archetype: ['woman'], hair: 'long', pos: { x: 13, y: 72 } },
         { id: 'girl', archetype: ['kid'], hair: 'long', pos: { x: 10, y: 72 }, mood: 'happy' },
         { id: 'boy', archetype: ['kid'], hair: 'tuft', pos: { x: 7, y: 72 }, mood: 'happy' },

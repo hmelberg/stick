@@ -90,6 +90,7 @@ All three render the same skeleton, so every command works in every style.
   generic figures) so a crowd doesn't all sound the same — set `voice` only when
   you want a specific character to sound a particular way.
 - `hair`: `none` (default) | `short` | `tuft` | `long` (long, curled — good for women/girls) | `bun` | `sides`. Also `glasses: true`, `hat: "fedora"`.
+- `beard`: `true` (full) | `"full"` | `"goatee"` | `"stubble"` — facial hair (default none).
 - `body` (optional): `full` (default) or `bust` — a **floating head + neck + arms** with no
   torso/legs, e.g. a talking-head professor that gestures while explaining. `bust: true` works too.
   Position it with `pos` (a bust usually sits higher, e.g. `"pos": { "y": 45 }`); pair it with
