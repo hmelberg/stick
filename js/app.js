@@ -317,6 +317,7 @@
       const P = STICK.computeFigure(rt, fig, t);
       Ps.set(fig.id, P);
       const entry = dom.figNodes.get(fig.id);
+      if (!entry) continue; // dom not yet rebuilt for this rt (defensive)
       entry.style.update(entry.nodes, P, t);
     }
     for (const obj of rt.objs.values()) {
@@ -407,23 +408,26 @@
       showWarnings(['JSON parse error: ' + e.message], true);
       return;
     }
-    try {
-      state.rt = STICK.compile(doc);
-      const finish = () => {
-        state.dom = rebuildStage(state.rt);
-        state.t = 0;
-        Speech.cancel(); state.spoken.clear(); state.lastSpeakT = -1;
-        showWarnings(state.rt.warnings, false);
-        setPlaying(true);
-        draw();
-      };
-      if (STICK.boardsNeedMath && STICK.boardsNeedMath(state.rt) && !STICK.mathReady && STICK.ensureMath) {
-        showWarnings(['loading math…'], false);
-        STICK.ensureMath().then(finish).catch(finish); // fall back to raw text if it fails
-      } else finish();
-    } catch (e) {
-      showWarnings(['engine error: ' + e.message + (e.stack ? ' @ ' + String(e.stack).split('\n')[1] : '')], true);
-    }
+    let rt;
+    try { rt = STICK.compile(doc); }
+    catch (e) { showWarnings(['engine error: ' + e.message + (e.stack ? ' @ ' + String(e.stack).split('\n')[1] : '')], true); return; }
+    // Build the stage into locals, then swap state.rt + state.dom together. This
+    // keeps the running frame loop consistent if the build is deferred (e.g. while
+    // MathJax loads) — otherwise draw() would run the new rt against the old dom.
+    const finish = () => {
+      let dom;
+      try { dom = rebuildStage(rt); }
+      catch (e) { showWarnings(['engine error: ' + e.message + (e.stack ? ' @ ' + String(e.stack).split('\n')[1] : '')], true); return; }
+      state.rt = rt; state.dom = dom; state.t = 0;
+      Speech.cancel(); state.spoken.clear(); state.lastSpeakT = -1;
+      showWarnings(rt.warnings, false);
+      setPlaying(true);
+      draw();
+    };
+    if (STICK.boardsNeedMath && STICK.boardsNeedMath(rt) && !STICK.mathReady && STICK.ensureMath) {
+      showWarnings(['loading math…'], false);
+      STICK.ensureMath().then(finish).catch(finish); // fall back to raw text if it fails
+    } else finish();
   }
 
   function setPlaying(p) {
