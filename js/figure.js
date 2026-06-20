@@ -207,7 +207,8 @@
     const x = rt.ch.get(fig.id + '.x', t), y = rt.ch.get(fig.id + '.y', t);
     const traveled = Math.hypot(x - loco.x0, y - loco.y0);
     const ramp = clamp(Math.min((t - loco.t0) / 0.25, (loco.t1 - t) / 0.3, 1), 0, 1);
-    const phi = (traveled / (p.stride * ag.stride * g.h)) * Math.PI * 2; // shorter stride -> more steps
+    const phiOff = (fig.seed * 6.283) % 6.283; // per-figure phase so a crowd doesn't step in lockstep
+    const phi = (traveled / (p.stride * ag.stride * g.h)) * Math.PI * 2 + phiOff; // shorter stride -> more steps
     const o = { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, bobUp: 0, lean: 0, liftL: 0, liftR: 0, pitchL: 0, pitchR: 0, ramp };
     if (ramp <= 0) return o;
     const s = Math.sin(phi);
@@ -283,7 +284,7 @@
     const idleK = (1 - gait.ramp) * (1 - wLie * 0.7);
     const ph0 = fig.seed * 6.283;
     const sway = prof.sway * ag.sway, bounce = prof.bounce * ag.bounce; // age-modulated liveliness
-    const f = 0.22 + 0.12 * prof.energy * ag.energy;
+    const f = (0.22 + 0.12 * prof.energy * ag.energy) * (0.9 + rand01(24, fig.seed) * 0.2); // per-figure pace
     bend += 0.012 * (0.5 + sway) * Math.sin(6.283 * f * t + ph0) * idleK;
     headTilt += 0.018 * sway * Math.sin(6.283 * f * 0.6 * t + ph0 * 1.7) * idleK;
     const shIdle = 2.2 * sway * Math.sin(6.283 * f * 0.5 * t + ph0 * 0.6) * idleK
@@ -390,11 +391,12 @@
 
     // face
     const blink = blinkAmt(t, fig.seed);
+    const fjit = k => rand01(k, fig.seed) - 0.5; // ±0.5, stable per figure — small face variation
     const face = {
-      smile: clamp(get('smile'), -1, 1),
-      eyeOpen: clamp(get('eyeOpen', 1), 0, 1) * (1 - blink),
+      smile: clamp(get('smile') + fjit(21) * 0.05, -1, 1),
+      eyeOpen: clamp(get('eyeOpen', 1) * (1 + fjit(22) * 0.1), 0, 1) * (1 - blink),
       browTilt: clamp(get('browTilt'), -1, 1),
-      browRaise: clamp(get('browRaise'), -0.3, 1),
+      browRaise: clamp(get('browRaise') + fjit(23) * 0.08, -0.3, 1),
       mouthOpen: clamp(get('mouthOpen'), 0, 1),
       pupX: clamp(get('pupX'), -1, 1),
       pupY: clamp(get('pupY'), -1, 1),

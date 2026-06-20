@@ -107,8 +107,9 @@
         stroke: ink, 'stroke-width': fw * 1.2, fill: 'none', 'stroke-linecap': 'round',
       }, grp);
     }
-    fr.mouth = mk('path', { stroke: ink, 'stroke-width': fw * 1.5, fill: 'none', 'stroke-linecap': 'round' }, grp);
-    fr.mouthO = mk('ellipse', { fill: ink }, grp);
+    // one mouth: a closed path whose top is the smile/frown curve and whose lower
+    // edge drops as it opens — so it's a line when shut and a filled shape when open.
+    fr.mouth = mk('path', { stroke: ink, 'stroke-width': fw * 1.5, fill: ink, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, grp);
     if (fig.glasses) { // built here (not buildExtras) so the lenses track the eyes as the face turns
       const gl = { stroke: ink, 'stroke-width': fw, fill: 'none' };
       fr.glassN = mk('circle', { r: 0.27 * r, ...gl }, grp);
@@ -183,17 +184,11 @@
 
     const mx = (0.36 - 0.36 * front) * r, my = 0.48 * r, hw = 0.28 * r;
     const mj = bs ? jit(9, bs, 0.02 * r) : 0;
-    fr.mouth.setAttribute('d', `M ${(mx - hw).toFixed(3)} ${my.toFixed(3)} Q ${(mx + mj).toFixed(3)} ${(my + F.smile * 0.36 * r + mj).toFixed(3)} ${(mx + hw).toFixed(3)} ${my.toFixed(3)}`);
-    // The open-mouth oval replaces the lip line at the SAME spot (it used to sit
-    // below it, reading as a second mouth). Fade the line out as the mouth opens.
-    fr.mouth.setAttribute('opacity', Math.max(0, Math.min(1, 1 - F.mouthOpen * 1.6)).toFixed(2));
-    if (F.mouthOpen > 0.06) {
-      fr.mouthO.setAttribute('visibility', 'visible');
-      fr.mouthO.setAttribute('cx', mx.toFixed(3));
-      fr.mouthO.setAttribute('cy', (my + 0.05 * r).toFixed(3));
-      fr.mouthO.setAttribute('rx', (0.12 * r).toFixed(3));
-      fr.mouthO.setAttribute('ry', (0.16 * r * F.mouthOpen).toFixed(3));
-    } else { fr.mouthO.setAttribute('visibility', 'hidden'); }
+    const topC = my + F.smile * 0.34 * r + mj;       // upper-lip curve (smile down / frown up)
+    const botC = topC + F.mouthOpen * 0.62 * r;       // lower lip drops as the mouth opens
+    fr.mouth.setAttribute('d',
+      `M ${(mx - hw).toFixed(2)} ${my.toFixed(2)} Q ${(mx + mj).toFixed(2)} ${topC.toFixed(2)} ${(mx + hw).toFixed(2)} ${my.toFixed(2)}`
+      + ` Q ${(mx + mj).toFixed(2)} ${botC.toFixed(2)} ${(mx - hw).toFixed(2)} ${my.toFixed(2)} Z`);
     if (fr.tearN) { // tears stream from under the eyes and fall (animated off F.t)
       const show = F.tears > 0.05, tt = F.t || 0;
       for (const [tr, cx, ph] of [[fr.tearN, cxN, 0], [fr.tearF, cxF, 0.5]]) {
@@ -346,7 +341,7 @@
       n.farG = farG;
       n.far = mk('path', { ...limb, 'stroke-width': w * 0.9 }, farG);
       n.torso = mk('path', limb, root);
-      n.head = mk('circle', { r, fill: 'var(--paper, #f7f2e9)', stroke: ink, 'stroke-width': w * 0.58 }, root);
+      n.head = mk('circle', { r, fill: 'var(--paper, #f7f2e9)', stroke: ink, 'stroke-width': w * (fig.body === 'bust' ? 0.42 : 0.58) }, root);
       n.headG = mk('g', {}, root);
       hairStroke(fig, r, n.headG, ink);
       n.face = buildFace(n.headG, fig, r, { nose: false });
@@ -389,8 +384,8 @@
       n.handL = buildHand(farG, g, ink);
       n.torso = mk('path', limb, root);
       n.headFill = mk('path', { fill: 'var(--paper, #f7f2e9)', stroke: 'none' }, root);
-      n.headStroke = mk('path', { ...limb, 'stroke-width': w * 0.58 }, root);
-      n.headStroke2 = mk('path', { ...limb, 'stroke-width': w * 0.34, opacity: 0.35 }, root);
+      n.headStroke = mk('path', { ...limb, 'stroke-width': w * (fig.body === 'bust' ? 0.42 : 0.58) }, root);
+      n.headStroke2 = mk('path', { ...limb, 'stroke-width': w * (fig.body === 'bust' ? 0.26 : 0.34), opacity: 0.35 }, root);
       n.headG = mk('g', {}, root);
       hairStroke(fig, r, n.headG, ink);
       n.face = buildFace(n.headG, fig, r, { nose: true });
@@ -474,7 +469,7 @@
       n.neckLine = mk('path', { ...limb, 'stroke-width': w * 0.8 }, root);
       n.nearLeg = mk('path', limb, root);
       n.shoeR = mk('ellipse', { fill: ink }, root);
-      n.head = mk('circle', { r, fill: 'var(--paper, #f7f2e9)', stroke: ink, 'stroke-width': w * 0.56 }, root);
+      n.head = mk('circle', { r, fill: 'var(--paper, #f7f2e9)', stroke: ink, 'stroke-width': w * (fig.body === 'bust' ? 0.4 : 0.56) }, root);
       n.headG = mk('g', {}, root);
       hairToon(fig, r, n.headG, ink);
       n.face = buildFace(n.headG, fig, r, { nose: true });

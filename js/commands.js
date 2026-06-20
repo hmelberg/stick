@@ -193,28 +193,37 @@
   H.expr = H.expression;
   H.face = H.expression;
 
+  const MOOD_PFX = { very: 1.6, really: 1.6, super: 1.9, extremely: 2, slightly: 0.55, mildly: 0.6, 'a bit': 0.6, 'a little': 0.6 };
   H.mood = ctx => {
     const fig = figOf(ctx); if (!fig) return 0;
-    const name = ctx.args.name || ctx.args.mood;
+    let name = ctx.args.name || ctx.args.mood;
+    let pfx = 1; // word prefix like "very angry" / "slightly sad"
+    if (typeof name === 'string') {
+      const m = name.trim().toLowerCase().match(/^(very|really|super|extremely|slightly|mildly|a bit|a little)\s+(.+)$/);
+      if (m) { name = m[2]; pfx = MOOD_PFX[m[1]] || 1; }
+    }
     const preset = STICK.presets.moods[name];
     if (!preset) { ctx.rt.warn(`unknown mood "${name}"`); return 0; }
     const dur = ctxx_animated(ctx) ? durOf(ctx, DUR.quick) : 0.02;
     const ease = EASE.inOut;
     const E = preset.expr;
-    tw(ctx, fig, 'smile', ctx.t0, dur, num(E.smile, 0), ease);
-    tw(ctx, fig, 'eyeOpen', ctx.t0, dur, num(E.eyeOpen, 1), ease);
-    tw(ctx, fig, 'browTilt', ctx.t0, dur, num(E.browTilt, 0), ease);
-    tw(ctx, fig, 'browRaise', ctx.t0, dur, num(E.browRaise, 0), ease);
-    tw(ctx, fig, 'mouthOpen', ctx.t0, dur, num(E.mouthOpen, 0), ease);
-    tw(ctx, fig, 'pupX', ctx.t0, dur, num(E.pupilX, 0), ease);
-    tw(ctx, fig, 'pupY', ctx.t0, dur, num(E.pupilY, 0), ease);
-    tw(ctx, fig, 'browSkew', ctx.t0, dur, num(E.browSkew, 0), ease);
-    tw(ctx, fig, 'tears', ctx.t0, dur, num(E.tears, 0), ease);
-    tw(ctx, fig, 'blush', ctx.t0, dur, num(E.blush, 0), ease);
+    // intensity: 1 = the preset's strength; scales each value's deviation from neutral.
+    const I = clamp(num(ctx.args.intensity, 1) * pfx, 0, 2.5);
+    const sv = (v, base) => base + (v - base) * I;
+    tw(ctx, fig, 'smile', ctx.t0, dur, sv(num(E.smile, 0.08), 0.08), ease);
+    tw(ctx, fig, 'eyeOpen', ctx.t0, dur, sv(num(E.eyeOpen, 1), 1), ease);
+    tw(ctx, fig, 'browTilt', ctx.t0, dur, sv(num(E.browTilt, 0), 0), ease);
+    tw(ctx, fig, 'browRaise', ctx.t0, dur, sv(num(E.browRaise, 0), 0), ease);
+    tw(ctx, fig, 'mouthOpen', ctx.t0, dur, sv(num(E.mouthOpen, 0), 0), ease);
+    tw(ctx, fig, 'pupX', ctx.t0, dur, sv(num(E.pupilX, 0), 0), ease);
+    tw(ctx, fig, 'pupY', ctx.t0, dur, sv(num(E.pupilY, 0), 0), ease);
+    tw(ctx, fig, 'browSkew', ctx.t0, dur, sv(num(E.browSkew, 0), 0), ease);
+    tw(ctx, fig, 'tears', ctx.t0, dur, sv(num(E.tears, 0), 0), ease);
+    tw(ctx, fig, 'blush', ctx.t0, dur, sv(num(E.blush, 0), 0), ease);
     if (preset.pose) {
-      if (typeof preset.pose.bend === 'number') tw(ctx, fig, 'bend', ctx.t0, dur, preset.pose.bend, ease);
-      if (typeof preset.pose.headTilt === 'number') tw(ctx, fig, 'headTilt', ctx.t0, dur, preset.pose.headTilt, ease);
-      if (typeof preset.pose.lean === 'number') tw(ctx, fig, 'lean', ctx.t0, dur, preset.pose.lean, ease);
+      if (typeof preset.pose.bend === 'number') tw(ctx, fig, 'bend', ctx.t0, dur, sv(preset.pose.bend, 0.02), ease);
+      if (typeof preset.pose.headTilt === 'number') tw(ctx, fig, 'headTilt', ctx.t0, dur, sv(preset.pose.headTilt, 0), ease);
+      if (typeof preset.pose.lean === 'number') tw(ctx, fig, 'lean', ctx.t0, dur, sv(preset.pose.lean, 0), ease);
     }
     const prevMood = ctx.rt.ch.getDef(fig.id + '.mood', ctx.t0, 'neutral');
     if (name === 'angry') { st(ctx, fig, 'handL', ctx.t0, 'fist'); st(ctx, fig, 'handR', ctx.t0, 'fist'); }

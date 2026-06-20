@@ -522,6 +522,26 @@
       ],
     },
 
+    'intensity': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'a', archetype: ['man'], pos: { x: 22, y: 72 }, facing: 'front' },
+        { id: 'b', archetype: ['man'], pos: { x: 50, y: 72 }, facing: 'front' },
+        { id: 'c', archetype: ['man'], pos: { x: 78, y: 72 }, facing: 'front' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Same mood, dialled up', dur: 'normal' } },
+        { at: 1.0, target: 'a', cmd: 'mood', dur: 'slow', args: { name: 'angry', intensity: 0.5, animated: true } },
+        { at: '<', target: 'b', cmd: 'mood', dur: 'slow', args: { name: 'angry', animated: true } },
+        { at: '<', target: 'c', cmd: 'mood', dur: 'slow', args: { name: 'very angry', animated: true } },
+        { at: '+normal', target: 'a', cmd: 'say', args: { text: 'A bit cross.' } },
+        { target: 'c', cmd: 'say', args: { text: 'FURIOUS!' } },
+        { at: '<', target: 'c', cmd: 'emote', args: { symbol: '!' } },
+        { cmd: 'scene.caption', args: { text: 'slightly · normal · very', dur: 'slow' } },
+      ],
+    },
+
     'mood gallery': {
       v: 1,
       scene: { theme: 'blank' },
