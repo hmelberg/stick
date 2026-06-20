@@ -178,11 +178,13 @@
     return found;
   }
 
+  // footDown/footUp: ankle pitch in degrees — toe points DOWN through the swing,
+  // then tips UP just before landing (heel strike). lift = swing-foot clearance.
   const GAIT = {
-    walk:     { stride: 0.62, hip: 27, knee: 38, arm: 19, elbow: 10, elbowSwing: 7, bob: 0.017, lean: 2,  lift: 0.05 },
-    run:      { stride: 0.95, hip: 44, knee: 65, arm: 32, elbow: 70, elbowSwing: 0, bob: 0.045, lean: 10, lift: 0.10 },
-    moonwalk: { stride: 0.45, hip: 13, knee: 0,  arm: 0,  elbow: 6,  elbowSwing: 0, bob: 0.004, lean: -7, lift: 0 },
-    slide:    { stride: 1,    hip: 0,  knee: 0,  arm: 0,  elbow: 10, elbowSwing: 0, bob: 0,     lean: -9, lift: 0 },
+    walk:     { stride: 0.62, hip: 27, knee: 38, arm: 19, elbow: 10, elbowSwing: 7, bob: 0.017, lean: 2,  lift: 0.035, footDown: 26, footUp: 15 },
+    run:      { stride: 0.95, hip: 44, knee: 65, arm: 32, elbow: 70, elbowSwing: 0, bob: 0.045, lean: 10, lift: 0.085, footDown: 36, footUp: 18 },
+    moonwalk: { stride: 0.45, hip: 13, knee: 0,  arm: 0,  elbow: 6,  elbowSwing: 0, bob: 0.004, lean: -7, lift: 0, footDown: 0, footUp: 0 },
+    slide:    { stride: 1,    hip: 0,  knee: 0,  arm: 0,  elbow: 10, elbowSwing: 0, bob: 0,     lean: -9, lift: 0, footDown: 0, footUp: 0 },
   };
 
   // Age modulates how a figure moves (gait + idle), as multipliers on the base.
@@ -203,7 +205,7 @@
     const traveled = Math.hypot(x - loco.x0, y - loco.y0);
     const ramp = clamp(Math.min((t - loco.t0) / 0.25, (loco.t1 - t) / 0.3, 1), 0, 1);
     const phi = (traveled / (p.stride * ag.stride * g.h)) * Math.PI * 2; // shorter stride -> more steps
-    const o = { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, bobUp: 0, lean: 0, liftL: 0, liftR: 0, ramp };
+    const o = { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, bobUp: 0, lean: 0, liftL: 0, liftR: 0, pitchL: 0, pitchR: 0, ramp };
     if (ramp <= 0) return o;
     const s = Math.sin(phi);
     if (loco.style === 'slide') {
@@ -224,6 +226,11 @@
       o.shL = -p.arm * s; o.shR = p.arm * s;
       o.elL = p.elbowSwing * Math.sin(phi + 1); o.elR = p.elbowSwing * Math.sin(phi + 1 + Math.PI);
       o.liftL = p.lift * g.h * swingL; o.liftR = p.lift * g.h * swingR;
+      // ankle pitch: toe down through the swing, tipping up sharply at heel strike
+      // (the foot is forward, about to land — sin(phi) peaks there for the left leg).
+      const heelL = Math.pow(Math.max(0, Math.sin(phi)), 4), heelR = Math.pow(Math.max(0, -Math.sin(phi)), 4);
+      o.pitchL = p.footDown * swingL - p.footUp * heelL;
+      o.pitchR = p.footDown * swingR - p.footUp * heelR;
     }
     o.elL += p.elbow; o.elR += p.elbow;
     o.bobUp = p.bob * g.h * Math.abs(s);
@@ -232,7 +239,7 @@
     o.hipL *= ag.hip; o.hipR *= ag.hip; o.kneeL *= ag.knee; o.kneeR *= ag.knee;
     o.shL *= ag.arm; o.shR *= ag.arm; o.elL *= ag.elbow; o.elR *= ag.elbow;
     o.liftL *= ag.lift; o.liftR *= ag.lift; o.bobUp *= ag.bob; o.lean *= ag.lean;
-    for (const k of ['hipL', 'hipR', 'kneeL', 'kneeR', 'shL', 'shR', 'elL', 'elR', 'bobUp', 'lean', 'liftL', 'liftR']) o[k] *= ramp;
+    for (const k of ['hipL', 'hipR', 'kneeL', 'kneeR', 'shL', 'shR', 'elL', 'elR', 'bobUp', 'lean', 'liftL', 'liftR', 'pitchL', 'pitchR']) o[k] *= ramp;
     return o;
   }
 
@@ -265,7 +272,7 @@
     const wSit = clamp(get('sit'), 0, 1), wCr = clamp(get('crouch'), 0, 1), wLie = clamp(get('lie'), 0, 1);
 
     const loco = activeLoco(rt, id, t);
-    const gait = loco ? gaitOffsets(rt, fig, t, g, loco) : { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, bobUp: 0, lean: 0, liftL: 0, liftR: 0, ramp: 0 };
+    const gait = loco ? gaitOffsets(rt, fig, t, g, loco) : { hipL: 0, hipR: 0, kneeL: 0, kneeR: 0, shL: 0, shR: 0, elL: 0, elR: 0, bobUp: 0, lean: 0, liftL: 0, liftR: 0, pitchL: 0, pitchR: 0, ramp: 0 };
 
     // idle life: breathing, sway, joy-bounce — scaled down while walking
     const moodName = ch.getDef(id + '.mood', t, 'neutral');
@@ -350,7 +357,7 @@
 
     // legs (FK, then pin-IK)
     const hw = 0.075 * g.h; // hip half-spread when facing front
-    const mkLeg = (hipA, kneeA, pinName, side, lift) => {
+    const mkLeg = (hipA, kneeA, pinName, side, lift, pitch) => {
       let knee = add(pelvis, dirDown(hipA), g.thigh);
       let ank = add(knee, dirDown(hipA - kneeA), g.shin);
       const pin = ch.getDef(id + '.' + pinName, t, null);
@@ -370,11 +377,13 @@
         const ik = ik2(pelvis, toLocal(pin), g.thigh, g.shin, -1);
         knee = ik.mid; ank = ik.end;
       }
-      const foot = { x: ank.x + footX, y: ank.y + 0.12 };
+      // foot stub from the ankle, pitched by the gait (+ = toe down). Flat at rest.
+      const fc2 = cosd(pitch || 0), fs2 = sind(pitch || 0), baseFY = 0.12;
+      const foot = { x: ank.x + footX * fc2 - baseFY * fs2, y: ank.y + footX * fs2 + baseFY * fc2 };
       return { knee, ank, foot };
     };
-    const legL = mkLeg(hipLA, kneeLA, 'pinFL', 'L', gait.liftL);
-    const legR = mkLeg(hipRA, kneeRA, 'pinFR', 'R', gait.liftR);
+    const legL = mkLeg(hipLA, kneeLA, 'pinFL', 'L', gait.liftL, gait.pitchL);
+    const legR = mkLeg(hipRA, kneeRA, 'pinFR', 'R', gait.liftR, gait.pitchR);
 
     // face
     const blink = blinkAmt(t, fig.seed);

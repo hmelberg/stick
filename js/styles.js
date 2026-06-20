@@ -414,10 +414,13 @@
       headTf(n.headG, P);
       updateFace(n.face, P.face, sd + 83);
 
-      const shoe = (l, salt) => smoothOpen(wobble([
-        { x: l.ank.x - 0.02 * g.h, y: l.ank.y },
-        { x: l.ank.x + 0.1 * g.h, y: l.ank.y + 0.06 },
-      ], amp * 0.7, sd + salt));
+      const shoe = (l, salt) => { // heel just behind the ankle to the (pitched) toe
+        const vx = l.foot.x - l.ank.x, vy = l.foot.y - l.ank.y;
+        return smoothOpen(wobble([
+          { x: l.ank.x - vx * 0.28, y: l.ank.y - vy * 0.28 },
+          { x: l.foot.x, y: l.foot.y },
+        ], amp * 0.7, sd + salt));
+      };
       n.shoeL.setAttribute('d', bust ? '' : shoe(P.legL, 91));
       n.shoeR.setAttribute('d', bust ? '' : shoe(P.legR, 97));
 
@@ -479,12 +482,16 @@
       const legD = (l, off) => `M ${(P.pelvis.x + off).toFixed(2)} ${P.pelvis.y.toFixed(2)} L ${pt(l.knee)} L ${pt(l.ank)}`;
       n.farLeg.setAttribute('d', bust ? '' : legD(P.legL, -0.035 * g.h));
       n.nearLeg.setAttribute('d', bust ? '' : legD(P.legR, 0.035 * g.h));
-      const shoe = (el, l) => {
-        el.setAttribute('visibility', bust ? 'hidden' : 'visible');
-        el.setAttribute('cx', (l.ank.x + 0.05 * g.h).toFixed(2));
-        el.setAttribute('cy', (l.ank.y + 0.012 * g.h).toFixed(2));
+      const shoe = (el, l) => { // ellipse aligned to the (pitched) foot direction
+        if (bust) { el.setAttribute('visibility', 'hidden'); return; }
+        el.setAttribute('visibility', 'visible');
+        const vx = l.foot.x - l.ank.x, vy = l.foot.y - l.ank.y;
+        const ang = Math.atan2(vy, vx) * 180 / Math.PI;
+        const cx = l.ank.x + vx * 0.5, cy = l.ank.y + vy * 0.5 + 0.012 * g.h;
+        el.setAttribute('cx', 0); el.setAttribute('cy', 0);
         el.setAttribute('rx', (0.078 * g.h).toFixed(2));
         el.setAttribute('ry', (0.038 * g.h).toFixed(2));
+        el.setAttribute('transform', `translate(${cx.toFixed(2)} ${cy.toFixed(2)}) rotate(${ang.toFixed(1)})`);
       };
       shoe(n.shoeL, P.legL);
       shoe(n.shoeR, P.legR);
