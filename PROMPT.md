@@ -150,6 +150,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `say` | `{ "text": "...", "dur": ..., "sing": false, "voice": {...} }` | speech bubble + mouth movement; dur auto from length. If the viewer turns **sound** on, lines are spoken aloud (default voice: British English, male). `sing: true` makes it sing-song. `voice` (same fields as the figure `voice`, incl. `lang`/`accent`) overrides this line only. |
 | `think` | `{ "text": "...", "dur": ... }` | silent **thought bubble** (cloud + trailing puffs) — for inner monologue, no speech/mouth. |
 | `emote` | `{ "symbol": "?\|!\|...\|zzz\|heart\|music\|sparkle\|idea" }` | floating symbol above head |
+| `burst` | `{ "count": 18, "color": ["#e0533a","#3a86e0"] }` | confetti / particle burst — tiny shapes fan out, arc, and fade. With a figure `target` it bursts over the head; or `{ "at": point }`. `spread` widens the fan. |
 | `scene.caption` | `{ "text": "...", "dur": "slow" }` | narrator text at the bottom |
 | `playClip` | `{ "name": "wave", "repeat": 2 }` | run a clip |
 | `wait` | — (use `dur`) | beat of stillness |

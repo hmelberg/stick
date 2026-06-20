@@ -426,6 +426,39 @@
     return dur;
   };
 
+  // confetti / particle burst: many tiny shapes fan out, arc under gravity, and fade.
+  const prand = i => { const v = Math.sin(i * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+  H.burst = ctx => {
+    const a = ctx.args, rt = ctx.rt;
+    let at;
+    if (ctx.targetId != null && rt.figs.has(String(ctx.targetId))) {
+      const P = STICK.computeFigure(rt, rt.figs.get(String(ctx.targetId)), ctx.t0);
+      at = { x: P.world.head.x, y: P.world.head.y - P.g.headR * 1.4 };
+    } else at = STICK.resolvePoint(rt, a.at != null ? a.at : a.to, ctx.t0) || { x: 50, y: 42 };
+    const n = clamp(Math.round(num(a.count, 18)), 3, 60);
+    const dur = durOf(ctx, DUR.slow);
+    const palette = a.color != null ? [].concat(a.color) : ['#e0533a', '#3a86e0', '#2e9e6b', '#d99a2b', '#9b6ee0', '#e8556f'];
+    const spread = num(a.spread, 1);
+    for (let i = 0; i < n; i++) {
+      const r1 = prand(i * 1.7 + 1), r2 = prand(i * 2.3 + 5), r3 = prand(i * 3.1 + 9);
+      const ang = -Math.PI / 2 + (r1 - 0.5) * Math.PI * 1.4 * spread; // fan upward
+      const sp = 9 + r2 * 16, sz = 0.5 + r3 * 0.7;
+      const id = '_burst' + rt.objs.size + '_' + i;
+      const shape = i % 3 === 0 ? 'rect' : 'circle', fill = palette[i % palette.length];
+      const props = shape === 'rect' ? { x: -sz, y: -sz * 0.7, w: sz * 2, h: sz * 1.3, fill } : { cx: 0, cy: 0, r: sz, fill };
+      const obj = { id, shape, layer: 'front', props, hidden: false, directional: false, baseAngle: 0, opacity: 1, pivot: { x: 0, y: 0 } };
+      rt.objs.set(id, obj); STICK.initObjectChannels(rt, obj);
+      const ex = at.x + Math.cos(ang) * sp, up = -Math.sin(ang) * sp;
+      rt.ch.set(id + '.tx', ctx.t0, at.x); rt.ch.set(id + '.ty', ctx.t0, at.y);
+      rt.ch.tween(id + '.tx', ctx.t0, dur, ex, EASE.out);
+      rt.ch.tween(id + '.ty', ctx.t0, dur * 0.35, at.y - up, EASE.out);     // rise
+      rt.ch.tween(id + '.ty', ctx.t0 + dur * 0.35, dur * 0.65, at.y + 8 + r2 * 9, EASE.in); // fall
+      rt.ch.tween(id + '.opacity', ctx.t0 + dur * 0.5, dur * 0.5, 0, EASE.in);
+      rt.ch.tween(id + '.rot', ctx.t0, dur, (r1 - 0.5) * 720, EASE.linear);
+    }
+    return dur;
+  };
+
   H.think = ctx => { // silent thought bubble (no speech / mouth movement)
     const fig = figOf(ctx); if (!fig) return 0;
     const text = String(ctx.args.text != null ? ctx.args.text : '…');

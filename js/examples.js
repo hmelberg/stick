@@ -651,6 +651,22 @@
       ],
     },
 
+    'celebrate': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'win', archetype: ['woman'], hair: 'long', pos: { x: 50, y: 70 }, facing: 'front', mood: 'ecstatic' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'We won!', dur: 'normal' } },
+        { at: 0.4, target: 'win', cmd: 'playClip', args: { name: 'victory' } },
+        { at: '<', target: 'win', cmd: 'burst', args: { count: 24 } },
+        { target: 'win', cmd: 'say', args: { text: 'Yesss!' } },
+        { at: '<', target: 'win', cmd: 'burst', args: { count: 18, spread: 1.4 } },
+        { target: 'win', cmd: 'playClip', args: { name: 'hopJoy' } },
+      ],
+    },
+
     'guided tour': {
       v: 1,
       scene: { theme: 'blank' },
