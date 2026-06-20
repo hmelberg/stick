@@ -183,7 +183,7 @@
         { at: 0, cmd: 'scene.caption', args: { text: 'Econ 101', dur: 'normal' } },
         { at: 0, target: 'bb', cmd: 'board.write', by: 'prof', dur: 'normal', args: { md: '# {amber|Supply} & {sky|Demand}' } },
         { target: 'prof', cmd: 'say', args: { text: 'Two curves, one story.' } },
-        { target: 'prof', cmd: 'turn', args: { to: 'left' } }, // glance at the board
+        { target: 'prof', cmd: 'turn', args: { to: 'back' } }, // turn to the board to draw
         { target: 'bb', cmd: 'board.draw', by: 'prof', dur: 'slow', args: { chart: 'supply-demand', xlabel: 'Quantity', ylabel: 'Price' } },
         { at: '<+slow', target: 'prof', cmd: 'turn', args: { to: 'front' } }, // back to the class
         { target: 'bb', cmd: 'board.highlight', args: { target: 'demand', color: 'sky', dur: 2.2 } },

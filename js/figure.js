@@ -76,9 +76,9 @@
       glasses: raw.glasses != null ? !!raw.glasses : !!preset.glasses,
       hat: raw.hat != null ? raw.hat : preset.hat || null,
       pos: { x: num(raw.pos && raw.pos.x, 50), y: num(raw.pos && raw.pos.y, 70) },
-      // -1 = full left profile, 0 = front, +1 = full right profile (continuous)
-      facing: (f => f === 'front' || f === 0 ? 0 : f === 'left' ? -1 : f === 'right' ? 1
-        : (typeof f === 'number' && isFinite(f)) ? clamp(f, -1, 1) : 1)(raw.facing),
+      // yaw: 0 front, ±1 side (left/right), ±2 back (continuous, tweenable)
+      facing: (f => f === 'front' || f === 0 ? 0 : f === 'left' ? -1 : f === 'right' ? 1 : f === 'back' ? 2
+        : (typeof f === 'number' && isFinite(f)) ? clamp(f, -2, 2) : 1)(raw.facing),
       pose: raw.pose || {},
       expression: raw.expression || {},
       mood: raw.mood || preset.mood || 'neutral',
@@ -203,9 +203,14 @@
     const get = (s, d) => ch.getDef(id + '.' + s, t, d === undefined ? 0 : d);
 
     const x = get('x', 50), y = get('y', 70);
-    const turn = clamp(get('facing', 1), -1, 1);
-    const fc = turn >= 0 ? 1 : -1;
-    const frontAmt = clamp(1 - Math.abs(turn), 0, 1); // 1 = facing us, 0 = full profile
+    // yaw: 0 front, ±1 side, ±2 back (continuous, tweenable)
+    const yawV = clamp(get('facing', 1), -2, 2);
+    const at = Math.abs(yawV) * 90;                                 // |yaw| in degrees
+    const fc = yawV >= 0 ? 1 : -1;
+    const lateralAmt = at <= 90 ? 1 - at / 90 : (at - 90) / 90;     // limbs spread laterally near front AND back
+    const latSign = at <= 90 ? 1 : -1;                              // back mirrors left/right
+    const faceFront = clamp(1 - at / 90, 0, 1);                     // eye symmetry: 1 front, 0 by side
+    const faceShow = clamp(1 - Math.max(0, at - 90) / 90, 0, 1);   // face fades to blank by the back
     let bend = get('bend'), lean = get('lean'), headTilt = get('headTilt');
     const stanceW = get('stanceW');
     const wSit = clamp(get('sit'), 0, 1), wCr = clamp(get('crouch'), 0, 1), wLie = clamp(get('lie'), 0, 1);
@@ -275,9 +280,9 @@
       const on = clamp(get('reach' + side + 'on'), 0, 1);
       // frontal (front) pose — same joint angles, but the arm swings out to the
       // body's side instead of forward; faded out while reaching
-      const fa = frontAmt * (1 - on);
+      const fa = lateralAmt * (1 - on);
       if (fa > 0.001) {
-        const eta = side === 'L' ? -1 : 1;
+        const eta = (side === 'L' ? -1 : 1) * latSign;
         const shF = { x: sh.x + eta * sw, y: sh.y };
         const elbF = { x: shF.x + eta * sind(a) * g.upper, y: shF.y + cosd(a) * g.upper };
         const handF = { x: elbF.x + eta * sind(a + e) * g.fore, y: elbF.y + cosd(a + e) * g.fore };
@@ -300,10 +305,10 @@
       let ank = add(knee, dirDown(hipA - kneeA), g.shin);
       const pin = ch.getDef(id + '.' + pinName, t, null);
       // frontal pose: legs planted apart, ~straight down (faded out when walking/pinned)
-      const fa = frontAmt * (pin ? 0 : 1) * (1 - gait.ramp);
+      const fa = lateralAmt * (pin ? 0 : 1) * (1 - gait.ramp);
       let footX = g.foot;
       if (fa > 0.001) {
-        const eta = side === 'L' ? -1 : 1, spread = 7;
+        const eta = (side === 'L' ? -1 : 1) * latSign, spread = 7;
         const kneeF = { x: pelvis.x + eta * hw + eta * sind(spread) * g.thigh, y: pelvis.y + cosd(spread) * g.thigh };
         const ankF = { x: kneeF.x + eta * sind(spread) * g.shin, y: kneeF.y + cosd(spread) * g.shin };
         knee = mixP(knee, kneeF, fa); ank = mixP(ank, ankF, fa);
@@ -329,7 +334,7 @@
       mouthOpen: clamp(get('mouthOpen'), 0, 1),
       pupX: clamp(get('pupX'), -1, 1),
       pupY: clamp(get('pupY'), -1, 1),
-      front: frontAmt,
+      front: faceFront, show: faceShow,
     };
 
     return {

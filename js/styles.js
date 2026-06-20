@@ -74,24 +74,25 @@
   function buildFace(parent, fig, r, opts) {
     const ink = fig.color;
     const fw = 0.09 * r;
-    const fr = { r, ink, opts };
-    fr.eyeN = mk('ellipse', { cx: EX_N * r, cy: EY * r, rx: 0.15 * r, fill: ink }, parent);
-    fr.eyeF = mk('ellipse', { cx: EX_F * r, cy: EY * r, rx: 0.15 * r, fill: ink }, parent);
-    fr.pupN = mk('circle', { r: 0.07 * r, fill: 'var(--paper, #f7f2e9)' }, parent);
-    fr.pupF = mk('circle', { r: 0.07 * r, fill: 'var(--paper, #f7f2e9)' }, parent);
+    const grp = mk('g', {}, parent); // whole face in one group, so it can fade out toward the back
+    const fr = { r, ink, opts, g: grp };
+    fr.eyeN = mk('ellipse', { cx: EX_N * r, cy: EY * r, rx: 0.15 * r, fill: ink }, grp);
+    fr.eyeF = mk('ellipse', { cx: EX_F * r, cy: EY * r, rx: 0.15 * r, fill: ink }, grp);
+    fr.pupN = mk('circle', { r: 0.07 * r, fill: 'var(--paper, #f7f2e9)' }, grp);
+    fr.pupF = mk('circle', { r: 0.07 * r, fill: 'var(--paper, #f7f2e9)' }, grp);
     const arc = { stroke: ink, 'stroke-width': fw * 1.6, fill: 'none', 'stroke-linecap': 'round', visibility: 'hidden' };
-    fr.arcN = mk('path', arc, parent);
-    fr.arcF = mk('path', arc, parent);
-    fr.browN = mk('path', { stroke: ink, 'stroke-width': fw * 1.4, fill: 'none', 'stroke-linecap': 'round' }, parent);
-    fr.browF = mk('path', { stroke: ink, 'stroke-width': fw * 1.4, fill: 'none', 'stroke-linecap': 'round' }, parent);
+    fr.arcN = mk('path', arc, grp);
+    fr.arcF = mk('path', arc, grp);
+    fr.browN = mk('path', { stroke: ink, 'stroke-width': fw * 1.4, fill: 'none', 'stroke-linecap': 'round' }, grp);
+    fr.browF = mk('path', { stroke: ink, 'stroke-width': fw * 1.4, fill: 'none', 'stroke-linecap': 'round' }, grp);
     if (opts.nose) {
       fr.nose = mk('path', {
         d: `M ${0.5 * r} ${0.08 * r} Q ${0.78 * r} ${0.18 * r} ${0.55 * r} ${0.32 * r}`,
         stroke: ink, 'stroke-width': fw * 1.2, fill: 'none', 'stroke-linecap': 'round',
-      }, parent);
+      }, grp);
     }
-    fr.mouth = mk('path', { stroke: ink, 'stroke-width': fw * 1.5, fill: 'none', 'stroke-linecap': 'round' }, parent);
-    fr.mouthO = mk('ellipse', { fill: ink }, parent);
+    fr.mouth = mk('path', { stroke: ink, 'stroke-width': fw * 1.5, fill: 'none', 'stroke-linecap': 'round' }, grp);
+    fr.mouthO = mk('ellipse', { fill: ink }, grp);
     return fr;
   }
 
@@ -99,6 +100,7 @@
     const r = fr.r;
     // turn the 3/4 face toward a symmetric front face as F.front -> 1
     const front = F.front || 0;
+    if (fr.g) { fr.g.setAttribute('opacity', (F.show == null ? 1 : F.show).toFixed(2)); if (F.show <= 0.01) return; } // blank by the back
     const cxN = EX_N + (-0.30 - EX_N) * front;
     const cxF = EX_F + (0.30 - EX_F) * front;
     const happyArcs = F.smile > 0.65 && F.eyeOpen > 0.72;
@@ -200,13 +202,14 @@
     }
   }
 
-  function buildExtras(parent, fig, r, ink) {
+  function buildExtras(parent, fig, r, ink, faceGrp) {
     const fw = 0.09 * r;
     if (fig.glasses) {
       const gl = { stroke: ink, 'stroke-width': fw, fill: 'none' };
-      mk('circle', { cx: EX_N * r, cy: EY * r, r: 0.27 * r, ...gl }, parent);
-      mk('circle', { cx: EX_F * r, cy: EY * r, r: 0.27 * r, ...gl }, parent);
-      mk('path', { d: `M ${-0.13 * r} ${EY * r} L ${-0.85 * r} ${-0.28 * r}`, ...gl }, parent);
+      const gp = faceGrp || parent; // glasses are a front feature — fade with the face toward the back
+      mk('circle', { cx: EX_N * r, cy: EY * r, r: 0.27 * r, ...gl }, gp);
+      mk('circle', { cx: EX_F * r, cy: EY * r, r: 0.27 * r, ...gl }, gp);
+      mk('path', { d: `M ${-0.13 * r} ${EY * r} L ${-0.85 * r} ${-0.28 * r}`, ...gl }, gp);
     }
     if (fig.hat === 'fedora') {
       mk('path', { d: `M ${-1.25 * r} ${-0.55 * r} L ${1.05 * r} ${-0.55 * r}`, stroke: ink, 'stroke-width': 0.16 * r, 'stroke-linecap': 'round', fill: 'none' }, parent);
@@ -271,7 +274,7 @@
       n.headG = mk('g', {}, root);
       hairStroke(fig, r, n.headG, ink);
       n.face = buildFace(n.headG, fig, r, { nose: false });
-      buildExtras(n.headG, fig, r, ink);
+      buildExtras(n.headG, fig, r, ink, n.face.g);
       n.near = mk('path', limb, root);
       n.root = root;
       return n;
@@ -310,7 +313,7 @@
       n.headG = mk('g', {}, root);
       hairStroke(fig, r, n.headG, ink);
       n.face = buildFace(n.headG, fig, r, { nose: true });
-      buildExtras(n.headG, fig, r, ink);
+      buildExtras(n.headG, fig, r, ink, n.face.g);
       n.near = mk('path', limb, root);
       n.shoeR = mk('path', { ...limb, 'stroke-width': w * 1.15 }, root);
       n.handR = buildHand(root, g, ink);
@@ -388,7 +391,7 @@
       n.headG = mk('g', {}, root);
       hairToon(fig, r, n.headG, ink);
       n.face = buildFace(n.headG, fig, r, { nose: true });
-      buildExtras(n.headG, fig, r, ink);
+      buildExtras(n.headG, fig, r, ink, n.face.g);
       n.nearArm = mk('path', limb, root);
       n.handR = buildHand(root, g, ink);
       n.root = root;
