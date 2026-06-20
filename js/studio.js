@@ -203,6 +203,23 @@
     const wasPlaying = app.state.playing;
     app.setPlaying(false);
 
+    // Optional audio: speechSynthesis can't be routed into a MediaStream, so the
+    // only way to record it is to capture the tab's own audio via getDisplayMedia.
+    // Gated on the sound checkbox. Must run inside the click gesture (no await before it).
+    let audioStream = null;
+    if (app.state.sound && navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+      alert('To include the spoken audio, pick "This Tab" in the next dialog and turn ON "Share tab audio".');
+      try {
+        audioStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        audioStream.getVideoTracks().forEach(t => t.stop()); // keep only the audio
+        if (!audioStream.getAudioTracks().length) {
+          audioStream.getTracks().forEach(t => t.stop());
+          audioStream = null;
+          alert('No tab audio was shared, so the video will be silent. (Enable "Share tab audio" next time.)');
+        }
+      } catch (e) { audioStream = null; }
+    }
+
     const dur = app.state.rt.duration;
     const SIZE = 1080;
     const canvas = document.createElement('canvas');
@@ -219,14 +236,17 @@
     }
 
     const stream = canvas.captureStream(30);
-    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6_000_000 });
+    const recStream = new MediaStream(
+      stream.getVideoTracks().concat(audioStream ? audioStream.getAudioTracks() : []));
+    const rec = new MediaRecorder(recStream, { mimeType: mime, videoBitsPerSecond: 6_000_000, audioBitsPerSecond: 128_000 });
     const chunks = [];
     rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
     const stopped = new Promise(res => { rec.onstop = res; });
 
     const svg = $('stage');
-    const drawFrame = async t => {
+    const drawFrame = async (t, fireSpeech) => {
       app.drawAt(t);
+      if (fireSpeech && audioStream) app.speakFrame(); // speak lines as the playhead crosses them
       let xml = new XMLSerializer().serializeToString(svg);
       xml = xml.split('var(--paper, #f7f2e9)').join(paper);
       const img = new Image();
@@ -237,7 +257,8 @@
       ctx.drawImage(img, 0, 0, SIZE, SIZE);
     };
 
-    await drawFrame(0);
+    await drawFrame(0, false); // prime the canvas without speaking
+    if (audioStream) app.resetSpeech(); // fire say-lines from t=0 during the recording
     rec.start(250);
     const t0 = performance.now();
     let busy = false;
@@ -248,7 +269,7 @@
         if (!busy) {
           busy = true;
           btn.textContent = 'recording ' + t.toFixed(0) + '/' + dur.toFixed(0) + 's';
-          await drawFrame(t);
+          await drawFrame(t, true);
           busy = false;
         }
         requestAnimationFrame(step);
@@ -257,6 +278,7 @@
     });
     rec.stop();
     await stopped;
+    if (audioStream) { audioStream.getTracks().forEach(t => t.stop()); app.resetSpeech(); }
 
     downloadBlob(new Blob(chunks, { type: 'video/webm' }), slug(App().currentName()) + '.webm');
     btn.textContent = '⬇ WebM';

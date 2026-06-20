@@ -81,6 +81,10 @@ All three render the same skeleton, so every command works in every style.
   Example — a French narrator: `"voice": { "lang": "french", "gender": "female" }`.
   Availability of a specific accent depends on the viewer's browser/OS voices;
   if it's missing, the closest same-language voice (then any voice) is used.
+  When a scene has **several figures**, each automatically gets a distinct voice
+  (different pitch/rate, a different system voice, and a mix of male/female for
+  generic figures) so a crowd doesn't all sound the same — set `voice` only when
+  you want a specific character to sound a particular way.
 - `hair`: `none` | `short` | `tuft` | `long` | `bun` | `sides`. Also `glasses: true`, `hat: "fedora"`.
 - Engine adds idle life automatically (breathing, sway, blinking) based on mood.
 

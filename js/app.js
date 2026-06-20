@@ -28,6 +28,13 @@
     if (synth) { loadVoices(); try { synth.addEventListener('voiceschanged', loadVoices); } catch (e) {} }
 
     const clampN = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+    // Stable 0..1 hash of a string (FNV-1a). Gives each figure a fixed but
+    // distinct voice variation without Math.random, so replays stay identical.
+    function hash01(s) {
+      let h = 2166136261; const str = String(s || '');
+      for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return ((h >>> 0) % 100000) / 100000;
+    }
     // best-effort name hints; pitch/rate do the real differentiating
     const FEMALE = /female|woman|samantha|victoria|karen|moira|tessa|fiona|zira|susan|allison|ava|serena|kate|google uk english female/i;
     const MALE = /male|man|daniel|arthur|alex|fred|david|george|thomas|oliver|rishi|aaron|google uk english male/i;
@@ -57,7 +64,7 @@
       return LANG_ALIAS[s] || s.replace(/_/g, '-');
     }
 
-    function pickVoice(kind, lang) {
+    function pickVoice(kind, lang, variant) {
       if (!voices.length) return null;
       const want = (normLang(lang) || DEFAULT_LANG).toLowerCase();
       const byLang = v => (v.lang || '').toLowerCase().replace(/_/g, '-');
@@ -69,8 +76,12 @@
       // female/male by name hint; default prefers male per the app default;
       // child stays gender-neutral (raised pitch does the work).
       const re = kind === 'female' ? FEMALE : kind === 'child' ? null : MALE;
-      if (re) { const m = pool.find(v => re.test(v.name)); if (m) return m; }
-      return pool[0] || null;
+      let cands = re ? pool.filter(v => re.test(v.name)) : pool;
+      if (!cands.length) cands = pool;
+      // variant spreads distinct figures across the matching voices so a crowd
+      // doesn't all share voice #0; null -> the first (best default) voice.
+      const i = variant == null ? 0 : (((variant % cands.length) + cands.length) % cands.length);
+      return cands[i] || pool[0] || null;
     }
 
     const MOOD = {
@@ -98,9 +109,21 @@
     const SCALE_P = { high: 1.3, low: 0.75, normal: 1 };
     const SCALE_R = { fast: 1.3, slow: 0.7, normal: 1 };
 
-    function paramsFor(fig, mood, sayArgs) {
+    function paramsFor(fig, mood, sayArgs, vary) {
       const b = baseFor(fig);
       let pitch = b.pitch, rate = b.rate, volume = 1, kind = b.kind;
+      // With several figures on stage, give each a stable, distinct voice so they
+      // don't all sound identical: spread generic figures across genders, jitter
+      // pitch/rate a touch, and (via `variant` below) pick a different system
+      // voice per figure. Explicit voice settings always override this.
+      const id = fig && fig.id;
+      const seedP = vary && id ? hash01(id) : 0.5;
+      const seedR = vary && id ? hash01(id + '#r') : 0.5;
+      if (vary && kind === 'default') {
+        kind = seedP < 0.5 ? 'male' : 'female';
+        if (kind === 'female') { pitch = 1.2; rate = 1.04; } else { pitch = 0.9; }
+      }
+      if (vary && id) { pitch += (seedP - 0.5) * 0.3; rate += (seedR - 0.5) * 0.2; }
       const m = MOOD[mood]; if (m) { pitch += m.p; rate += m.r; if (m.v != null) volume = m.v; }
       const ov = Object.assign({}, fig && fig.voice, sayArgs && sayArgs.voice);
       if (ov.gender === 'female') kind = 'female';
@@ -112,11 +135,12 @@
       else if (typeof ov.rate === 'string') rate *= (SCALE_R[ov.rate] || 1);
       if (typeof ov.volume === 'number') volume = ov.volume;
       const lang = ov.lang || ov.accent || ov.language || null; // friendly name or BCP-47
+      const variant = vary && id ? Math.floor(seedP * 997) : null;
       return {
         pitch: clampN(pitch, 0.1, 2),
         rate: clampN(rate, 0.4, 2.2),
         volume: clampN(volume, 0, 1),
-        voice: pickVoice(kind, lang),
+        voice: pickVoice(kind, lang, variant),
         sing: !!((sayArgs && sayArgs.sing) || ov.sing),
       };
     }
@@ -132,9 +156,9 @@
     return {
       available: !!synth,
       cancel() { if (synth) { try { synth.cancel(); } catch (e) {} } },
-      speak(text, fig, mood, sayArgs, speed) {
+      speak(text, fig, mood, sayArgs, speed, vary) {
         if (!synth || !text) return;
-        const p = paramsFor(fig, mood, sayArgs);
+        const p = paramsFor(fig, mood, sayArgs, vary);
         if (p.sing) {
           const words = String(text).split(/\s+/).filter(Boolean);
           const melody = [0, 0.12, 0.22, 0.12, -0.05, 0.16, 0.28, 0.1];
@@ -162,7 +186,7 @@
           state.spoken.add(o);
           const fig = rt.figs.get(o.fig);
           const mood = rt.ch.getDef(o.fig + '.mood', o.t0, fig ? fig.mood : 'neutral');
-          Speech.speak(o.text, fig, mood, o.args, state.speed);
+          Speech.speak(o.text, fig, mood, o.args, state.speed, rt.figs.size > 1);
         }
       }
     }
@@ -452,6 +476,9 @@
       try { dom = rebuildStage(rt); }
       catch (e) { showWarnings(['engine error: ' + e.message + (e.stack ? ' @ ' + String(e.stack).split('\n')[1] : '')], true); return; }
       state.rt = rt; state.dom = dom; state.t = 0;
+      // Obey the sound checkbox for the new animation (it may have been toggled,
+      // or restored checked by the browser on reload, without firing 'change').
+      const snd = $('chkSound'); if (snd) state.sound = snd.checked;
       Speech.cancel(); state.spoken.clear(); state.lastSpeakT = -1;
       showWarnings(rt.warnings, false);
       setPlaying(true);
@@ -609,6 +636,9 @@
       state.t = Math.min(state.rt.duration, Math.max(0, t));
       draw();
     },
+    // Used by the WebM exporter to speak in sync while replaying frames.
+    speakFrame() { processSpeech(); },
+    resetSpeech() { state.spoken.clear(); state.lastSpeakT = -1; Speech.cancel(); },
     setEditor(text) { $('ed').value = text; },
   };
 })();
