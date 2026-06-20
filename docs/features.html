@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>stick — features &amp; capabilities</title>
+<style>
+  :root{
+    --paper:#f7f2e9; --ink:#2a2a35; --muted:#6b6b78; --line:#e2dac9;
+    --amber:#d99a2b; --sky:#3a86e0; --green:#2e9e6b; --card:#fffdf8;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:880px; margin:0 auto; padding:0 22px 90px}
+  header{padding:64px 0 28px; border-bottom:2px solid var(--line); margin-bottom:36px}
+  h1{font:700 44px/1.05 Georgia,"Times New Roman",serif; margin:0 0 6px; letter-spacing:-.5px}
+  h1 .dot{color:var(--amber)}
+  .tag{font-size:18px; color:var(--muted); margin:0}
+  h2{font:700 26px/1.2 Georgia,serif; margin:48px 0 6px; padding-top:10px}
+  h2 .num{color:var(--amber); font-size:18px; vertical-align:middle; margin-right:10px}
+  h3{font-size:17px; margin:22px 0 4px}
+  p{margin:10px 0}
+  a{color:var(--sky); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.88em;
+    background:#efe7d6; padding:1px 5px; border-radius:4px}
+  .lead{font-size:18px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:18px 0}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px}
+  .card h3{margin-top:0}
+  .card p{margin:6px 0; font-size:14.5px; color:#43434f}
+  ul{margin:8px 0; padding-left:22px}
+  li{margin:5px 0}
+  .pill{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.04em;
+    text-transform:uppercase; padding:2px 8px; border-radius:20px; vertical-align:middle}
+  .easy{background:#e3f3ea; color:var(--green)}
+  .mod{background:#fdeccf; color:#b9791a}
+  .toc{columns:2; font-size:14.5px; margin:14px 0 0}
+  @media(max-width:640px){.toc{columns:1}}
+  .toc a{display:block; padding:3px 0}
+  .pipeline{background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; font-size:14.5px}
+  .pipeline code{white-space:nowrap}
+  .feat{border-left:3px solid var(--amber); padding:4px 0 4px 16px; margin:18px 0}
+  .feat h3{margin:0 0 2px}
+  .feat p{margin:4px 0; font-size:14.5px; color:#43434f}
+  footer{margin-top:56px; padding-top:20px; border-top:1px solid var(--line);
+    color:var(--muted); font-size:13.5px}
+  .fig{float:right; margin:-6px 0 0 18px}
+  .kbd{font-family:inherit; font-size:12px; border:1px solid #cdc4b0; border-bottom-width:2px;
+    border-radius:5px; padding:1px 6px; background:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <svg class="fig" width="86" height="120" viewBox="0 0 86 120" aria-hidden="true">
+    <g fill="none" stroke="#2a2a35" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="43" cy="20" r="16" fill="#f7f2e9"/>
+      <path d="M43 36 L43 74"/>
+      <path d="M43 46 L20 60 M43 46 L70 40"/>
+      <path d="M43 74 L28 104 L24 112 M43 74 L58 104 L62 112"/>
+      <circle cx="37" cy="18" r="2.3" fill="#2a2a35" stroke="none"/>
+      <circle cx="49" cy="18" r="2.3" fill="#2a2a35" stroke="none"/>
+      <path d="M36 26 Q43 31 50 26" stroke-width="2.6"/>
+    </g>
+  </svg>
+  <h1>stick<span class="dot">.</span></h1>
+  <p class="tag">A tiny stick-figure animation language — describe a scene in JSON, watch it play as an animated SVG cartoon.</p>
+</header>
+
+<p class="lead">
+  <strong>stick</strong> turns a single JSON document into a hand-drawn, animated stick-figure
+  cartoon that plays in any browser — no build step, no server, no dependencies. It was designed
+  so that a person <em>or an AI</em> can write the JSON: the language is small, semantic
+  (<code>move</code>, <code>say</code>, <code>mood</code>), and the engine is deliberately
+  forgiving — a bad event is skipped with a warning rather than blanking the screen. The result
+  is fast, expressive storytelling: lectures, sketches, explainers, and gags, all from a few
+  readable lines of JSON.
+</p>
+
+<div class="pipeline">
+  <strong>How it works.</strong> &nbsp;
+  <code>JSON</code> → <code>compile()</code> expands each timeline command into <em>animation
+  channels</em> (keyframed value tracks) → the player samples every channel at the current time
+  and draws an <code>SVG</code> frame. Three visual styles share one skeleton, so every command
+  works in every style. Timing is relative by default (each event follows the previous one),
+  with GSAP-style offsets for overlap and simultaneity.
+</div>
+
+<h2><span class="num">§</span>What's inside</h2>
+<nav class="toc">
+  <a href="#figures">Figures &amp; characters</a>
+  <a href="#motion">Motion &amp; gesture</a>
+  <a href="#speech">Speech &amp; sound</a>
+  <a href="#camera">Camera &amp; cinematography</a>
+  <a href="#props">Held props</a>
+  <a href="#objects">Animatable objects</a>
+  <a href="#boards">Boards (teaching)</a>
+  <a href="#scene">Scenes &amp; worlds</a>
+  <a href="#timeline">Timeline &amp; timing</a>
+  <a href="#studio">Studio &amp; export</a>
+  <a href="#ideas">Ideas for new features</a>
+</nav>
+
+<h2 id="figures"><span class="num">1</span>Figures &amp; characters</h2>
+<p>
+  Every figure is an articulated skeleton rendered in one of three switchable styles:
+  <strong>sketch</strong> (hand-drawn wobbly "line boil", the default), <strong>ink</strong>
+  (clean minimal stick), and <strong>toon</strong> (filled cartoon body with a coloured torso,
+  neck and shoes). The same JSON renders in any style.
+</p>
+<div class="grid">
+  <div class="card"><h3>Identity</h3><p>Archetypes (<code>man</code>, <code>woman</code>,
+    <code>kid</code>, <code>person</code>) and stronger characters (<code>professor</code>,
+    <code>student</code>, <code>dancer</code>). Per-figure colour, height, body colour.</p></div>
+  <div class="card"><h3>Looks</h3><p>Optional <code>hair</code> (short, tuft, long-with-curl,
+    bun, sides), <code>beard</code> (full / goatee / stubble), <code>glasses</code>, and a
+    <code>fedora</code>. Bald by default.</p></div>
+  <div class="card"><h3>Full 360° facing</h3><p><code>front · left · right · back</code> or a
+    continuous number; the <code>turn</code> command tweens smoothly through every in-between
+    angle — face the class, then turn to the board.</p></div>
+  <div class="card"><h3>Bust mode</h3><p><code>body:"bust"</code> renders a floating head + neck
+    + arms (no torso/legs) — a talking-head explainer that still gestures.</p></div>
+  <div class="card"><h3>Moods &amp; expression</h3><p>Nine mood presets (happy, bored, thinking,
+    angry, sad, surprised, sleepy…) that set face <em>and</em> posture <em>and</em> idle motion,
+    plus fine expression channels (smile, brows, gaze, eye-open, mouth).</p></div>
+  <div class="card"><h3>Living idle</h3><p>Figures breathe, sway and blink on their own, tuned by
+    mood, so even a still character feels alive. Faces get small per-figure variation.</p></div>
+</div>
+
+<h2 id="motion"><span class="num">2</span>Motion &amp; gesture</h2>
+<ul>
+  <li><strong>Locomotion</strong> — <code>move</code> with <code>walk / run / slide / moonwalk</code>;
+    duration auto-derived from distance, legs animate automatically, the figure auto-faces travel.
+    The walk cycle has a real gait: knee bend and foot-lift on the swing leg, a toe-point through
+    the swing, and a heel-strike at landing.</li>
+  <li><strong>Age-based movement</strong> — <code>age: kid / adult / elderly</code> re-times the
+    same gait (kids bounce with high knees, the elderly shuffle with a stoop) without changing size.</li>
+  <li><strong>Gestures &amp; clips</strong> — a dozen built-in clips (<code>wave, nod, bow,
+    shrug, facepalm, victory, thinkChin, coolLean…</code>) plus your own reusable clips.</li>
+  <li><strong>Pose &amp; IK</strong> — semantic <code>raiseArm/liftLeg</code>, <code>point</code>,
+    <code>lookAt</code>, <code>reachTo</code> (hand reaches and holds a point), <code>pin</code>
+    (lock feet/hands), <code>hop</code>, mitten hand shapes, and low-level <code>joints</code> FK
+    for special choreography.</li>
+</ul>
+
+<h2 id="speech"><span class="num">3</span>Speech &amp; sound</h2>
+<p>
+  <code>say</code> shows a speech bubble and animates the mouth; <code>scene.caption</code> is
+  narrator text; <code>emote</code> floats an inner-state symbol (<code>? ! ♥ ♪ zzz idea…</code>).
+  When the viewer turns sound on, lines are <strong>spoken aloud</strong> via the browser's speech
+  engine — default British-English male, with per-figure <code>voice</code> overrides for gender,
+  <strong>language/accent</strong> (friendly names like <code>french</code> or BCP-47 codes),
+  pitch, rate, volume, and a sing-song mode. In a crowd, each figure is automatically given a
+  distinct voice so they don't all sound alike.
+</p>
+
+<h2 id="camera"><span class="num">4</span>Camera &amp; cinematography</h2>
+<div class="grid">
+  <div class="card"><h3>Frame anything</h3><p><code>camera.focus</code> auto-fits a target so it
+    fills the frame: a whole figure, a board, a <strong>face close-up</strong>
+    (<code>"ana.face"</code>) for subtle emotion, or an arbitrary region.</p></div>
+  <div class="card"><h3>Move &amp; cut</h3><p><code>panTo</code>, <code>zoom</code>, instant
+    <code>cut</code>, <code>reset</code>, plus <code>follow</code> to track a walking figure for
+    side-scrolling shots.</p></div>
+  <div class="card"><h3>Mood &amp; impact</h3><p>Dutch-angle <code>tilt</code> and camera
+    <code>shake</code> for tension and impact beats.</p></div>
+  <div class="card"><h3>Depth &amp; settings</h3><p>Optional <code>parallax</code> (far layers
+    move slower), and <code>scene.fade / scene.cut</code> to change the backdrop to a whole new
+    setting.</p></div>
+</div>
+
+<h2 id="props"><span class="num">5</span>Held props</h2>
+<p>
+  A figure can <strong>hold a prop in a hand and it follows the hand every frame</strong>. There's
+  a built-in library (apple, ball, cup, coffee, book, phone, balloon, briefcase, sign, and
+  directional gun / sword / wand / pencil that aim along the arm), and the LLM can also define a
+  <strong>custom prop inline</strong> — any shape, with a grip point and an optional "aim along the
+  forearm" flag. Five verbs: <code>give</code>, <code>drop</code>, <code>throw</code> (a real
+  parabolic arc with spin), <code>pickUp</code>, and <code>handOff</code> between figures.
+</p>
+
+<h2 id="objects"><span class="num">6</span>Animatable objects</h2>
+<p>
+  For non-figure things that move, grow, spin, fade, or recolour — balls, boxes, suns, signs —
+  declare <strong>objects</strong> (any SVG shape) and animate them with a few verbs:
+  <code>appear/disappear</code>, <code>moveTo</code>, <code>arc</code> (toss with spin),
+  <code>grow/shrink/scale</code>, <code>rotate/spin</code>, <code>color</code>. Any object id is
+  also a live point reference, so a figure can <code>lookAt</code> a moving ball — which makes
+  juggling, bouncing and chases easy.
+</p>
+
+<h2 id="boards"><span class="num">7</span>Boards — teaching &amp; presenting</h2>
+<p>
+  A <strong>board</strong> is a chalk- or marker-styled panel you write <strong>markdown</strong>
+  to, revealed with a left-to-right handwriting wipe (with a chalk hand that tracks the writing
+  point), auto-scrolling when it overflows. It draws <strong>diagrams</strong> stroke-by-stroke
+  (a built-in supply-&amp;-demand chart, or custom axes/curves/lines/dots/labels),
+  <strong>highlights</strong> elements or words while a character talks about them, and typesets
+  real <strong>math</strong> — LaTeX (<code>$…$</code>, <code>$$…$$</code>) and AsciiMath — via
+  MathJax. Coloured words, headings, bullets, and dividers are supported inline.
+</p>
+
+<h2 id="scene"><span class="num">8</span>Scenes &amp; worlds</h2>
+<p>
+  Built-in themes (<code>classroom</code>, <code>street</code>, <code>bedroom</code>,
+  <code>blank</code>) or fully custom scenery from primitive shapes on <code>back / mid / front</code>
+  layers, with named <strong>anchors</strong> you can reference anywhere a point is expected.
+  Coordinates aren't limited to the 0–100 frame: place scenery far to the right, tile an
+  "endless" background with <code>repeat</code>, and use <code>camera.follow</code> for a
+  side-scrolling journey.
+</p>
+
+<h2 id="timeline"><span class="num">9</span>Timeline &amp; timing language</h2>
+<p>
+  Events run <strong>sequentially by default</strong> — each starts when the previous ends — so
+  most scenes need no explicit times at all. When you want overlap or simultaneity, a small
+  GSAP-flavoured grammar covers it: <code>"at": 2.5</code> (absolute), <code>"+quick"</code> /
+  <code>"-quick"</code> (after/overlap the previous end), <code>"&lt;"</code> (together with the
+  previous), <code>"&lt;+fast"</code> (just after it starts). Durations have friendly names
+  (<code>veryFast … verySlow</code>) or raw seconds, and a <code>target</code> can be an array to
+  drive several figures at once.
+</p>
+
+<h2 id="studio"><span class="num">10</span>Studio &amp; export</h2>
+<div class="grid">
+  <div class="card"><h3>Playground</h3><p>Pick from ~20 bundled examples, edit the JSON live
+    (<span class="kbd">Ctrl</span>+<span class="kbd">Enter</span> to render), scrub the timeline,
+    <span class="kbd">Space</span> to play/pause. Warnings list bad events without ever blanking
+    the screen.</p></div>
+  <div class="card"><h3>Import / export</h3><p>Upload &amp; download the JSON, or record the scene
+    to a <strong>WebM video</strong> in real time — optionally capturing the spoken audio too.</p></div>
+  <div class="card"><h3>AI authoring</h3><p>Signed-in users get a <strong>Create</strong> panel:
+    describe a scene in plain words and a Netlify edge function asks Claude to write the JSON,
+    using the same reference this engine ships with.</p></div>
+  <div class="card"><h3>Saved work</h3><p>Created and uploaded animations are saved in the browser
+    (localStorage) under "my animations".</p></div>
+</div>
+
+<h2 id="ideas"><span class="num">★</span>Ideas for new features (relatively easy wins)</h2>
+<p>
+  These fit the existing channel-based, forgiving architecture and could be added incrementally
+  without re-plumbing the engine. <span class="pill easy">easy</span> means a focused change in one
+  or two files; <span class="pill mod">moderate</span> means a new subsystem but a small one.
+</p>
+
+<div class="feat">
+  <h3>Ground shadows <span class="pill easy">easy</span></h3>
+  <p>A soft ellipse under each figure/object, scaled by height and "lift", instantly grounds
+  everything and reads as light. Pure render-layer addition; no DSL change.</p>
+</div>
+<div class="feat">
+  <h3>More emotions + intensity <span class="pill easy">easy</span></h3>
+  <p>Add <code>crying</code> (with animated tears), <code>confused</code>, <code>worried</code>, and
+  an intensity modifier — <code>mood: "angry", intensity: 1.5</code> or "very angry" — that scales
+  the expression deltas. Extends the existing mood-preset table and expression channels.</p>
+</div>
+<div class="feat">
+  <h3>Sound-effects library <span class="pill mod">moderate</span></h3>
+  <p>A tiny Web-Audio <code>sfx</code> command (<code>boing, pop, whoosh, ding, thud</code>) that
+  pairs with <code>hop</code>, <code>throw</code>, <code>camera.shake</code>. Unlike speech it
+  <em>can</em> be captured into the WebM export, so it strengthens recordings too.</p>
+</div>
+<div class="feat">
+  <h3>Thought bubbles &amp; connectors <span class="pill easy">easy</span></h3>
+  <p>A <code>think</code> command (cloud bubble vs. speech bubble) and simple
+  arrows/connectors between two anchors — both are overlay variants of machinery that already
+  exists, and both are high-value for explainers and diagrams.</p>
+</div>
+<div class="feat">
+  <h3>Path-following motion <span class="pill easy">easy</span></h3>
+  <p>Let <code>move</code> / <code>moveTo</code> take a list of waypoints or a curve and sample it
+  into keyframes — exactly how <code>throw</code> already builds its arc. Enables strolls,
+  swoops, and looping patrols.</p>
+</div>
+<div class="feat">
+  <h3>Scene tint / time-of-day <span class="pill easy">easy</span></h3>
+  <p>A tweenable full-frame colour overlay (<code>scene.tint</code>) for sunset, night, a red
+  alert flash, or a dream wash. One rect + an opacity/colour channel.</p>
+</div>
+<div class="feat">
+  <h3>Grouped / multi-shape props &amp; objects <span class="pill mod">moderate</span></h3>
+  <p>Today a prop/object is a single shape. Allowing a <code>group</code> of shapes (one transform)
+  removes the main authoring limit — richer props (a mug with steam, a flower with a stem) and
+  composite objects.</p>
+</div>
+<div class="feat">
+  <h3>Per-figure random variation <span class="pill easy">easy</span></h3>
+  <p>Use each figure's existing seed to nudge resting posture, gait phase, and idle timing, so a
+  crowd never moves in lockstep. The voice system already does this for sound.</p>
+</div>
+<div class="feat">
+  <h3>Confetti / particle burst <span class="pill mod">moderate</span></h3>
+  <p>A celebratory <code>burst</code> emote — a handful of small shapes that arc out and fade —
+  reusing the object <code>arc</code> math. A natural "button" to end a happy scene.</p>
+</div>
+<div class="feat">
+  <h3>Two-handed props &amp; caption track export <span class="pill mod">moderate</span></h3>
+  <p>Hold one prop with both hands (a big sign, a steering wheel) by averaging the two hand
+  points; and export an <code>.srt</code>/<code>.vtt</code> caption sidecar from the
+  <code>say</code> lines alongside the WebM, for accessible, subtitled videos.</p>
+</div>
+
+<footer>
+  Generated from the engine reference (<code>PROMPT.md</code>) and source. stick is a
+  dependency-free browser engine; the playground and live demo run the same code shown here.
+  &nbsp;·&nbsp; <a href="https://stickhans.netlify.app/">live demo</a>
+</footer>
+
+</div>
+</body>
+</html>
