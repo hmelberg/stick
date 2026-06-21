@@ -154,12 +154,17 @@
         pup.setAttribute('cy', (EY * r + F.pupY * 0.05 * r).toFixed(3));
       }
     }
-    const by = -0.46 * r - F.browRaise * 0.16 * r + (bs ? jit(3, bs, 0.015 * r) : 0);
+    // Brows only show when they're doing expressive work (angled / strongly raised /
+    // skewed). On a calm or merely-happy face they'd read as stray dashes, so hide them.
+    const browActive = Math.abs(F.browTilt) > 0.12 || F.browRaise > 0.4 || Math.abs(F.browSkew || 0) > 0.06;
+    const by = -0.40 * r - F.browRaise * 0.16 * r + (bs ? jit(3, bs, 0.015 * r) : 0);
     const k = -F.browTilt * 0.1 * r;
     const skew = (F.browSkew || 0) * 0.2 * r; // raise one brow: +far, −near (confused/skeptical)
     const brow = (cx, raise) => `M ${(cx - 0.17 * r).toFixed(3)} ${(by - k - raise).toFixed(3)} L ${(cx + 0.17 * r).toFixed(3)} ${(by + k - raise).toFixed(3)}`;
     fr.browN.setAttribute('d', brow(cxN * r, skew < 0 ? -skew : 0));
     fr.browF.setAttribute('d', brow(cxF * r, skew > 0 ? skew : 0));
+    fr.browN.setAttribute('opacity', browActive ? '1' : '0');
+    fr.browF.setAttribute('opacity', browActive ? '1' : '0');
     if (fr.blushN) { // cheek blush
       const show = F.blush > 0.02, op = (F.blush * 0.6).toFixed(2);
       for (const [bl, cx] of [[fr.blushN, cxN], [fr.blushF, cxF]]) {
@@ -417,15 +422,16 @@
       torsoPts.push(neckStub(P));
       n.torso.setAttribute('d', smoothOpen(wobble(torsoPts, amp, sd + 61)));
 
-      // sketchy head: closed fill + overshooting wobbly outline + faint second pass
+      // sketchy head: closed fill + wobbly outline whose seam sits at the BOTTOM
+      // (behind the neck) with only a tiny overshoot — so no stray stub at the crown.
       const N = 13;
       const fillPts = [], strokePts = [];
-      const th0 = rad(-70 + jit(2, n.fig.seed, 14));
-      for (let k = 0; k <= N + 1; k++) {
-        const th = th0 + (k / N) * Math.PI * 2 * 1.045;
+      const th0 = rad(96 + jit(2, n.fig.seed, 8));
+      for (let k = 0; k <= N; k++) {
+        const th = th0 + (k / N) * Math.PI * 2 * 1.025;
         const rr = r * (1 + jit(k * 3.1 + frame * 7, sd + 5, 0.045));
         const p = { x: P.headC.x + Math.cos(th) * rr, y: P.headC.y + Math.sin(th) * rr };
-        if (k <= N) fillPts.push(p);
+        fillPts.push(p);
         strokePts.push(p);
       }
       n.headFill.setAttribute('d', polyD(fillPts) + ' Z');
