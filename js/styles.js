@@ -84,9 +84,11 @@
     const fr = { r, ink, opts, g: grp };
     if (fig.beard) { // drawn first so it sits behind the eyes/mouth; fades with the face toward the back
       const b = fig.beard === 'goatee' || fig.beard === 'stubble' ? fig.beard : 'full';
+      // Beard hugs the jaw: top edge along the cheeks, dipping just below the mouth in
+      // the middle (so the mouth shows), and the bottom follows the chin a touch lower.
       const d = b === 'goatee'
-        ? `M ${(-0.27 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} Q 0 ${(0.5 * r).toFixed(2)} ${(0.27 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} Q ${(0.36 * r).toFixed(2)} ${(1.5 * r).toFixed(2)} 0 ${(1.68 * r).toFixed(2)} Q ${(-0.36 * r).toFixed(2)} ${(1.5 * r).toFixed(2)} ${(-0.27 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} Z`
-        : `M ${(-0.86 * r).toFixed(2)} ${(-0.05 * r).toFixed(2)} C ${(-1.06 * r).toFixed(2)} ${(0.95 * r).toFixed(2)} ${(-0.7 * r).toFixed(2)} ${(1.95 * r).toFixed(2)} 0 ${(1.9 * r).toFixed(2)} C ${(0.7 * r).toFixed(2)} ${(1.95 * r).toFixed(2)} ${(1.06 * r).toFixed(2)} ${(0.95 * r).toFixed(2)} ${(0.86 * r).toFixed(2)} ${(-0.05 * r).toFixed(2)} Q ${(0.42 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} 0 ${(0.64 * r).toFixed(2)} Q ${(-0.42 * r).toFixed(2)} ${(0.6 * r).toFixed(2)} ${(-0.86 * r).toFixed(2)} ${(-0.05 * r).toFixed(2)} Z`;
+        ? `M ${(-0.2 * r).toFixed(2)} ${(0.66 * r).toFixed(2)} Q 0 ${(0.58 * r).toFixed(2)} ${(0.2 * r).toFixed(2)} ${(0.66 * r).toFixed(2)} Q ${(0.3 * r).toFixed(2)} ${(1.05 * r).toFixed(2)} 0 ${(1.2 * r).toFixed(2)} Q ${(-0.3 * r).toFixed(2)} ${(1.05 * r).toFixed(2)} ${(-0.2 * r).toFixed(2)} ${(0.66 * r).toFixed(2)} Z`
+        : `M ${(-0.84 * r).toFixed(2)} ${(0.14 * r).toFixed(2)} C ${(-0.72 * r).toFixed(2)} ${(0.82 * r).toFixed(2)} ${(-0.42 * r).toFixed(2)} ${(1.14 * r).toFixed(2)} 0 ${(1.16 * r).toFixed(2)} C ${(0.42 * r).toFixed(2)} ${(1.14 * r).toFixed(2)} ${(0.72 * r).toFixed(2)} ${(0.82 * r).toFixed(2)} ${(0.84 * r).toFixed(2)} ${(0.14 * r).toFixed(2)} Q ${(0.44 * r).toFixed(2)} ${(0.52 * r).toFixed(2)} 0 ${(0.64 * r).toFixed(2)} Q ${(-0.44 * r).toFixed(2)} ${(0.52 * r).toFixed(2)} ${(-0.84 * r).toFixed(2)} ${(0.14 * r).toFixed(2)} Z`;
       fr.beard = mk('path', { d, fill: ink, opacity: b === 'stubble' ? 0.4 : 1 }, grp);
     }
     // cheek blush (embarrassed / in love), behind the eyes
@@ -211,7 +213,9 @@
   /* ---------------- shared hair / hat / glasses ---------------- */
   // long hair: a strand down each side of the head, the tip flicking outward in a curl.
   function longStrand(sx, r) {
-    return `M ${(sx * 0.28 * r).toFixed(2)} ${(-1.0 * r).toFixed(2)}`
+    // start tucked just INSIDE the scalp (~0.92r from centre) so the strand's start
+    // point doesn't poke out past the (boiling) head outline; then flow down the side.
+    return `M ${(sx * 0.3 * r).toFixed(2)} ${(-0.87 * r).toFixed(2)}`
       + ` Q ${(sx * 1.2 * r).toFixed(2)} ${(-0.5 * r).toFixed(2)} ${(sx * 1.0 * r).toFixed(2)} ${(0.72 * r).toFixed(2)}`
       + ` Q ${(sx * 0.95 * r).toFixed(2)} ${(1.36 * r).toFixed(2)} ${(sx * 1.42 * r).toFixed(2)} ${(1.12 * r).toFixed(2)}`;
   }

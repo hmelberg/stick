@@ -385,7 +385,7 @@
       v: 1,
       scene: { theme: 'blank' },
       figures: [
-        { id: 'dad', archetype: ['man'], hair: 'short', beard: true, pos: { x: 16, y: 72 } },
+        { id: 'dad', archetype: ['man'], hair: 'short', pos: { x: 16, y: 72 } },
         { id: 'mum', archetype: ['woman'], hair: 'long', pos: { x: 13, y: 72 } },
         { id: 'girl', archetype: ['kid'], hair: 'long', pos: { x: 10, y: 72 }, mood: 'happy' },
         { id: 'boy', archetype: ['kid'], hair: 'tuft', pos: { x: 7, y: 72 }, mood: 'happy' },
@@ -428,7 +428,7 @@
       scene: { theme: 'blank' },
       figures: [
         { id: 'ann', archetype: ['woman'], hair: 'long', pos: { x: 24, y: 72 }, facing: 'right' },
-        { id: 'ben', archetype: ['man'], beard: true, pos: { x: 72, y: 72 }, facing: 'left' },
+        { id: 'ben', archetype: ['man'], hair: 'short', pos: { x: 72, y: 72 }, facing: 'left' },
       ],
       timeline: [
         { at: 0, cmd: 'scene.caption', args: { text: 'Heads up!', dur: 'normal' } },
@@ -449,7 +449,7 @@
       scene: { theme: 'blank' },
       figures: [
         { id: 'mia', archetype: ['woman'], hair: 'long', pos: { x: 36, y: 72 }, facing: 'right', mood: 'happy' },
-        { id: 'leo', archetype: ['man'], beard: true, pos: { x: 62, y: 72 }, facing: 'left', mood: 'happy' },
+        { id: 'leo', archetype: ['man'], pos: { x: 62, y: 72 }, facing: 'left', mood: 'happy' },
       ],
       timeline: [
         { at: 0, cmd: 'scene.caption', args: { text: 'A toast', dur: 'normal' } },
@@ -726,6 +726,23 @@
         { target: 'amy', cmd: 'say', args: { text: 'A flower!' } },
         { at: '<', target: 'amy', cmd: 'emote', args: { symbol: 'heart' } },
         { target: 'snow', cmd: 'spin', args: { turns: 1 } },
+      ],
+    },
+
+    'beards': {
+      v: 1,
+      scene: { theme: 'blank' },
+      figures: [
+        { id: 'f', archetype: ['man'], hair: 'short', beard: true, body: 'bust', pos: { x: 24, y: 64 }, facing: 'front', mood: 'happy' },
+        { id: 'g', archetype: ['man'], hair: 'short', beard: 'goatee', body: 'bust', pos: { x: 50, y: 64 }, facing: 'front' },
+        { id: 's', archetype: ['man'], beard: 'stubble', body: 'bust', pos: { x: 76, y: 64 }, facing: 'front', mood: 'bored' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'full · goatee · stubble', dur: 'slow' } },
+        { at: 0.4, target: 'f', cmd: 'say', args: { text: 'Nice beard.' } },
+        { target: 'g', cmd: 'say', args: { text: 'You too.' } },
+        { at: '<', target: 'g', cmd: 'playClip', args: { name: 'nod' } },
+        { target: 's', cmd: 'say', args: { text: 'Mine grows back fast.' } },
       ],
     },
 
