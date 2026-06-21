@@ -340,6 +340,22 @@
     return Math.max(0, Math.min(1, (t - o.t0) / 0.2, (o.t1 - t) / 0.25));
   }
 
+  // A scalloped cloud outline (closed path) around an ellipse — the thought bubble.
+  function cloudPath(cx, cy, hw, hh) {
+    const bumps = Math.max(8, Math.round(hw * 1.0));
+    let d = '', prev = null;
+    for (let i = 0; i <= bumps; i++) {
+      const a = (i / bumps) * Math.PI * 2;
+      const wob = 1 + 0.1 * Math.sin(i * 2.3); // slight per-bump variation
+      const x = cx + Math.cos(a) * hw * wob, y = cy + Math.sin(a) * hh * wob;
+      if (i === 0) { d = `M ${x.toFixed(2)} ${y.toFixed(2)}`; prev = { x, y }; continue; }
+      const rr = Math.hypot(x - prev.x, y - prev.y) * 0.62;
+      d += ` A ${rr.toFixed(2)} ${rr.toFixed(2)} 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)}`;
+      prev = { x, y };
+    }
+    return d + ' Z';
+  }
+
   function drawOverlays(rt, dom, t, Ps) {
     dom.layers.bubbles.innerHTML = '';
     dom.fixed.innerHTML = '';
@@ -399,22 +415,32 @@
         const cx = Math.max(w / 2 + 2, Math.min(98 - w / 2, head.x + P.fc * 4));
         const by = Math.max(2, head.y - r * 1.6 - h - 3.4);
         const g = mk('g', { opacity: alpha.toFixed(2) }, dom.layers.bubbles);
+        const ccy = by + h / 2;
         // trailing thought puffs from the head up to the cloud (small -> large)
-        const x0 = head.x + P.fc * 0.8, y0 = head.y - r * 1.15, x1 = cx - P.fc * w * 0.15, y1 = by + h - 0.4;
-        [0.28, 0.62].forEach(u => {
+        const x0 = head.x + P.fc * 0.8, y0 = head.y - r * 1.15, x1 = cx - P.fc * w * 0.15, y1 = ccy + h * 0.5;
+        [0.3, 0.66].forEach(u => {
           const rr = 0.5 + u * 0.9;
           mk('ellipse', { cx: (x0 + (x1 - x0) * u).toFixed(2), cy: (y0 + (y1 - y0) * u).toFixed(2), rx: rr.toFixed(2), ry: (rr * 0.82).toFixed(2), fill: '#fffdf6', stroke: ink, 'stroke-width': 0.22 }, g);
         });
-        // cloud: a pill-shaped bubble (vs the speech rect + tail)
-        mk('rect', { x: cx - w / 2, y: by, width: w, height: h, rx: h / 2, fill: '#fffdf6', stroke: ink, 'stroke-width': 0.25 }, g);
+        // a proper scalloped cloud (vs the speech rect + tail)
+        mk('path', { d: cloudPath(cx, ccy, w / 2 + 1.6, h / 2 + 2), fill: '#fffdf6', stroke: ink, 'stroke-width': 0.25, 'stroke-linejoin': 'round' }, g);
         lines.forEach((ln, i) => {
-          const tx = mk('text', { x: cx, y: by + 2 + (i + 0.72) * lineH, 'font-size': fs, fill: ink, 'text-anchor': 'middle', 'font-family': 'Trebuchet MS, Comic Sans MS, sans-serif' }, g);
+          const tx = mk('text', { x: cx, y: ccy - (lines.length / 2 - i - 0.28) * lineH, 'font-size': fs, fill: ink, 'text-anchor': 'middle', 'font-family': 'Trebuchet MS, Comic Sans MS, sans-serif' }, g);
           tx.textContent = ln;
         });
       } else if (o.type === 'emote') {
         const prog = (t - o.t0) / (o.t1 - o.t0);
-        const ex = head.x + P.fc * 1.6;
-        const ey = head.y - r * 2.4 - prog * 1.6;
+        // If a speech/thought bubble is up for the same figure, the bubble owns the
+        // space above the head — put the symbol beside the head, opposite the bubble's
+        // lean, so the heart/idea doesn't land on top of the text.
+        const busyBubble = rt.overlays.some(b => (b.type === 'say' || b.type === 'think') && b.fig === o.fig && t >= b.t0 && t <= b.t1);
+        let ex, ey;
+        if (busyBubble && o.symbol !== 'zzz') {
+          const side = P.fc >= 0 ? -1 : 1;
+          ex = head.x + side * (r + 3); ey = head.y - r * 0.7 - prog * 1.4;
+        } else {
+          ex = head.x + P.fc * 1.6; ey = head.y - r * 2.4 - prog * 1.6;
+        }
         const g = mk('g', { opacity: alpha.toFixed(2) }, dom.layers.bubbles);
         if (o.symbol === 'zzz') {
           [2.8, 2.2, 1.7].forEach((s, i) => {
