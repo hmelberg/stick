@@ -7,6 +7,18 @@
 
   const num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);
 
+  // Is a background colour dark enough that dark ink would disappear on it?
+  const NAMED_DARK = /^(black|navy|midnight|maroon|darkblue|darkslategray|darkslategrey|indigo|#000|#111|#222)$/i;
+  function isDark(c) {
+    const s = String(c || '').trim();
+    let m = /^#?([0-9a-f]{3})$/i.exec(s);
+    if (m) { const h = m[1]; c = parseInt(h[0] + h[0] + h[1] + h[1] + h[2] + h[2], 16); }
+    else { m = /^#?([0-9a-f]{6})$/i.exec(s); if (m) c = parseInt(m[1], 16); else return NAMED_DARK.test(s); }
+    const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255;
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+  }
+  STICK.isDarkColor = isDark;
+
   // depth factors per layer (1 = moves fully with camera, <1 = further away)
   function parseParallax(p) {
     if (!p) return null;
@@ -18,9 +30,12 @@
     def = def && typeof def === 'object' ? def : {};
     const themeName = def.theme || 'blank';
     const theme = STICK.presets.themes[themeName] || (warn(`unknown theme "${themeName}"`), STICK.presets.themes.blank);
+    const bg = def.bg || theme.bg || '#f7f2e9';
+    // Ink (figures, outlines, scene strokes) auto-contrasts the background so a dark
+    // scene doesn't swallow the dark stick figures. Authors can still force it.
     const scene = {
-      bg: def.bg || theme.bg || '#f7f2e9',
-      ink: '#2a2a35',
+      bg,
+      ink: def.ink || (isDark(bg) ? '#f2efe6' : '#2a2a35'),
       floorY: num(def.floorY, num(theme.floorY, 70)),
       floor: def.floor !== false,
       elements: [],

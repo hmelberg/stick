@@ -60,7 +60,7 @@
     return archList.includes('kid') ? 'kid' : 'adult';
   }
 
-  STICK.normalizeFigure = function (raw, i, warn, defaultStyle) {
+  STICK.normalizeFigure = function (raw, i, warn, defaultStyle, sceneInk) {
     raw = raw && typeof raw === 'object' ? raw : {};
     let preset = {};
     if (raw.character) {
@@ -88,7 +88,7 @@
       style,
       height: num(raw.height, num(preset.height, 20)),
       headScale: num(raw.headScale, num(preset.headScale, 1)),
-      color: raw.color || preset.color || '#2a2a35',
+      color: raw.color || preset.color || sceneInk || '#2a2a35',
       bodyColor: raw.bodyColor || preset.bodyColor || BODY_COLORS[i % BODY_COLORS.length],
       hair: raw.hair != null ? raw.hair : preset.hair || 'none',
       glasses: raw.glasses != null ? !!raw.glasses : !!preset.glasses,

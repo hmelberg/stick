@@ -373,6 +373,7 @@
     dom.layers.bubbles.innerHTML = '';
     dom.fixed.innerHTML = '';
     const ink = rt.scene.ink;
+    const bubbleInk = '#2a2a35'; // speech/thought bubbles have a light interior, so always dark text
 
     for (const o of rt.overlays) {
       if (t < o.t0 || t > o.t1) continue;
@@ -406,15 +407,15 @@
         const g = mk('g', { opacity: alpha.toFixed(2) }, dom.layers.bubbles);
         mk('path', {
           d: `M ${head.x + P.fc * 2.2} ${by + h - 0.3} L ${head.x + P.fc * 0.6} ${head.y - r * 1.1} L ${head.x + P.fc * 3.6} ${by + h - 0.3} Z`,
-          fill: '#fffdf6', stroke: ink, 'stroke-width': 0.22, 'stroke-linejoin': 'round',
+          fill: '#fffdf6', stroke: bubbleInk, 'stroke-width': 0.22, 'stroke-linejoin': 'round',
         }, g);
         mk('rect', {
           x: cx - w / 2, y: by, width: w, height: h, rx: 1.4,
-          fill: '#fffdf6', stroke: ink, 'stroke-width': 0.25,
+          fill: '#fffdf6', stroke: bubbleInk, 'stroke-width': 0.25,
         }, g);
         lines.forEach((ln, i) => {
           const tx = mk('text', {
-            x: cx, y: by + 1.6 + (i + 0.72) * lineH, 'font-size': fs, fill: ink,
+            x: cx, y: by + 1.6 + (i + 0.72) * lineH, 'font-size': fs, fill: bubbleInk,
             'text-anchor': 'middle', 'font-family': 'Trebuchet MS, Comic Sans MS, sans-serif',
           }, g);
           tx.textContent = ln;
@@ -433,12 +434,12 @@
         const x0 = head.x + P.fc * 0.8, y0 = head.y - r * 1.15, x1 = cx - P.fc * w * 0.15, y1 = ccy + h * 0.5;
         [0.3, 0.66].forEach(u => {
           const rr = 0.5 + u * 0.9;
-          mk('ellipse', { cx: (x0 + (x1 - x0) * u).toFixed(2), cy: (y0 + (y1 - y0) * u).toFixed(2), rx: rr.toFixed(2), ry: (rr * 0.82).toFixed(2), fill: '#fffdf6', stroke: ink, 'stroke-width': 0.22 }, g);
+          mk('ellipse', { cx: (x0 + (x1 - x0) * u).toFixed(2), cy: (y0 + (y1 - y0) * u).toFixed(2), rx: rr.toFixed(2), ry: (rr * 0.82).toFixed(2), fill: '#fffdf6', stroke: bubbleInk, 'stroke-width': 0.22 }, g);
         });
         // a proper scalloped cloud (vs the speech rect + tail)
-        mk('path', { d: cloudPath(cx, ccy, w / 2 + 1.6, h / 2 + 2), fill: '#fffdf6', stroke: ink, 'stroke-width': 0.25, 'stroke-linejoin': 'round' }, g);
+        mk('path', { d: cloudPath(cx, ccy, w / 2 + 1.6, h / 2 + 2), fill: '#fffdf6', stroke: bubbleInk, 'stroke-width': 0.25, 'stroke-linejoin': 'round' }, g);
         lines.forEach((ln, i) => {
-          const tx = mk('text', { x: cx, y: ccy - (lines.length / 2 - i - 0.28) * lineH, 'font-size': fs, fill: ink, 'text-anchor': 'middle', 'font-family': 'Trebuchet MS, Comic Sans MS, sans-serif' }, g);
+          const tx = mk('text', { x: cx, y: ccy - (lines.length / 2 - i - 0.28) * lineH, 'font-size': fs, fill: bubbleInk, 'text-anchor': 'middle', 'font-family': 'Trebuchet MS, Comic Sans MS, sans-serif' }, g);
           tx.textContent = ln;
         });
       } else if (o.type === 'emote') {

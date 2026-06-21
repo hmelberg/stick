@@ -115,7 +115,7 @@
     if (!figs.length) warn('no figures defined');
     const defaultStyle = (doc.scene && doc.scene.style) || 'sketch';
     figs.forEach((f, i) => {
-      const fig = STICK.normalizeFigure(f, i, warn, defaultStyle);
+      const fig = STICK.normalizeFigure(f, i, warn, defaultStyle, rt.scene.ink);
       if (rt.figs.has(fig.id)) { warn(`duplicate figure id "${fig.id}" — second one ignored`); return; }
       rt.figs.set(fig.id, fig);
       STICK.initFigureChannels(rt, fig);
