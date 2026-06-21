@@ -36,8 +36,13 @@
       return ((h >>> 0) % 100000) / 100000;
     }
     // best-effort name hints; pitch/rate do the real differentiating
-    const FEMALE = /female|woman|samantha|victoria|karen|moira|tessa|fiona|zira|susan|allison|ava|serena|kate|google uk english female/i;
-    const MALE = /male|man|daniel|arthur|alex|fred|david|george|thomas|oliver|rishi|aaron|google uk english male/i;
+    const FEMALE = /female|woman|samantha|victoria|karen|moira|tessa|fiona|zira|susan|allison|ava|serena|kate|nicky|joelle|flo|sandy|shelley|grandma|google uk english female/i;
+    const MALE = /male|man|daniel|arthur|alex|david|george|thomas|oliver|rishi|aaron|gordon|jamie|reed|rocko|eddy|grandpa|google uk english male/i;
+    // macOS / browser joke voices — never use these as a narrator (covers the worst "bad accent" cases)
+    const NOVELTY = /bad news|good news|boing|bubble|cello|wobble|organ|trinoid|zarvox|whisper|jester|superstar|junior|bahh|albert|ralph|deranged|hysterical|\bbells?\b|\bfred\b/i;
+    // classic, natural-sounding voices to prefer when several match
+    const PREFERRED = /daniel|samantha|karen|moira|tessa|fiona|serena|\bkate\b|alex|victoria|allison|\bava\b|susan|google|microsoft|siri|natural|premium|enhanced/i;
+    const pref = v => (PREFERRED.test(v.name) ? 10 : 0) + (/google|microsoft|natural|premium|enhanced/i.test(v.name) ? 5 : 0);
 
     // Default voice for any figure: British English, male. Override per figure
     // or per `say` line with voice.lang / voice.accent (see normLang aliases).
@@ -67,21 +72,27 @@
     function pickVoice(kind, lang, variant) {
       if (!voices.length) return null;
       const want = (normLang(lang) || DEFAULT_LANG).toLowerCase();
+      const fam = want.slice(0, 2);
       const byLang = v => (v.lang || '').toLowerCase().replace(/_/g, '-');
-      // narrow to the requested locale, then the language family (en-* etc.),
-      // then everything — so a missing en-GB still yields some English voice.
-      let pool = voices.filter(v => byLang(v).startsWith(want));
-      if (!pool.length) { const fam = want.slice(0, 2); pool = voices.filter(v => byLang(v).startsWith(fam)); }
-      if (!pool.length) pool = voices;
-      // female/male by name hint; default prefers male per the app default;
-      // child stays gender-neutral (raised pitch does the work).
-      const re = kind === 'female' ? FEMALE : kind === 'child' ? null : MALE;
-      let cands = re ? pool.filter(v => re.test(v.name)) : pool;
-      if (!cands.length) cands = pool;
-      // variant spreads distinct figures across the matching voices so a crowd
-      // doesn't all share voice #0; null -> the first (best default) voice.
+      const ok = v => !NOVELTY.test(v.name);
+      const inLocale = voices.filter(v => byLang(v).startsWith(want) && ok(v));
+      const inFam = voices.filter(v => byLang(v).startsWith(fam) && ok(v));
+      const anyOk = voices.filter(ok);
+      // keep only the requested gender (child/default: any — pitch differentiates).
+      const gender = list => kind === 'female' ? list.filter(v => FEMALE.test(v.name) && !MALE.test(v.name))
+        : kind === 'male' ? list.filter(v => MALE.test(v.name) && !FEMALE.test(v.name)) : list;
+      // right gender in the asked locale -> right gender in the language family ->
+      // any voice in the locale/family -> anything. A correct-gender, natural voice
+      // beats a wrong-gender one, even if the accent has to give a little.
+      let cands = gender(inLocale);
+      if (!cands.length) cands = gender(inFam);
+      if (!cands.length) cands = inLocale;
+      if (!cands.length) cands = inFam;
+      if (!cands.length) cands = anyOk.length ? anyOk : voices;
+      cands = cands.slice().sort((a, b) => pref(b) - pref(a)); // classic/natural voices first
+      // variant spreads distinct figures across the matching voices; null -> the best.
       const i = variant == null ? 0 : (((variant % cands.length) + cands.length) % cands.length);
-      return cands[i] || pool[0] || null;
+      return cands[i] || voices[0] || null;
     }
 
     const MOOD = {
@@ -98,12 +109,12 @@
 
     function baseFor(fig) {
       const arch = (fig && fig.archetype) || [];
-      if (arch.includes('kid')) return { kind: 'child', pitch: 1.6, rate: 1.08 };
-      if (arch.includes('woman')) return { kind: 'female', pitch: 1.25, rate: 1.04 };
-      if (arch.includes('man')) return { kind: 'male', pitch: 0.82, rate: 1.0 };
-      if (fig && fig.character === 'professor') return { kind: 'male', pitch: 0.7, rate: 0.92 };
-      if (fig && fig.character === 'student') return { kind: 'male', pitch: 1.05, rate: 1.05 };
-      return { kind: 'default', pitch: 1.0, rate: 1.0 };
+      if (arch.includes('kid')) return { kind: 'child', pitch: 1.6, rate: 0.98 };
+      if (arch.includes('woman')) return { kind: 'female', pitch: 1.25, rate: 0.95 };
+      if (arch.includes('man')) return { kind: 'male', pitch: 0.82, rate: 0.9 };
+      if (fig && fig.character === 'professor') return { kind: 'male', pitch: 0.7, rate: 0.84 };
+      if (fig && fig.character === 'student') return { kind: 'male', pitch: 1.05, rate: 0.95 };
+      return { kind: 'default', pitch: 1.0, rate: 0.9 };
     }
 
     const SCALE_P = { high: 1.3, low: 0.75, normal: 1 };
@@ -121,7 +132,7 @@
       const seedR = vary && id ? hash01(id + '#r') : 0.5;
       if (vary && kind === 'default') {
         kind = seedP < 0.5 ? 'male' : 'female';
-        if (kind === 'female') { pitch = 1.2; rate = 1.04; } else { pitch = 0.9; }
+        if (kind === 'female') { pitch = 1.2; rate = 0.95; } else { pitch = 0.9; }
       }
       if (vary && id) { pitch += (seedP - 0.5) * 0.3; rate += (seedR - 0.5) * 0.2; }
       const m = MOOD[mood]; if (m) { pitch += m.p; rate += m.r; if (m.v != null) volume = m.v; }
@@ -167,7 +178,9 @@
             synth.speak(mkUtter(w, pp, speed));
           });
         } else {
-          synth.speak(mkUtter(text, p, speed));
+          // very short lines get rushed by the synth — ease the rate so they register
+          const pp = String(text).trim().length < 14 ? Object.assign({}, p, { rate: p.rate * 0.88 }) : p;
+          synth.speak(mkUtter(text, pp, speed));
         }
       },
     };
