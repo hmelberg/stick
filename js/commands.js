@@ -914,7 +914,7 @@
     const md = String(ctx.args.md != null ? ctx.args.md : ctx.args.text != null ? ctx.args.text : '');
     if (!md) { ctx.rt.warn('board.write: missing "md"'); return 0; }
     const chars = md.replace(/\s+/g, ' ').trim().length;
-    const dur = durOf(ctx, clamp(chars / 12, 1.2, 30));
+    const dur = durOf(ctx, clamp(chars / 8, 1.5, 30)); // ~hand-writing pace (was a bit rushed)
     board.blocks.push({ kind: 'write', t0: ctx.t0, dur, md });
     const by = ctx.ev.by != null ? ctx.ev.by : ctx.args.by;
     if (by != null) {
@@ -943,7 +943,7 @@
       shapes = [a];
     }
     if (!shapes.length) { ctx.rt.warn('board.draw: nothing to draw (use "chart" or "shapes")'); return 0; }
-    const dur = durOf(ctx, clamp(shapes.length * 0.8, 1.2, 30));
+    const dur = durOf(ctx, clamp(shapes.length * 1.15, 1.6, 30)); // a touch slower to read as drawing
     board.blocks.push({ kind: 'draw', t0: ctx.t0, dur, shapes, size: num(a.size, 0) });
     const by = ctx.ev.by != null ? ctx.ev.by : a.by;
     if (by != null) {
