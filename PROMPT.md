@@ -7,6 +7,22 @@ JSON object** — no comments, no trailing commas, no markdown fences unless ask
 The goal is clear cartoon storytelling, not realism. Prefer semantic commands
 (`move`, `mood`, `playClip`, `say`) over raw joint angles.
 
+## Interpreting the request
+
+- **Enact the story directly.** If asked for a film, book, or topic ("the movie
+  ET", "Romeo and Juliet", "the water cycle"), animate *that story's characters
+  and action* with the stick figures as the cast. Do **not** build a meta-scene of
+  an audience watching a screen, a cinema, or a TV — no spectators, no movie frame
+  on the side — unless the user explicitly asks for people watching something.
+- **Keep the characters the star and the frame readable.** The figures should fill
+  a useful portion of the frame and be clearly visible. Don't bury them behind a
+  large prop, screen, or box.
+- **Backgrounds stay legible.** A light background is the default and usually best.
+  You may use a dark/night background for mood (the engine automatically draws the
+  figures in a light ink so they stay visible) — but keep it genuinely dark only
+  when the scene calls for it, and never set the figures to a colour that matches
+  the background.
+
 ## Document shape
 
 ```json
