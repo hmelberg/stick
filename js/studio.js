@@ -190,6 +190,16 @@
     downloadBlob(new Blob([text], { type: 'application/json' }), slug(App().currentName()) + '.json');
   }
 
+  // Build an .srt subtitle track from the say lines + captions (for the WebM).
+  function srtTime(s) {
+    const ms = Math.round(Math.max(0, s) * 1000), p = (n, w) => String(n).padStart(w, '0');
+    return `${p(Math.floor(ms / 3600000), 2)}:${p(Math.floor(ms / 60000) % 60, 2)}:${p(Math.floor(ms / 1000) % 60, 2)},${p(ms % 1000, 3)}`;
+  }
+  function buildSrt(rt) {
+    const subs = (rt.overlays || []).filter(o => (o.type === 'say' || o.type === 'caption') && o.text).slice().sort((a, b) => a.t0 - b.t0);
+    return subs.map((o, i) => `${i + 1}\n${srtTime(o.t0)} --> ${srtTime(o.t1)}\n${o.text}`).join('\n\n') + '\n';
+  }
+
   /* WebM export: replays the animation in real time, painting each frame of
      the live SVG onto a canvas captured by MediaRecorder. Export therefore
      takes as long as the animation lasts. */
@@ -281,6 +291,9 @@
     if (audioStream) { audioStream.getTracks().forEach(t => t.stop()); app.resetSpeech(); }
 
     downloadBlob(new Blob(chunks, { type: 'video/webm' }), slug(App().currentName()) + '.webm');
+    // sidecar subtitles from the dialogue/captions, for an accessible video
+    const srt = App().state.rt && buildSrt(App().state.rt);
+    if (srt && srt.trim().length > 1) downloadBlob(new Blob([srt], { type: 'text/plain' }), slug(App().currentName()) + '.srt');
     btn.textContent = '⬇ WebM';
     btn.disabled = false;
     exporting = false;
