@@ -5,6 +5,10 @@
    The token is accepted if it matches STICK_ACCESS_TOKEN (shared/dev code) or
    validates against the Anvil auth backend's /auth/me endpoint.
 
+   BYOK: alternatively the client sends its own Anthropic key in `X-Anthropic-Key`.
+   That skips token auth (the user pays for their own calls) and the request is
+   made with their key — relayed per request, never stored or logged here.
+
    Required Netlify env vars:
      ANTHROPIC_API_KEY        — server-side Anthropic key (never sent to client)
    Optional:
@@ -27,40 +31,46 @@ export default async (request: Request): Promise<Response> => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const VALIDATE_URL = Deno.env.get("STICK_ANVIL_VALIDATE_URL")
-    ?? "https://mdataapi.anvil.app/_/api/auth/me";
-  const sharedToken = Deno.env.get("STICK_ACCESS_TOKEN");
+  // A user-supplied Anthropic key replaces token auth: the user pays for the
+  // call themselves, so there is nothing of ours to protect behind sign-in.
+  const userKey = (request.headers.get("x-anthropic-key") ?? "").trim();
 
-  const authHeader = request.headers.get("authorization") ?? "";
-  const presentedToken = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7).trim()
-    : "";
-  if (!presentedToken) {
-    return new Response("Unauthorized: missing token", { status: 401 });
-  }
+  if (!userKey) {
+    const VALIDATE_URL = Deno.env.get("STICK_ANVIL_VALIDATE_URL")
+      ?? "https://mdataapi.anvil.app/_/api/auth/me";
+    const sharedToken = Deno.env.get("STICK_ACCESS_TOKEN");
 
-  let authenticated = false;
-  if (sharedToken && presentedToken === sharedToken) {
-    authenticated = true;
-  }
-  if (!authenticated) {
-    try {
-      const resp = await fetch(VALIDATE_URL, {
-        method: "GET",
-        headers: { "Authorization": `Bearer ${presentedToken}` },
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data && (data.user || data.principal_kind === "service_token" || data.principal_kind === "anonymous")) {
-          authenticated = true;
-        }
-      }
-    } catch (_e) {
-      // auth backend unreachable — treat as unauthorized rather than crashing
+    const authHeader = request.headers.get("authorization") ?? "";
+    const presentedToken = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+    if (!presentedToken) {
+      return new Response("Unauthorized: missing token", { status: 401 });
     }
-  }
-  if (!authenticated) {
-    return new Response("Unauthorized", { status: 401 });
+
+    let authenticated = false;
+    if (sharedToken && presentedToken === sharedToken) {
+      authenticated = true;
+    }
+    if (!authenticated) {
+      try {
+        const resp = await fetch(VALIDATE_URL, {
+          method: "GET",
+          headers: { "Authorization": `Bearer ${presentedToken}` },
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && (data.user || data.principal_kind === "service_token" || data.principal_kind === "anonymous")) {
+            authenticated = true;
+          }
+        }
+      } catch (_e) {
+        // auth backend unreachable — treat as unauthorized rather than crashing
+      }
+    }
+    if (!authenticated) {
+      return new Response("Unauthorized", { status: 401 });
+    }
   }
 
   const MAX_BODY_BYTES = 10_000;
@@ -91,7 +101,7 @@ export default async (request: Request): Promise<Response> => {
     return new Response("Missing description", { status: 400 });
   }
 
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  const apiKey = userKey || Deno.env.get("ANTHROPIC_API_KEY");
   const model = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-4-6";
   if (!apiKey) {
     return new Response("Server misconfigured: missing ANTHROPIC_API_KEY", { status: 500 });
@@ -126,6 +136,11 @@ export default async (request: Request): Promise<Response> => {
       },
     });
   } catch (e) {
+    // A 401 from Anthropic with a user-supplied key means the key is bad — tell
+    // the client so it can say "check your key" instead of "sign in again".
+    if (userKey && /API error 401/.test(String(e))) {
+      return new Response("API key rejected", { status: 401 });
+    }
     return new Response(`Upstream error: ${String(e)}`, { status: 502 });
   }
 };

@@ -182,7 +182,8 @@
       </div>
     </div>
     <div id="createHint">
-      <a id="lnkHint" href="#">Sign in</a> to describe a scene in plain words and have AI build the animation.
+      <a id="lnkHint" href="#">Sign in</a> — or <a id="lnkHintKey" href="#">use your own Anthropic API key</a> —
+      to describe a scene in plain words and have AI build the animation.
     </div>
 
     <div class="row">
@@ -218,6 +219,8 @@
           <button id="btnSendCode" class="primary">Send code</button>
           <a id="lnkHaveCode" href="#">I already have a code</a>
         </div>
+        <p style="height:2px"></p>
+        <p>…or <a id="lnkUseKey" href="#">use your own Anthropic API key</a> — no sign-in needed.</p>
       </div>
       <div id="loginStep2" class="hidden">
         <h3>Enter your code</h3>
@@ -228,6 +231,23 @@
         <div class="row">
           <button id="btnVerify" class="primary">Verify</button>
           <a id="lnkBack" href="#">back</a>
+        </div>
+      </div>
+      <div id="loginStep3" class="hidden">
+        <h3>Use your own API key</h3>
+        <p>Paste an Anthropic API key (starts with <code>sk-ant-</code>) from
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
+          Your creations are then billed to your own key — consider one with a spending limit.</p>
+        <p style="height:6px"></p>
+        <input id="loginApiKey" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false">
+        <label class="small" style="margin-top:6px"><input id="chkRememberKey" type="checkbox" checked> remember in this browser</label>
+        <p>The key is kept only in this browser (or only for this visit if unchecked) and is
+          sent with each create request straight through to Anthropic — never stored on the stick server.
+          Remove it any time with the <em>Remove key</em> button in the header.</p>
+        <p style="height:6px"></p>
+        <div class="row">
+          <button id="btnSaveKey" class="primary">Save key</button>
+          <a id="lnkBackFromKey" href="#">back</a>
         </div>
       </div>
       <div id="loginErr"></div>

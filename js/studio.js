@@ -8,9 +8,9 @@
 
   /* ---------------- login gating ---------------- */
   function updateGate() {
-    const logged = Auth().isLoggedIn();
-    $('createPanel').classList.toggle('hidden', !logged);
-    $('createHint').classList.toggle('hidden', logged);
+    const access = Auth().hasAccess(); // signed in, or brought their own API key
+    $('createPanel').classList.toggle('hidden', !access);
+    $('createHint').classList.toggle('hidden', access);
   }
 
   /* ---------------- create (text -> Claude -> animation) ---------------- */
@@ -79,21 +79,24 @@
   async function runCreate() {
     const text = ($('createText').value || '').trim();
     if (!text) { setStatus('Describe the scene first.', true); return; }
-    if (!Auth().isLoggedIn()) { setStatus('Sign in first.', true); return; }
+    if (!Auth().hasAccess()) { setStatus('Sign in or add your API key first.', true); return; }
     const btn = $('btnCreate');
     btn.disabled = true;
     setStatus('Asking Claude…');
     try {
+      // Own key wins: the request is billed to the user's key, no sign-in needed.
+      const ownKey = Auth().apiKey;
+      const headers = { 'Content-Type': 'application/json' };
+      if (ownKey) headers['X-Anthropic-Key'] = ownKey;
+      if (Auth().token) headers['Authorization'] = 'Bearer ' + Auth().token;
       const resp = await fetch('/api/create-animation', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + Auth().token,
-        },
+        headers,
         body: JSON.stringify({ description: text }),
       });
       if (resp.status === 401) {
-        setStatus('Sign-in expired or code not accepted — sign in again.', true);
+        if (ownKey) setStatus('Your API key was rejected — check it, or remove it (header button) and sign in.', true);
+        else setStatus('Sign-in expired or code not accepted — sign in again.', true);
         return;
       }
       if (resp.status === 429) {
@@ -314,6 +317,7 @@
     $('btnJsonDl').addEventListener('click', downloadJson);
     $('btnWebm').addEventListener('click', exportWebM);
     $('lnkHint').addEventListener('click', e => { e.preventDefault(); $('btnLogin').click(); });
+    $('lnkHintKey').addEventListener('click', e => { e.preventDefault(); Auth().showKeyEntry(); });
 
     window.StickAuth.onChange(updateGate);
     updateGate();
