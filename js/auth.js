@@ -1,20 +1,28 @@
 /* stick — sign-in (same mechanism as m2py): email magic-code via the Anvil
    backend at mdataapi.anvil.app, token kept in localStorage. A pasted shared
    access code also works — it is validated server-side by the edge function.
+   Alternatively the user can store their own Anthropic API key (BYOK) — it
+   unlocks the create panel without sign-in and pays for their own calls.
 
-   Exposes window.StickAuth = { token, user, kind, isLoggedIn(), onChange(fn), logout() }. */
+   Exposes window.StickAuth = { token, user, kind, apiKey, isLoggedIn(),
+   hasAccess(), setApiKey(), forgetApiKey(), showKeyEntry(), onChange(fn), logout() }. */
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
   const AUTH_BASE = 'https://mdataapi.anvil.app/_/api';
   const LS_T = 'stick.token', LS_U = 'stick.user', LS_K = 'stick.tokenKind';
+  const LS_A = 'stick.apiKey';
 
   const listeners = [];
   const Auth = (window.StickAuth = {
     token: localStorage.getItem(LS_T) || '',
     user: safeParse(localStorage.getItem(LS_U)),
     kind: localStorage.getItem(LS_K) || 'anvil', // 'anvil' | 'shared'
+    apiKey: localStorage.getItem(LS_A) || '',
     isLoggedIn() { return !!Auth.token; },
+    hasAccess() { return !!Auth.token || !!Auth.apiKey; },
+    setApiKey, forgetApiKey,
+    showKeyEntry() { showLogin(3); },
     onChange(fn) { listeners.push(fn); },
     logout,
   });
@@ -28,6 +36,21 @@
     localStorage.setItem(LS_K, kind);
     if (user) localStorage.setItem(LS_U, JSON.stringify(user));
     else localStorage.removeItem(LS_U);
+    emit();
+  }
+
+  /* remember=true keeps the key across visits (localStorage); false keeps it
+     for this page load only — gone on refresh. */
+  function setApiKey(key, remember) {
+    Auth.apiKey = key;
+    if (remember) localStorage.setItem(LS_A, key);
+    else localStorage.removeItem(LS_A);
+    emit();
+  }
+
+  function forgetApiKey() {
+    Auth.apiKey = '';
+    localStorage.removeItem(LS_A);
     emit();
   }
 
@@ -106,25 +129,31 @@
   /* ---------------- header + modal UI ---------------- */
   function updateHeader() {
     const logged = Auth.isLoggedIn();
+    const keyed = !logged && !!Auth.apiKey;
     const btn = $('btnLogin'), box = $('userBox');
     if (!btn || !box) return;
-    btn.classList.toggle('hidden', logged);
-    box.classList.toggle('hidden', !logged);
+    btn.classList.toggle('hidden', logged || keyed);
+    box.classList.toggle('hidden', !(logged || keyed));
     if (logged) {
       $('userEmail').textContent = (Auth.user && (Auth.user.email || Auth.user.display_name)) || 'signed in';
+      $('btnLogout').textContent = 'Sign out';
+    } else if (keyed) {
+      $('userEmail').textContent = 'your API key';
+      $('btnLogout').textContent = 'Remove key';
     }
   }
 
   function setStep(n) {
     $('loginStep1').classList.toggle('hidden', n !== 1);
     $('loginStep2').classList.toggle('hidden', n !== 2);
+    $('loginStep3').classList.toggle('hidden', n !== 3);
     $('loginErr').textContent = '';
   }
   function showLogin(step) {
     $('loginBackdrop').classList.add('open');
     setStep(step || 1);
     setTimeout(() => {
-      const el = step === 2 ? $('loginCode') : $('loginEmail');
+      const el = step === 2 ? $('loginCode') : step === 3 ? $('loginApiKey') : $('loginEmail');
       if (el) el.focus();
     }, 60);
   }
@@ -162,6 +191,18 @@
     }
   }
 
+  function onSaveKey() {
+    const key = ($('loginApiKey').value || '').trim();
+    if (!key) { $('loginErr').textContent = 'Paste your API key first.'; return; }
+    if (!key.startsWith('sk-ant-')) {
+      $('loginErr').textContent = 'That does not look like an Anthropic key — it should start with sk-ant-.';
+      return;
+    }
+    setApiKey(key, $('chkRememberKey').checked);
+    $('loginApiKey').value = '';
+    hideLogin();
+  }
+
   async function handleLoginParam() {
     const params = new URLSearchParams(location.search);
     const code = params.get('login');
@@ -174,9 +215,14 @@
 
   window.addEventListener('DOMContentLoaded', () => {
     $('btnLogin').addEventListener('click', () => showLogin(1));
-    $('btnLogout').addEventListener('click', logout);
+    // one button, two meanings: signed in → sign out; key-only → forget the key
+    $('btnLogout').addEventListener('click', () => { if (Auth.isLoggedIn()) logout(); else forgetApiKey(); });
     $('btnSendCode').addEventListener('click', onSend);
     $('btnVerify').addEventListener('click', onVerify);
+    $('btnSaveKey').addEventListener('click', onSaveKey);
+    $('lnkUseKey').addEventListener('click', e => { e.preventDefault(); setStep(3); setTimeout(() => $('loginApiKey').focus(), 60); });
+    $('lnkBackFromKey').addEventListener('click', e => { e.preventDefault(); setStep(1); });
+    $('loginApiKey').addEventListener('keydown', e => { if (e.key === 'Enter') onSaveKey(); });
     $('lnkHaveCode').addEventListener('click', e => {
       e.preventDefault();
       $('loginSentNote').textContent = 'Paste your code (emailed code or shared access code).';

@@ -21,9 +21,11 @@ no dependencies. The deployed app lives at https://stickhans.netlify.app/
   animation (WebM records in real time while the scene replays).
 - Problems with the JSON appear in the warnings panel — the engine never blanks
   the screen over a bad event; it skips it and tells you.
-- Signed-in users get a **Create** panel: describe a scene in plain words and an
-  edge function asks Claude to write the JSON. Created/uploaded animations are
-  saved in the browser (localStorage) under "my animations".
+- The **Create** panel — describe a scene in plain words and an edge function
+  asks Claude to write the JSON — unlocks either by signing in or by pasting
+  your own Anthropic API key (billed to you; optionally remembered in the
+  browser, removable via *Remove key* in the header). Created/uploaded
+  animations are saved in the browser (localStorage) under "my animations".
 
 ## AI create endpoint (Netlify)
 
@@ -31,6 +33,9 @@ no dependencies. The deployed app lives at https://stickhans.netlify.app/
 key never reaches the browser. Sign-in reuses the m2py mechanism: email
 magic-codes issued by the Anvil backend (`mdataapi.anvil.app`), validated
 per-request by the edge function; a shared access code (env var) also works.
+Alternatively the client may send its own Anthropic key (`X-Anthropic-Key`
+header) — that skips sign-in and the call is made with the user's key, which
+is relayed per request and never stored server-side.
 
 Required Netlify env vars: `ANTHROPIC_API_KEY`. Optional: `ANTHROPIC_MODEL`
 (default `claude-sonnet-4-6`), `STICK_ACCESS_TOKEN` (shared access code),
