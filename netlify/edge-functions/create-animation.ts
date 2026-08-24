@@ -20,14 +20,14 @@
    The client accumulates the text events into the JSON document. */
 import { streamAnthropic } from "./_lib/anthropic.ts";
 import { checkRateLimit } from "./_lib/rate-limit.ts";
-import { clientIp, timingSafeEqual } from "./_lib/auth.ts";
+import { clientIp, type IpContext, timingSafeEqual } from "./_lib/auth.ts";
 import { STICK_SYSTEM_PROMPT } from "./_lib/stick-prompt.ts";
 
 interface RequestBody {
   description?: string;
 }
 
-export default async (request: Request): Promise<Response> => {
+export default async (request: Request, context: IpContext): Promise<Response> => {
   if (request.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -43,7 +43,7 @@ export default async (request: Request): Promise<Response> => {
     // against prod, a wrong code costs ~150ms warm and woke a cold Anvil in
     // 7.4s. A roomier budget than the generation limit so signing in never
     // eats into a legitimate user's quota.
-    const authRate = await checkRateLimit("create-animation-auth", clientIp(request), undefined, 30);
+    const authRate = await checkRateLimit("create-animation-auth", clientIp(request, context), undefined, 30);
     if (!authRate.allowed) {
       return new Response("Rate limited", {
         status: 429,
@@ -94,7 +94,7 @@ export default async (request: Request): Promise<Response> => {
     return new Response("Payload too large", { status: 413 });
   }
 
-  const ip = clientIp(request);
+  const ip = clientIp(request, context);
   const rate = await checkRateLimit("create-animation", ip);
   if (!rate.allowed) {
     return new Response("Rate limited", {

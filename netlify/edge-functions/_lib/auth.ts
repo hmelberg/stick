@@ -22,12 +22,22 @@ export function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+/** The slice of Netlify's edge Context this needs (avoids a remote type import). */
+export interface IpContext {
+  ip?: string;
+}
+
 /**
- * Client IP for rate limiting. Netlify sets x-nf-client-connection-ip itself
- * and a client cannot forge it. x-forwarded-for CAN be forged, so it is
- * deliberately NOT a fallback — honouring it would let one attacker rotate
- * through fake IPs and never exhaust the budget.
+ * Client IP for rate limiting.
+ *
+ * Edge functions receive the IP on the Context object; the
+ * x-nf-client-connection-ip header is documented for Netlify *Functions* and
+ * is not guaranteed at the edge — relying on it alone made checkRateLimit
+ * return early with an empty id, so nothing was ever counted.
+ *
+ * x-forwarded-for is NOT consulted: a client can forge it and rotate through
+ * fake IPs to dodge the budget entirely.
  */
-export function clientIp(request: Request): string {
-  return request.headers.get("x-nf-client-connection-ip") ?? "";
+export function clientIp(request: Request, context?: IpContext): string {
+  return (context?.ip ?? "") || (request.headers.get("x-nf-client-connection-ip") ?? "");
 }

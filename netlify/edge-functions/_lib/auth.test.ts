@@ -22,11 +22,16 @@ Deno.test("timingSafeEqual handles empty input", () => {
   assertEquals(timingSafeEqual("", ""), true);
 });
 
-Deno.test("clientIp trusts only the platform-set header", () => {
+Deno.test("clientIp prefers the edge context, which is where the IP actually is", () => {
+  const req = new Request("https://stick.melberg.app/api/create-animation");
+  assertEquals(clientIp(req, { ip: "9.9.9.9" }), "9.9.9.9");
+});
+
+Deno.test("clientIp falls back to the platform header when no context is given", () => {
   const req = new Request("https://stick.melberg.app/api/create-animation", {
-    headers: { "x-nf-client-connection-ip": "9.9.9.9", "x-forwarded-for": "1.1.1.1" },
+    headers: { "x-nf-client-connection-ip": "8.8.8.8" },
   });
-  assertEquals(clientIp(req), "9.9.9.9");
+  assertEquals(clientIp(req), "8.8.8.8");
 });
 
 Deno.test("clientIp ignores x-forwarded-for entirely", () => {
@@ -36,4 +41,5 @@ Deno.test("clientIp ignores x-forwarded-for entirely", () => {
     headers: { "x-forwarded-for": "1.1.1.1, 2.2.2.2" },
   });
   assertEquals(clientIp(req), "");
+  assertEquals(clientIp(req, { ip: "" }), "");
 });
