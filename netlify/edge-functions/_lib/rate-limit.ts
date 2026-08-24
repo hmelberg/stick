@@ -21,15 +21,21 @@ export async function checkRateLimit(
   endpoint: string,
   ip: string,
   // Injectable for tests; defaults to the Netlify Blobs store.
-  getStoreImpl: (name: string) => RateStore = getStore as unknown as (
-    name: string,
-  ) => RateStore,
+  getStoreImpl: (name: string) => RateStore = ((name: string) =>
+    (getStore as unknown as (opts: { name: string; consistency: string }) => RateStore)({
+      name,
+      consistency: "strong",
+    })),
   // The auth gate needs a roomier budget than the generation endpoint, so a
   // legitimate user's sign-in attempts never eat into their generation quota.
   maxCalls: number = MAX_CALLS,
 ): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
   if (!ip) return { allowed: true, retryAfterSeconds: 0 };
   try {
+    // Strong consistency is REQUIRED here. With the default (eventual), the
+    // writes below succeed but the reads above do not see them — measured
+    // against prod: the counter never accumulated, no error was thrown, and
+    // the limit silently never fired.
     const store = getStoreImpl("rate-limits");
     const key = `${endpoint}:${ip}`;
     const now = Date.now();
