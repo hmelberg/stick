@@ -1,8 +1,12 @@
 // @ts-ignore - @netlify/blobs imported via esm.sh for Deno/Edge Function compatibility
-import { getStore } from "https://esm.sh/@netlify/blobs@7";
+import { getStore } from "https://esm.sh/@netlify/blobs@11";
 
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_CALLS = 10;
+
+// TEMPORARY diagnostic — surfaced on a 401 header so a Blobs failure is
+// visible without log access. Remove once the store is confirmed working.
+export let lastStoreError = "";
 
 interface RateRecord {
   calls: number[];
@@ -47,6 +51,7 @@ export async function checkRateLimit(
     // hiccup — a worse outage than briefly missing the limit. (safestat hit
     // exactly this and made the same change.)
     console.warn("rate-limit store error (failing open):", e);
+    lastStoreError = String(e).slice(0, 200);
     return { allowed: true, retryAfterSeconds: 0 };
   }
 }

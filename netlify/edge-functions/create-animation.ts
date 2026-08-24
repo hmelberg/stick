@@ -19,7 +19,7 @@
    Response: SSE stream of {type:"text"|"done"|"error"} events (see _lib/anthropic.ts).
    The client accumulates the text events into the JSON document. */
 import { streamAnthropic } from "./_lib/anthropic.ts";
-import { checkRateLimit } from "./_lib/rate-limit.ts";
+import { checkRateLimit, lastStoreError } from "./_lib/rate-limit.ts";
 import { clientIp, type IpContext, timingSafeEqual } from "./_lib/auth.ts";
 import { STICK_SYSTEM_PROMPT } from "./_lib/stick-prompt.ts";
 
@@ -84,7 +84,10 @@ export default async (request: Request, context: IpContext): Promise<Response> =
       }
     }
     if (!authenticated) {
-      return new Response("Unauthorized", { status: 401 });
+      return new Response("Unauthorized", {
+        status: 401,
+        headers: { "x-rl-debug": `ip=${clientIp(request, context) || "EMPTY"};err=${lastStoreError || "none"}` },
+      });
     }
   }
 
