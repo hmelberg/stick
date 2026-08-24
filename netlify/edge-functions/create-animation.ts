@@ -20,6 +20,7 @@
    The client accumulates the text events into the JSON document. */
 import { streamAnthropic } from "./_lib/anthropic.ts";
 import { checkRateLimit } from "./_lib/rate-limit.ts";
+import { clientIp, timingSafeEqual } from "./_lib/auth.ts";
 import { STICK_SYSTEM_PROMPT } from "./_lib/stick-prompt.ts";
 
 interface RequestBody {
@@ -36,6 +37,20 @@ export default async (request: Request): Promise<Response> => {
   const userKey = (request.headers.get("x-anthropic-key") ?? "").trim();
 
   if (!userKey) {
+    // Budget check BEFORE any auth work. Two reasons: an unlimited number of
+    // wrong access codes could otherwise be tried, and each wrong one fires a
+    // network call to the free-tier Anvil app below — measured 2026-08-24
+    // against prod, a wrong code costs ~150ms warm and woke a cold Anvil in
+    // 7.4s. A roomier budget than the generation limit so signing in never
+    // eats into a legitimate user's quota.
+    const authRate = await checkRateLimit("create-animation-auth", clientIp(request), undefined, 30);
+    if (!authRate.allowed) {
+      return new Response("Rate limited", {
+        status: 429,
+        headers: { "Retry-After": String(authRate.retryAfterSeconds) },
+      });
+    }
+
     const VALIDATE_URL = Deno.env.get("STICK_ANVIL_VALIDATE_URL")
       ?? "https://mdataapi.anvil.app/_/api/auth/me";
     const sharedToken = Deno.env.get("STICK_ACCESS_TOKEN");
@@ -49,7 +64,7 @@ export default async (request: Request): Promise<Response> => {
     }
 
     let authenticated = false;
-    if (sharedToken && presentedToken === sharedToken) {
+    if (sharedToken && timingSafeEqual(presentedToken, sharedToken)) {
       authenticated = true;
     }
     if (!authenticated) {
@@ -79,9 +94,7 @@ export default async (request: Request): Promise<Response> => {
     return new Response("Payload too large", { status: 413 });
   }
 
-  const ip = request.headers.get("x-nf-client-connection-ip")
-    ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? "";
+  const ip = clientIp(request);
   const rate = await checkRateLimit("create-animation", ip);
   if (!rate.allowed) {
     return new Response("Rate limited", {
