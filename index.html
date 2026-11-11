@@ -169,6 +169,12 @@
         <option value="1.5">1.5×</option>
         <option value="2">2×</option>
       </select>
+      <select id="selFace" style="flex:0" title="how faces are drawn (overrides the scene while viewing; the JSON is not changed)">
+        <option value="" selected>face: as written</option>
+        <option value="cartoon">face: cartoon</option>
+        <option value="dots">face: dots</option>
+        <option value="classic">face: classic</option>
+      </select>
       <button id="btnFull" title="toggle fullscreen">⛶</button>
     </div>
   </div>
@@ -259,6 +265,7 @@
   <script src="js/engine.js"></script>
   <script src="js/figure.js"></script>
   <script src="js/styles.js"></script>
+  <script src="js/dog.js"></script>
   <script src="js/scene.js"></script>
   <script src="js/bubbles.js"></script>
   <script src="js/props.js"></script>

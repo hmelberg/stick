@@ -75,14 +75,19 @@
   const polyD = pts => 'M ' + pts.map(pt).join(' L ');
 
   /* ---------------- shared face ---------------- */
-  const EX_N = 0.14, EX_F = 0.52, EY = -0.15; // eye centers, in head radii
+  const EX_N = 0.14, EX_F = 0.52, EY = -0.15; // eye centers, in head radii (classic face)
+  const DARK = '#2a2a35'; // pupils and mouth interiors stay dark even when the ink is light
 
   function buildFace(parent, fig, r, opts) {
     const ink = fig.color;
     const fw = 0.09 * r;
     const grp = mk('g', {}, parent); // whole face in one group, so it can fade out toward the back
-    const fr = { r, ink, opts, g: grp };
-    if (fig.beard) { // drawn first so it sits behind the eyes/mouth; fades with the face toward the back
+    const kind = fig.face || 'cartoon'; // 'cartoon' | 'dots' | 'classic'
+    const fr = { r, ink, opts, g: grp, kind };
+    // every figure's eyes are a little mismatched (which one is bigger, and by how much, is its own)
+    const ms = Math.sin((fig.seed || 1) * 91.7) * 43758.5453, mr = ms - Math.floor(ms);
+    fr.mis = (mr < 0.5 ? -1 : 1) * (0.06 + 0.09 * Math.abs(mr * 2 - 1));
+    if (fig.beard && fig.beard !== 'moustache') { // drawn first so it sits behind the eyes/mouth; fades with the face toward the back
       const b = fig.beard === 'goatee' || fig.beard === 'stubble' ? fig.beard : 'full';
       // Beard hugs the jaw: top edge along the cheeks, dipping just below the mouth in
       // the middle (so the mouth shows), and the bottom follows the chin a touch lower.
@@ -94,16 +99,20 @@
     // cheek blush (embarrassed / in love), behind the eyes
     fr.blushN = mk('ellipse', { rx: 0.19 * r, ry: 0.1 * r, fill: '#e98a8a', stroke: 'none', visibility: 'hidden' }, grp);
     fr.blushF = mk('ellipse', { rx: 0.19 * r, ry: 0.1 * r, fill: '#e98a8a', stroke: 'none', visibility: 'hidden' }, grp);
-    fr.eyeN = mk('ellipse', { cx: EX_N * r, cy: EY * r, rx: 0.15 * r, fill: ink }, grp);
-    fr.eyeF = mk('ellipse', { cx: EX_F * r, cy: EY * r, rx: 0.15 * r, fill: ink }, grp);
-    fr.pupN = mk('circle', { r: 0.07 * r, fill: 'var(--paper, #f7f2e9)' }, grp);
-    fr.pupF = mk('circle', { r: 0.07 * r, fill: 'var(--paper, #f7f2e9)' }, grp);
-    const arc = { stroke: ink, 'stroke-width': fw * 1.6, fill: 'none', 'stroke-linecap': 'round', visibility: 'hidden' };
+    // far eye first, so the near eye overlaps it in profile
+    const eyeAttrs = kind === 'cartoon' ? { fill: '#ffffff', stroke: ink, 'stroke-width': fw } : { fill: ink };
+    const pupFill = kind === 'cartoon' ? DARK : 'var(--paper, #f7f2e9)';
+    fr.eyeF = mk('ellipse', { cx: EX_F * r, cy: EY * r, rx: 0.15 * r, ...eyeAttrs }, grp);
+    fr.pupF = mk('circle', { r: 0.07 * r, fill: pupFill }, grp);
+    fr.eyeN = mk('ellipse', { cx: EX_N * r, cy: EY * r, rx: 0.15 * r, ...eyeAttrs }, grp);
+    fr.pupN = mk('circle', { r: 0.07 * r, fill: pupFill }, grp);
+    const arc = { stroke: ink, 'stroke-width': fw * (kind === 'cartoon' ? 2 : 1.6), fill: 'none', 'stroke-linecap': 'round', visibility: 'hidden' };
     fr.arcN = mk('path', arc, grp);
     fr.arcF = mk('path', arc, grp);
-    fr.browN = mk('path', { stroke: ink, 'stroke-width': fw * 1.4, fill: 'none', 'stroke-linecap': 'round' }, grp);
-    fr.browF = mk('path', { stroke: ink, 'stroke-width': fw * 1.4, fill: 'none', 'stroke-linecap': 'round' }, grp);
-    if (opts.nose) {
+    const bw = fw * (kind === 'cartoon' ? 2.3 : 1.4);
+    fr.browN = mk('path', { stroke: ink, 'stroke-width': bw, fill: 'none', 'stroke-linecap': 'round' }, grp);
+    fr.browF = mk('path', { stroke: ink, 'stroke-width': bw, fill: 'none', 'stroke-linecap': 'round' }, grp);
+    if (opts.nose && kind === 'classic') { // the abstract faces have no nose
       fr.nose = mk('path', {
         d: `M ${0.5 * r} ${0.08 * r} Q ${0.78 * r} ${0.18 * r} ${0.55 * r} ${0.32 * r}`,
         stroke: ink, 'stroke-width': fw * 1.2, fill: 'none', 'stroke-linecap': 'round',
@@ -111,7 +120,10 @@
     }
     // one mouth: a closed path whose top is the smile/frown curve and whose lower
     // edge drops as it opens — so it's a line when shut and a filled shape when open.
-    fr.mouth = mk('path', { stroke: ink, 'stroke-width': fw * 1.5, fill: ink, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, grp);
+    fr.mouth = mk('path', { stroke: ink, 'stroke-width': fw * 1.5, fill: kind === 'cartoon' ? DARK : ink, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, grp);
+    if (kind === 'cartoon') fr.tongue = mk('ellipse', { fill: '#e2685d', visibility: 'hidden' }, grp);
+    if (fig.beard === 'moustache') fr.tache = mk('path', { stroke: ink, 'stroke-width': 0.2 * r, fill: 'none', 'stroke-linecap': 'round' }, grp);
+    if (fig.mouthItem) fr.item = buildMouthItem(grp, fig.mouthItem, r, ink);
     if (fig.glasses) { // built here (not buildExtras) so the lenses track the eyes as the face turns
       const gl = { stroke: ink, 'stroke-width': fw, fill: 'none' };
       fr.glassN = mk('circle', { r: 0.27 * r, ...gl }, grp);
@@ -132,6 +144,7 @@
     // turn the 3/4 face toward a symmetric front face as F.front -> 1
     const front = F.front || 0;
     if (fr.g) { fr.g.setAttribute('opacity', (F.show == null ? 1 : F.show).toFixed(2)); if (F.show <= 0.01) return; } // blank by the back
+    if (fr.kind !== 'classic') return updateToonFace(fr, F, bs, front);
     const cxN = EX_N + (-0.30 - EX_N) * front;
     const cxF = EX_F + (0.30 - EX_F) * front;
     const happyArcs = F.smile > 0.65 && F.eyeOpen > 0.72;
@@ -167,6 +180,21 @@
     fr.browF.setAttribute('d', brow(cxF * r, skew > 0 ? skew : 0));
     fr.browN.setAttribute('opacity', browActive ? '1' : '0');
     fr.browF.setAttribute('opacity', browActive ? '1' : '0');
+    if (fr.nose) fr.nose.setAttribute('opacity', (1 - front).toFixed(2)); // nose is a profile feature
+
+    const mx = (0.36 - 0.36 * front) * r, my = 0.48 * r, hw = 0.28 * r;
+    const mj = bs ? jit(9, bs, 0.02 * r) : 0;
+    const topC = my + F.smile * 0.34 * r + mj;       // upper-lip curve (smile down / frown up)
+    const botC = topC + F.mouthOpen * 0.62 * r;       // lower lip drops as the mouth opens
+    fr.mouth.setAttribute('d',
+      `M ${(mx - hw).toFixed(2)} ${my.toFixed(2)} Q ${(mx + mj).toFixed(2)} ${topC.toFixed(2)} ${(mx + hw).toFixed(2)} ${my.toFixed(2)}`
+      + ` Q ${(mx + mj).toFixed(2)} ${botC.toFixed(2)} ${(mx - hw).toFixed(2)} ${my.toFixed(2)} Z`);
+    faceTail(fr, F, front, cxN, cxF, EY * r, 0.27 * r, mx, my);
+  }
+
+  // The parts every face shares: blush, glasses, tears, moustache, and anything held in the mouth.
+  function faceTail(fr, F, front, cxN, cxF, eyv, lens, mx, my) {
+    const r = fr.r;
     if (fr.blushN) { // cheek blush
       const show = F.blush > 0.02, op = (F.blush * 0.6).toFixed(2);
       for (const [bl, cx] of [[fr.blushN, cxN], [fr.blushF, cxF]]) {
@@ -175,7 +203,8 @@
       }
     }
     if (fr.glassN) { // lenses over the (moving) eyes; bridge across the nose; a temple to each ear
-      const lensR = 0.27 * r, ey = EY * r, xn = cxN * r, xf = cxF * r;
+      const lensR = lens, ey = eyv, xn = cxN * r, xf = cxF * r;
+      fr.glassN.setAttribute('r', lensR.toFixed(2)); fr.glassF.setAttribute('r', lensR.toFixed(2));
       fr.glassN.setAttribute('cx', xn.toFixed(2)); fr.glassN.setAttribute('cy', ey.toFixed(2));
       fr.glassF.setAttribute('cx', xf.toFixed(2)); fr.glassF.setAttribute('cy', ey.toFixed(2));
       const lo = Math.min(xn, xf), hi = Math.max(xn, xf);
@@ -187,15 +216,6 @@
       fr.glTemple2.setAttribute('d', `M ${(lo - lensR).toFixed(2)} ${ty} L ${(-0.95 * r).toFixed(2)} ${ear}`);
       fr.glTemple2.setAttribute('opacity', front.toFixed(2));
     }
-    if (fr.nose) fr.nose.setAttribute('opacity', (1 - front).toFixed(2)); // nose is a profile feature
-
-    const mx = (0.36 - 0.36 * front) * r, my = 0.48 * r, hw = 0.28 * r;
-    const mj = bs ? jit(9, bs, 0.02 * r) : 0;
-    const topC = my + F.smile * 0.34 * r + mj;       // upper-lip curve (smile down / frown up)
-    const botC = topC + F.mouthOpen * 0.62 * r;       // lower lip drops as the mouth opens
-    fr.mouth.setAttribute('d',
-      `M ${(mx - hw).toFixed(2)} ${my.toFixed(2)} Q ${(mx + mj).toFixed(2)} ${topC.toFixed(2)} ${(mx + hw).toFixed(2)} ${my.toFixed(2)}`
-      + ` Q ${(mx + mj).toFixed(2)} ${botC.toFixed(2)} ${(mx - hw).toFixed(2)} ${my.toFixed(2)} Z`);
     if (fr.tearN) { // tears stream from under the eyes and fall (animated off F.t)
       const show = F.tears > 0.05, tt = F.t || 0;
       for (const [tr, cx, ph] of [[fr.tearN, cxN, 0], [fr.tearF, cxF, 0.5]]) {
@@ -208,6 +228,100 @@
         }
       }
     }
+    if (fr.tache) fr.tache.setAttribute('d', `M ${(mx - 0.32 * r).toFixed(2)} ${(my - 0.1 * r).toFixed(2)} Q ${mx.toFixed(2)} ${(my - 0.34 * r).toFixed(2)} ${(mx + 0.32 * r).toFixed(2)} ${(my - 0.1 * r).toFixed(2)}`);
+    if (fr.item) fr.item.setAttribute('transform', `translate(${(mx + 0.16 * r).toFixed(2)} ${(my + 0.02 * r).toFixed(2)}) rotate(${(8 + 14 * front).toFixed(1)})`);
+  }
+
+  // cigarette / pipe / toothpick / lollipop: drawn pointing out of the mouth (+x), origin at the lips
+  function buildMouthItem(parent, name, r, ink) {
+    const g = mk('g', {}, parent), round = { 'stroke-linecap': 'round', fill: 'none' };
+    if (name === 'cigarette') {
+      mk('path', { d: `M 0 0 L ${0.62 * r} 0`, stroke: ink, 'stroke-width': 0.17 * r, ...round }, g);
+      mk('path', { d: `M 0 0 L ${0.6 * r} 0`, stroke: '#ffffff', 'stroke-width': 0.1 * r, ...round }, g);
+      mk('path', { d: `M ${0.6 * r} 0 L ${0.68 * r} 0`, stroke: '#e8792e', 'stroke-width': 0.12 * r, ...round }, g);
+    } else if (name === 'pipe') {
+      mk('path', { d: `M 0 0 Q ${0.3 * r} ${0.22 * r} ${0.56 * r} ${0.14 * r}`, stroke: ink, 'stroke-width': 0.1 * r, ...round }, g);
+      mk('path', { d: `M ${0.5 * r} ${-0.16 * r} L ${0.84 * r} ${-0.16 * r} L ${0.78 * r} ${0.2 * r} L ${0.56 * r} ${0.2 * r} Z`, fill: '#7a5334', stroke: ink, 'stroke-width': 0.05 * r, 'stroke-linejoin': 'round' }, g);
+    } else if (name === 'lollipop') {
+      mk('path', { d: `M 0 0 L ${0.5 * r} ${-0.06 * r}`, stroke: ink, 'stroke-width': 0.07 * r, ...round }, g);
+      mk('circle', { cx: 0.7 * r, cy: -0.08 * r, r: 0.24 * r, fill: '#e0533a', stroke: ink, 'stroke-width': 0.05 * r }, g);
+    } else { // toothpick
+      mk('path', { d: `M 0 0 L ${0.7 * r} ${-0.14 * r}`, stroke: ink, 'stroke-width': 0.055 * r, ...round }, g);
+    }
+    return g;
+  }
+
+  /* The abstract faces. 'cartoon': big mismatched eyes with pupils and a wide mouth.
+     'dots': two dots, with brows and a mouth only when the feeling needs them.
+     Both are driven by exactly the same expression values as the classic face. */
+  function updateToonFace(fr, F, bs, front) {
+    const r = fr.r, dots = fr.kind === 'dots', cl = (v, a, b) => Math.min(b, Math.max(a, v));
+    // eye centres (head radii): symmetric from the front, pushed to the leading edge in profile
+    const pN = dots ? 0.26 : 0.30, pF = dots ? 0.62 : 0.78, fX = dots ? 0.30 : 0.39;
+    const cxN = pN + (-fX - pN) * front, cxF = pF + (fX - pF) * front;
+    const ey = (dots ? -0.08 : -0.22) * r;
+    const open = cl(F.eyeOpen, 0, 1), raise = Math.max(0, F.browRaise);
+    const happyArcs = F.smile > 0.65 && open > 0.72;
+    const eyes = [
+      { eye: fr.eyeN, pup: fr.pupN, arc: fr.arcN, cx: cxN * r, k: 1 + fr.mis },
+      { eye: fr.eyeF, pup: fr.pupF, arc: fr.arcF, cx: cxF * r, k: (1 - fr.mis) * (1 - 0.14 * (1 - front)) },
+    ];
+    for (const e of eyes) {
+      const rx = (dots ? 0.105 : 0.33) * r * e.k;
+      const full = dots ? rx : rx * 1.22 * (1 + 0.2 * raise);       // fully open height
+      const ry = Math.max(0.03 * r, full * (dots ? 0.3 + 0.7 * open : open));
+      e.rx = rx; e.full = full;
+      e.eye.setAttribute('cx', e.cx.toFixed(2)); e.eye.setAttribute('cy', ey.toFixed(2));
+      e.eye.setAttribute('rx', rx.toFixed(2)); e.eye.setAttribute('ry', ry.toFixed(2));
+      e.eye.setAttribute('visibility', happyArcs ? 'hidden' : 'visible');
+      e.arc.setAttribute('visibility', happyArcs ? 'visible' : 'hidden');
+      if (happyArcs) {
+        const w = rx * (dots ? 1.5 : 0.95), h = rx * (dots ? 2 : 1.5);
+        e.arc.setAttribute('d', `M ${(e.cx - w).toFixed(2)} ${(ey + h * 0.25).toFixed(2)} Q ${e.cx.toFixed(2)} ${(ey - h).toFixed(2)} ${(e.cx + w).toFixed(2)} ${(ey + h * 0.25).toFixed(2)}`);
+      }
+      const showPup = !dots && !happyArcs && open > 0.3;
+      e.pup.setAttribute('visibility', showPup ? 'visible' : 'hidden');
+      if (showPup) { // pupils shrink with surprise, drift toward the nose, and follow the gaze
+        const inward = (1 - front) * 0.16 - Math.sign(e.cx) * front * 0.1;
+        e.pup.setAttribute('r', (rx * 0.4 * (1 - 0.5 * cl((raise - 0.3) / 0.7, 0, 1))).toFixed(2));
+        e.pup.setAttribute('cx', (e.cx + (F.pupX * 0.4 + inward) * rx).toFixed(2));
+        e.pup.setAttribute('cy', (ey + (F.pupY * 0.4 + 0.05) * ry).toFixed(2));
+      }
+    }
+    // brows: only when they are doing expressive work. Angry ones come down over the eye.
+    const browActive = Math.abs(F.browTilt) > 0.12 || F.browRaise > 0.4 || Math.abs(F.browSkew || 0) > 0.06;
+    const k = -F.browTilt, skew = (F.browSkew || 0) * 0.2 * r; // k > 0 = angry
+    const brow = (e, s, lift) => { // s: +1 when the nose is on the +x side of this eye, -1 on the other
+      const half = dots ? 0.2 * r : e.rx * 1.05;
+      const top = ey - (dots ? 0.26 * r : e.full + 0.05 * r) - raise * 0.14 * r - lift + Math.max(0, k) * (dots ? 0.03 : 0.2) * r;
+      const dy = k * (dots ? 0.1 : 0.2) * r;
+      return `M ${(e.cx - s * half).toFixed(2)} ${(top - dy * 0.7).toFixed(2)} L ${(e.cx + s * half * 0.9).toFixed(2)} ${(top + dy).toFixed(2)}`;
+    };
+    fr.browN.setAttribute('d', brow(eyes[0], 1, skew < 0 ? -skew : 0));
+    fr.browF.setAttribute('d', brow(eyes[1], 1 - 2 * front, skew > 0 ? skew : 0));
+    fr.browN.setAttribute('opacity', browActive ? '1' : '0');
+    fr.browF.setAttribute('opacity', browActive ? '1' : '0');
+
+    // mouth: a line when shut, a dark shape when open; the grin widens with the smile
+    const mx = (dots ? 0.34 : 0.44) * (1 - front) * r, my = (dots ? 0.5 : 0.53) * r;
+    const hw = (dots ? 0.2 : 0.3 + 0.13 * cl(F.smile, 0, 1)) * r * (1 - 0.24 * (1 - front));
+    const mj = bs ? jit(9, bs, 0.02 * r) : 0;
+    const topC = my + F.smile * (dots ? 0.26 : 0.34) * r + mj;
+    const botC = topC + F.mouthOpen * (dots ? 0.5 : 0.72) * r;
+    const quiet = dots && Math.abs(F.smile) < 0.3 && F.mouthOpen < 0.12; // a dot face says nothing at rest
+    fr.mouth.setAttribute('visibility', quiet ? 'hidden' : 'visible');
+    fr.mouth.setAttribute('d',
+      `M ${(mx - hw).toFixed(2)} ${my.toFixed(2)} Q ${(mx + mj).toFixed(2)} ${topC.toFixed(2)} ${(mx + hw).toFixed(2)} ${my.toFixed(2)}`
+      + ` Q ${(mx + mj).toFixed(2)} ${botC.toFixed(2)} ${(mx - hw).toFixed(2)} ${my.toFixed(2)} Z`);
+    if (fr.tongue) {
+      const show = F.mouthOpen > 0.3 && F.smile > 0.2, gap = (botC - topC) / 2;
+      fr.tongue.setAttribute('visibility', show ? 'visible' : 'hidden');
+      if (show) {
+        fr.tongue.setAttribute('cx', mx.toFixed(2)); fr.tongue.setAttribute('cy', (my + (topC - my) / 2 + gap * 0.72).toFixed(2));
+        fr.tongue.setAttribute('rx', (hw * 0.36).toFixed(2)); fr.tongue.setAttribute('ry', (gap * 0.24).toFixed(2));
+      }
+    }
+    faceTail(fr, F, front, cxN, cxF, ey, dots ? 0.27 * r : (0.34 + 0.1 * front) * r, mx, my);
   }
 
   /* ---------------- shared hair / hat / glasses ---------------- */
@@ -239,6 +353,8 @@
       }, parent);
     } else if (style === 'long') {
       for (const sx of [-1, 1]) mk('path', { d: longStrand(sx, r), ...stroke }, parent);
+    } else if (style === 'quiff') { // a swept-up wave over the forehead
+      mk('path', { d: `M ${-0.72 * r} ${-0.72 * r} Q ${-0.5 * r} ${-1.7 * r} ${0.78 * r} ${-1.18 * r} Q ${0.2 * r} ${-1.16 * r} ${0.1 * r} ${-0.98 * r} Z`, fill: ink, stroke: ink, 'stroke-width': 0.08 * r, 'stroke-linejoin': 'round' }, parent);
     } else if (style === 'bun') {
       mk('circle', { cx: -0.8 * r, cy: -0.62 * r, r: 0.3 * r, fill: ink }, parent);
     } else if (style === 'sides') {
@@ -283,6 +399,14 @@
 
   function buildExtras(parent, fig, r, ink, faceGrp) {
     // glasses are built inside buildFace now (so the lenses track the eyes)
+    if (fig.hat === 'cap') { // flat cap: low crown, short brim out front
+      mk('path', { d: `M ${-1.02 * r} ${-0.5 * r} Q ${-1.0 * r} ${-1.22 * r} 0 ${-1.2 * r} Q ${0.95 * r} ${-1.2 * r} ${1.0 * r} ${-0.62 * r} Z`, fill: ink, stroke: ink, 'stroke-width': 0.06 * r, 'stroke-linejoin': 'round' }, parent);
+      mk('path', { d: `M ${0.8 * r} ${-0.6 * r} L ${1.5 * r} ${-0.5 * r}`, stroke: ink, 'stroke-width': 0.17 * r, 'stroke-linecap': 'round', fill: 'none' }, parent);
+    } else if (fig.hat === 'beanie') {
+      mk('path', { d: `M ${-1.03 * r} ${-0.42 * r} Q ${-1.0 * r} ${-1.5 * r} 0 ${-1.46 * r} Q ${1.0 * r} ${-1.5 * r} ${1.03 * r} ${-0.42 * r} Z`, fill: fig.bodyColor || ink, stroke: ink, 'stroke-width': 0.09 * r, 'stroke-linejoin': 'round' }, parent);
+      mk('path', { d: `M ${-1.05 * r} ${-0.5 * r} L ${1.05 * r} ${-0.5 * r}`, stroke: ink, 'stroke-width': 0.2 * r, 'stroke-linecap': 'round', fill: 'none' }, parent);
+      mk('circle', { cx: 0, cy: -1.56 * r, r: 0.16 * r, fill: ink }, parent);
+    }
     if (fig.hat === 'fedora') {
       mk('path', { d: `M ${-1.25 * r} ${-0.55 * r} L ${1.05 * r} ${-0.55 * r}`, stroke: ink, 'stroke-width': 0.16 * r, 'stroke-linecap': 'round', fill: 'none' }, parent);
       mk('path', { d: `M ${-0.7 * r} ${-0.58 * r} L ${-0.58 * r} ${-1.3 * r} Q 0 ${-1.44 * r} ${0.5 * r} ${-1.28 * r} L ${0.62 * r} ${-0.58 * r} Z`, fill: ink }, parent);
@@ -337,6 +461,7 @@
     n.setAttribute('transform', `translate(${P.headC.x.toFixed(2)} ${P.headC.y.toFixed(2)}) rotate(${P.headA.toFixed(2)})`);
 
   STICK.styles = {};
+  STICK._draw = { mk, pt, srand, jit, boilFrame, resample, wobbleRaw, quadPts, smoothOpen, smoothClosed, polyD, setTf, DARK }; // shared with dog.js
 
   /* ================================ ink ================================ */
   STICK.styles.ink = {

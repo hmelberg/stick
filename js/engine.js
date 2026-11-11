@@ -167,7 +167,7 @@
       for (const fig of rt.figs.values()) {
         const fb = STICK.figureBounds(rt, fig.id, t);
         if (!fb) continue;
-        add(fb.x, fb.y - 2, fb.x + fb.w, fb.y + fb.h);
+        add(fb.x, fb.y - 0.1 * fig.height, fb.x + fb.w, fb.y + fb.h); // headroom scales with the figure (was 2 at height 20)
         const P = STICK.computeFigure(rt, fig, t);
         const hd = P.world.head, r = P.g.headR, fc = P.fc || 0;
         for (const o of rt.overlays) {
@@ -244,8 +244,14 @@
     if (!figs.length) warn('no figures defined');
     const defaultStyle = (doc.scene && doc.scene.style) || 'sketch';
     const sceneWobble = STICK.parseWobble(doc.scene && doc.scene.wobble, STICK.DEFAULT_WOBBLE, warn);
+    // doc-level characters: same format as the built-ins; copied, never merged into the global presets
+    let docChars = null;
+    if (doc.characters != null) {
+      if (doc.characters && typeof doc.characters === 'object' && !Array.isArray(doc.characters)) docChars = doc.characters;
+      else warn('"characters" must be an object of name -> figure fields');
+    }
     figs.forEach((f, i) => {
-      const fig = STICK.normalizeFigure(f, i, warn, defaultStyle, rt.scene.ink, sceneWobble);
+      const fig = STICK.normalizeFigure(f, i, warn, defaultStyle, rt.scene.ink, sceneWobble, docChars);
       if (rt.figs.has(fig.id)) { warn(`duplicate figure id "${fig.id}" — second one ignored`); return; }
       rt.figs.set(fig.id, fig);
       STICK.initFigureChannels(rt, fig);

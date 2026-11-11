@@ -224,7 +224,9 @@
       coin:   c => { const t = c.currentTime; tone(c, t, 988, 0.08, 'square', 0.2); tone(c, t + 0.08, 1319, 0.22, 'square', 0.2); },
       bell:   c => { const t = c.currentTime; tone(c, t, 784, 0.7, 'sine', 0.22); tone(c, t, 1568, 0.6, 'sine', 0.08); },
       buzz:   c => { const t = c.currentTime; tone(c, t, 110, 0.3, 'square', 0.18); },
+      woof:   c => { const t = c.currentTime; tone(c, t, 330, 0.13, 'sawtooth', 0.26, 150); tone(c, t, 660, 0.09, 'square', 0.07, 300); noise(c, t, 0.11, 0.2, 900); },
     };
+    R.bark = R.woof;
     R.bounce = R.boing; R.click = R.pop; R.fail = R.buzz; R.success = R.coin; R.beep = R.pluck;
     return {
       available: !!(window.AudioContext || window.webkitAudioContext),
@@ -330,7 +332,7 @@
     dom.shadows = new Map();
     const shadowsOn = !(rt.doc.scene && rt.doc.scene.shadows === false);
     for (const fig of rt.figs.values()) {
-      const style = STICK.styles[fig.style] || STICK.styles.sketch;
+      const style = fig.kind === 'dog' ? STICK.dogStyle : (STICK.styles[fig.style] || STICK.styles.sketch);
       if (shadowsOn && fig.body !== 'bust') dom.shadows.set(fig.id, mk('ellipse', { fill: '#2a2a35', opacity: 0.16 }, dom.shadowG));
       dom.figNodes.set(fig.id, { style, nodes: style.build(fig, dom.layers.fig) });
     }
@@ -532,8 +534,9 @@
       const sh = dom.shadows && dom.shadows.get(fig.id);
       if (sh) { // contact shadow on the ground, shrinking as the figure lifts (hops)
         const gy = fig.pos.y, k = Math.max(0.12, 1 - Math.max(0, gy - P.y) / 7);
-        sh.setAttribute('cx', P.x.toFixed(2)); sh.setAttribute('cy', (gy + 0.4).toFixed(2));
-        sh.setAttribute('rx', (P.g.h * 0.3 * k).toFixed(2)); sh.setAttribute('ry', (P.g.h * 0.05 * k).toFixed(2));
+        const S = P.shadow || { dx: 0, rx: P.g.h * 0.3, ry: P.g.h * 0.05 }; // a dog supplies its own long, low one
+        sh.setAttribute('cx', (P.x + S.dx).toFixed(2)); sh.setAttribute('cy', (gy + 0.4).toFixed(2));
+        sh.setAttribute('rx', (S.rx * k).toFixed(2)); sh.setAttribute('ry', (S.ry * k).toFixed(2));
         sh.setAttribute('opacity', (0.18 * k).toFixed(3));
       }
       const entry = dom.figNodes.get(fig.id);
@@ -661,6 +664,12 @@
     } catch (e) {
       showWarnings(['JSON parse error: ' + e.message], true);
       return;
+    }
+    // viewer override from the toolbar: redraw every face in one look without touching the JSON
+    const faceSel = $('selFace') && $('selFace').value;
+    if (faceSel && doc && typeof doc === 'object') {
+      doc.scene = Object.assign({}, doc.scene, { face: faceSel });
+      if (Array.isArray(doc.figures)) doc.figures = doc.figures.map(f => (f && typeof f === 'object' ? Object.assign({}, f, { face: undefined }) : f));
     }
     let rt;
     try { rt = STICK.compile(doc); }
@@ -805,6 +814,7 @@
       else state.lastSpeakT = state.t; // start from here, don't dump backlog
     });
     $('selSpeed').addEventListener('change', e => { state.speed = Number(e.target.value); });
+    $('selFace').addEventListener('change', render);
 
     window.addEventListener('keydown', e => {
       if (e.code === 'Space' && !['TEXTAREA', 'INPUT', 'SELECT'].includes(document.activeElement.tagName)) {

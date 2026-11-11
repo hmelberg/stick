@@ -62,8 +62,11 @@
     };
     rt.objs.set(id, obj);
     STICK.initObjectChannels(rt, obj);
-    const sc = num(opts.scale, num(def.scale, 1));
-    if (sc !== 1) rt.ch.setBase(id + '.scale', sc);
+    // Size: a held prop scales with its holder (height / 20, the height the library was
+    // authored for), so an apple in a 25-tall hand is 1.25x. Explicit `scale` (give arg) or
+    // the def's own `scale` composes by multiplication — scale 1 = "natural for this holder".
+    const sc = num(opts.scale, num(def.scale, 1)) * num(opts.holderScale, 1);
+    if (Math.abs(sc - 1) > 1e-9) rt.ch.setBase(id + '.scale', sc);
     return obj;
   }
 
@@ -83,6 +86,7 @@
 
   // Forearm angle (deg) for a held hand — used to aim directional props.
   STICK.propAngle = function (P, hand, baseAngle) {
+    if (P.mouthAngle != null) return P.mouthAngle + num(baseAngle, 0); // a dog carries it in the mouth: aim along the snout
     const arm = hand === 'L' ? P.armL : P.armR;
     const elbW = P.toWorld(arm.elb);
     const handW = hand === 'L' ? P.world.handL : P.world.handR;

@@ -31,7 +31,8 @@
      about half the body. headScale lets kids keep an adult-sized head. */
   STICK.geom = f => {
     const h = typeof f === 'number' ? f : f.height;
-    const hs = typeof f === 'object' && f.headScale ? f.headScale : 1;
+    // the abstract faces (cartoon / dots) get a bigger head than the classic one, so they read at a distance
+    const hs = (typeof f === 'object' && f.headScale ? f.headScale : 1) * (typeof f === 'object' && f.face && f.face !== 'classic' ? 1.2 : 1);
     return {
       h,
       thigh: 0.22 * h, shin: 0.22 * h,
@@ -75,11 +76,45 @@
     return fallback;
   };
 
-  STICK.normalizeFigure = function (raw, i, warn, defaultStyle, sceneInk, sceneWobble) {
+  STICK.DEFAULT_HEIGHT = 25; // default figure height (scene units)
+  STICK.DOG_HEIGHT = 12.5;   // a dog's height = top of its head when standing: half a default person
+  STICK.PROP_REF_HEIGHT = 20; // library props are authored for a 20-tall holder; held props scale by height / 20
+  const MOUTH_ITEMS = ['cigarette', 'pipe', 'toothpick', 'lollipop'];
+
+  // Resolve a character name to a flat bundle of figure fields. Looks in the document's
+  // own `characters` first (they override built-ins of the same name), then the built-ins;
+  // `extends` chains to another character (a doc character extending its own name gets
+  // the built-in). Never mutates the presets; unknown names return null.
+  function resolveCharacter(name, docChars, warn, skipDoc, depth) {
+    const own = !skipDoc && docChars && Object.prototype.hasOwnProperty.call(docChars, name) ? docChars[name] : null;
+    const c = own && typeof own === 'object' ? own : Object.prototype.hasOwnProperty.call(STICK.presets.characters, name) ? STICK.presets.characters[name] : null;
+    if (!c) return null;
+    const out = { ...c };
+    const ext = out.extends;
+    delete out.extends;
+    if (typeof ext === 'string' && (depth || 0) < 8) {
+      const base = resolveCharacter(ext, docChars, warn, ext === name && !skipDoc, (depth || 0) + 1);
+      if (base) return { ...base, ...out };
+      warn(`character "${name}" extends unknown character "${ext}"`);
+    }
+    return out;
+  }
+
+  // face: how the face is drawn — 'cartoon' (default: big eyes), 'dots' (minimal), 'classic' (the original).
+  const FACES = { cartoon: 'cartoon', big: 'cartoon', bigeyes: 'cartoon', toon: 'cartoon', dots: 'dots', dot: 'dots', minimal: 'dots', classic: 'classic', original: 'classic' };
+  STICK.parseFace = function (v, fallback, warn) {
+    if (v == null) return fallback;
+    const k = FACES[String(v).toLowerCase().replace(/[\s_-]/g, '')];
+    if (k) return k;
+    if (warn) warn(`unknown face "${v}" — use cartoon, dots or classic`);
+    return fallback;
+  };
+
+  STICK.normalizeFigure = function (raw, i, warn, defaultStyle, sceneInk, sceneWobble, docChars) {
     raw = raw && typeof raw === 'object' ? raw : {};
     let preset = {};
     if (raw.character) {
-      const c = STICK.presets.characters[raw.character];
+      const c = resolveCharacter(String(raw.character), docChars, warn, false, 0);
       if (c) preset = { ...preset, ...c };
       else warn(`unknown character "${raw.character}"`);
     }
@@ -91,7 +126,12 @@
     }
     let style = raw.style || preset.style || defaultStyle || 'sketch';
     if (STICK.styles && !STICK.styles[style]) { warn(`unknown style "${style}" — using sketch`); style = 'sketch'; }
+    // kind: 'person' (default) or 'dog' — a four-legged figure with its own skeleton + drawing (dog.js)
+    const kindRaw = String(raw.kind || preset.kind || (archList.includes('dog') ? 'dog' : 'person')).toLowerCase();
+    const kind = kindRaw === 'dog' || kindRaw === 'puppy' ? 'dog' : 'person';
+    if (kind === 'person' && !['person', 'human', 'figure'].includes(kindRaw)) warn(`unknown kind "${raw.kind || preset.kind}" — use "dog" (or omit for a person)`);
     const fig = {
+      kind,
       id: String(raw.id || raw.name || 'fig' + i),
       name: raw.name || String(raw.id || 'fig' + i),
       archetype: archList,
@@ -99,9 +139,9 @@
       // age modulates movement (gait + idle): 'kid' | 'adult' | 'elderly'. Accepts
       // friendly aliases or a number; defaults to 'kid' for the kid archetype.
       age: normAge(raw.age, archList, preset),
-      voice: raw.voice && typeof raw.voice === 'object' ? raw.voice : null,
+      voice: raw.voice && typeof raw.voice === 'object' ? raw.voice : (preset.voice && typeof preset.voice === 'object' ? { ...preset.voice } : null),
       style,
-      height: num(raw.height, num(preset.height, 20)),
+      height: num(raw.height, num(preset.height, kind === 'dog' ? STICK.DOG_HEIGHT : STICK.DEFAULT_HEIGHT)),
       headScale: num(raw.headScale, num(preset.headScale, 1)),
       color: raw.color || preset.color || sceneInk || '#2a2a35',
       bodyColor: raw.bodyColor || preset.bodyColor || BODY_COLORS[i % BODY_COLORS.length],
@@ -117,12 +157,20 @@
       // yaw: 0 front, ±1 side (left/right), ±2 back (continuous, tweenable)
       facing: (f => f === 'front' || f === 0 ? 0 : f === 'left' ? -1 : f === 'right' ? 1 : f === 'back' ? 2
         : (typeof f === 'number' && isFinite(f)) ? clamp(f, -2, 2) : 1)(raw.facing),
-      pose: raw.pose || {},
-      expression: raw.expression || {},
+      pose: { ...(preset.pose || {}), ...(raw.pose || {}) },
+      expression: { ...(preset.expression || {}), ...(raw.expression || {}) },
+      // hunch: 0..1 forward stoop (true = 1), added to bend/headTilt in computeFigure
+      hunch: (v => v === true ? 1 : (typeof v === 'number' && isFinite(v) ? clamp(v, 0, 1) : 0))(raw.hunch != null ? raw.hunch : preset.hunch),
+      // mouth: held item drawn at the mouth: cigarette | pipe | toothpick | lollipop
+      mouthItem: (v => typeof v === 'string' && v ? v.toLowerCase() : null)(raw.mouth != null ? raw.mouth : preset.mouth),
       mood: raw.mood || preset.mood || 'neutral',
+      // collar (dogs): a colour, or false for none
+      collar: (v => v === false || v === 'none' ? null : typeof v === 'string' ? v : '#d9534f')(raw.collar != null ? raw.collar : preset.collar),
       seed: (i + 1) * 0.731,
-      wobble: STICK.parseWobble(raw.wobble, sceneWobble != null ? sceneWobble : STICK.DEFAULT_WOBBLE, warn),
+      face: STICK.parseFace(raw.face, STICK.parseFace(preset.face, STICK._sceneFace || 'cartoon'), warn),
+      wobble: STICK.parseWobble(raw.wobble != null ? raw.wobble : preset.wobble, sceneWobble != null ? sceneWobble : STICK.DEFAULT_WOBBLE, warn),
     };
+    if (fig.mouthItem && !MOUTH_ITEMS.includes(fig.mouthItem)) { warn(`unknown mouth "${fig.mouthItem}" — use ${MOUTH_ITEMS.join('/')}`); fig.mouthItem = null; }
     if (!STICK.presets.moods[fig.mood]) { warn(`unknown mood "${fig.mood}" — using neutral`); fig.mood = 'neutral'; }
     return fig;
   };
@@ -271,7 +319,9 @@
   }
 
   /* The pure pose function: figure state at time t, in local coords + transform. */
+  STICK._fig = { ik2, activeLoco, blinkAmt, rand01 }; // shared with dog.js
   STICK.computeFigure = function (rt, fig, t) {
+    if (fig.kind === 'dog') return STICK.computeDog(rt, fig, t);
     const ch = rt.ch, id = fig.id;
     const g = STICK.geom(fig);
     const ag = ageOf(fig);
@@ -288,6 +338,12 @@
     const faceShow = clamp(1 - Math.max(0, at - 90) / 90, 0, 1);   // face fades to blank by the back
     let bend = get('bend'), lean = get('lean'), headTilt = get('headTilt');
     bend += ag.stoop; headTilt += ag.stoop * 0.6; // elderly stoop a little; kid/adult = 0
+    // hunch: a habitual forward stoop, added on top of mood/pose tweens; stacked with the
+    // elderly stoop but capped so the two together never get grotesque
+    if (fig.hunch) {
+      const hb = Math.min(ag.stoop + fig.hunch * 0.14, 0.2), ht = Math.min(ag.stoop * 0.6 + fig.hunch * 0.09, 0.12);
+      bend += hb - ag.stoop; headTilt += ht - ag.stoop * 0.6;
+    }
     const stanceW = get('stanceW');
     const wSit = clamp(get('sit'), 0, 1), wCr = clamp(get('crouch'), 0, 1), wLie = clamp(get('lie'), 0, 1);
 

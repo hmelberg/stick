@@ -72,6 +72,7 @@ applies constraints (pinned feet, reaching hands) with two-bone IK.
 | `js/commands.js` | every JSON command, expanded into tweens |
 | `js/figure.js` | skeleton math, gait, IK, idle life |
 | `js/styles.js` | the three visual styles (ink / sketch / toon), faces, mitten hands |
+| `js/dog.js` | the dog (`"kind": "dog"`): four-legged skeleton, gait, tail/ear moods, its drawing |
 | `js/scene.js` | scenery, themes, anchors, point resolution |
 | `js/presets.js` | durations, moods, characters, built-in clips, themes |
 | `js/examples.js` | bundled example scenes |

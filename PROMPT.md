@@ -32,6 +32,7 @@ The goal is clear cartoon storytelling, not realism. Prefer semantic commands
   "figures": [ ... ],
   "objects": [ ... ],
   "clips": { ... },
+  "characters": { ... },
   "timeline": [ ... ]
 }
 ```
@@ -41,7 +42,7 @@ The goal is clear cartoon storytelling, not realism. Prefer semantic commands
 - viewBox is `0 0 100 100`; y grows downward.
 - The **floor is at y = 70**. A standing figure's `pos` is the point on the
   ground between its feet, so standing figures have `"pos": {"x": ..., "y": 70}`.
-- Default figure height is 20 units (kids 13, with a proportionally bigger head).
+- Default figure height is 25 units (kids 16, with a proportionally bigger head). A sitting figure's seat top is at about `y = 64.5` for floor 70 (a bench/chair/log top at 64.5 fits a default-height figure). Held props scale with the holder's height automatically.
 
 ## Visual styles
 
@@ -66,7 +67,7 @@ All three render the same skeleton, so every command works in every style.
   "style": "sketch",
   "archetype": ["man"],
   "mood": "neutral",
-  "height": 20,
+  "height": 25,
   "color": "#2a2a35",
   "bodyColor": "#b9cfe4",
   "hair": "short",
@@ -77,7 +78,7 @@ All three render the same skeleton, so every command works in every style.
 
 - `facing`: `front` | `left` | `right` | `back` | a number −2..2 (0 = front, ±1 = full side, ±2 = back). Full 360°: `front` faces the viewer (arms & legs face us); side for walking/writing; `back` shows the back of the head (face hidden, hat/hair kept) — e.g. a professor writing on the board. The `turn` command tweens smoothly through the in-between angles: `{ "cmd": "turn", "target": "prof", "args": { "to": "back" } }` to turn to the board, `{ "to": "front" }` to address the class. Walking always reads as side.
 - `archetype`: `man` | `woman` | `kid` | `person` (sets height defaults). Everyone is **bald by default** — add `hair` to give it.
-- `character`: `professor` (glasses) | `student` | `dancer` (fedora) — stronger presets.
+- `character`: a named bundle of figure fields (your own fields still win). Built in: `professor` (glasses, tall) | `student` (bored) | `dancer` (fedora), plus the **cast** below. Define your own in the top-level `characters` (see below). Unknown names warn. Characters are only used when you name them — figures without `character` stay plain generic figures.
 - `age` (optional): `kid` | `adult` (default) | `elderly` — changes how the figure **moves**,
   not its size. `kid` = short quick steps, high knees, big bouncy arm swing; `elderly` = short
   shuffle, low feet, small arm swing, a slight stoop. Accepts a number too (`"age": 8`). The
@@ -106,13 +107,37 @@ All three render the same skeleton, so every command works in every style.
   generic figures) so a crowd doesn't all sound the same — set `voice` only when
   you want a specific character to sound a particular way.
 - `hair`: `none` (default) | `short` | `tuft` | `long` (long, curled — good for women/girls) | `bun` | `sides`. Also `glasses: true`, `hat: "fedora"`.
-- `beard`: `true` (full) | `"full"` | `"goatee"` | `"stubble"` — facial hair (default none).
+- `beard`: `true` (full) | `"full"` | `"goatee"` | `"stubble"` | `"moustache"` — facial hair (default none). More values: `hair: "quiff"`, `hat: "cap"` / `"beanie"`.
+- `hunch`: `0..1` (`true` = 1) habitual forward stoop of back and head; survives mood/pose changes and stacks (capped) with an elderly `age`.
+- `mouth`: an item held in the mouth — `"cigarette"` | `"pipe"` | `"toothpick"` | `"lollipop"` (default none).
 - `body` (optional): `full` (default) or `bust` — a **floating head + neck + arms** with no
   torso/legs, e.g. a talking-head professor that gestures while explaining. `bust: true` works too.
   Position it with `pos` (a bust usually sits higher, e.g. `"pos": { "y": 45 }`); pair it with
   `camera.focus { on: "id.face" }` for an expressive close-up.
+**The cast** (use `character` to cast by personality; set `id` yourself; any field can still be overridden):
+- `pip` — small, bouncy kid: big head, tuft, always happy and fidgety. Excitable, curious, comic relief.
+- `mo` — tall, slouched, long hair, bored and unbothered. Deadpan, sarcastic, the reluctant friend.
+- `bea` — medium, bun and glasses, cheerful. Warm, bookish, helpful; the organiser or teacher.
+- `gus` — a bit short, cap, moustache, pipe; calm and still. Gruff, laconic, practical; the old hand.
+- `zed` — medium-tall, quiff, goatee, cigarette, proud. Cocky, swaggering; the show-off or rival.
+- `nan` — elderly, small, bun and glasses, stooped, happy and slow-spoken. Kind, wise, mischievous grandparent.
+- `rex` — a **dog** (see *Dog* below): happy, eager, tail always going. The loyal sidekick who reacts to everything.
+
+**Your own characters:** declare them once at the top level and reuse by name — same fields as a figure (no `id`/`pos`), optional `"extends"` to start from another character. A name that matches a built-in replaces it for this document:
+`"characters": { "boss": { "hat": "fedora", "beard": "full", "hunch": 0.3, "height": 27 }, "intern": { "extends": "pip", "hat": "cap" } }` then `{ "id": "b", "character": "boss" }`.
+
 - Engine adds idle life automatically (breathing, sway, blinking) based on mood.
 - `wobble` sets how restless a figure is at rest (idle sway + the sketch style's line boil): a number 0–2 or `"none"`/`"low"`/`"medium"`/`"high"`. Default `0.6`; `0` is perfectly still, `1` is lively. Set it per figure, or for everyone with `"scene": { "wobble": 0.3 }`.
+
+### Dog
+A dog is a figure with `"kind": "dog"` — or cast the built-in `rex` (`{ "id": "rex", "character": "rex", "pos": { "x": 60, "y": 70 } }`: happy, eager, restless). Same hand-drawn look, four legs, big eyes, flop ears, a tail and a collar.
+- Fields: `id`, `pos` (ground point under the body), `facing`, `mood`, `height` (top of the head when standing; default 12.5 = half a person), `color`, `style`, `face`, `wobble`, `expression`, `pose.base` (`stand` | `sit` | `lie` | `sleep` | `crouch`), `collar` (a colour, or `false`). Human-only fields (`hair`, `hat`, `glasses`, `beard`, `mouth`, `hunch`, `age`, `body`) are ignored.
+- **The mood is the performance.** A dog shows feeling with its tail and ears first: `happy` = high fast wag + panting tongue · `ecstatic` = the whole back end wiggles · `proud` = tail straight up · `surprised`/`thinking`/`confused` = ears pricked · `angry` = stiff tail, ears forward · `sad`/`worried` = tail down, ears low · `scared` = tail tucked, ears pinned, shivering · `sleepy`/`bored` = slow and droopy. All the moods work.
+- **Works:** `move` (`walk` = trot, `run` = gallop; always side-on), `hop`, `mood`, `expression`, `lookAt`, `say`, `think`, `emote`, `blink`, `burst`, `facing`/`turn`, `pose.tween` (`base`, `bend`, `lean`, `headTilt`, `tilt`), `wait`, every `camera.*` (`"rex"`, `"rex.face"`), anchors (`"rex.head"`, `"rex.chest"`).
+- **Carrying (fetch):** `give`/`pickUp`/`drop`/`throw`/`handOff` work — the prop is held **in the mouth** (`hand` is ignored). `move` to a prop (`"to": "ana_ball"`, or to the spot where it lies) stops with the nose over it; `pickUp` dips the head and grabs it; `handOff` to/from a person passes mouth ↔ hand, so stand them close.
+- **Dog clips** (`playClip`): `wag` · `bark` (pair it with `say "Woof!"` at `"<"`; it plays the `woof` sfx) · `beg` (sits up, paws dangling) · `playBow` (front down, rump up: "play with me!") · `tiltHead` (the puzzled head tilt) · `nod` · `hopJoy`. Fine control, rarely needed: `{ "cmd": "dog", "args": { "wag": 0..2, "tail": -1..1, "ears": -1..1, "beg": 0..1, "bow": 0..1, "cock": -1..1 } }` (tail/ears are offsets on the mood; set them back to 0 afterwards).
+- **Does not work** (warns once, skipped): `joints`, `raiseArm`/`lowerArm`, `liftLeg`/`lowerLeg`, `point`, `reachTo`, `pin`, `hands`, and the human clips (`wave`, `bow`, `shrugOnce`, …).
+- **Casting:** the dog is the sidekick — it rarely drives the plot, it *reacts* to it. While the people talk, give it small beats with `"at": "<"`: a `mood` change, a `think` bubble (dogs think in short words: `"Ball?"`, `"Walk?!"`), a `tiltHead`, an `emote`, the odd `"Woof!"`. It can carry lines with `say` too if the story wants a talking dog. Start it lying down or sitting (`"pose": { "base": "lie" }`) so it has somewhere to go.
 
 ### Pose fields
 - `base`: `stand` | `sit` | `crouch` | `lie` | `sleep` (sleep = lie + eyes closed).
@@ -150,7 +175,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | cmd | args | notes |
 |---|---|---|
 | `move` | `{ "style": "walk\|run\|slide\|moonwalk", "to": {x,y} or "anchor" }` | duration auto from distance if `dur` omitted. Auto-faces travel direction (moonwalk faces backwards). Legs animate automatically. Add `"via": [p1, p2, …]` to walk a **path** through waypoints (a stroll, a detour, an arc). |
-| `hop` | `{ "height": 2.2 }` | small jump in place |
+| `hop` | `{ "height": 2.8 }` | small jump in place (default ≈ 11% of the figure's height) |
 | `mood` | `{ "name": "bored", "animated": true }` | tween to a mood preset. **Intensity:** add `"intensity": 1.5` (1 = preset strength, 0–2.5), or just say it — `{ "name": "very angry" }` / `"slightly sad"` (also `really/super/extremely`, `a bit/mildly`). |
 | `expression` | any expression fields | tween individual face channels |
 | `pose.tween` | any pose fields (`base`, `bend`, `lean`, `headTilt`, `tilt`, `stance`) | smooth pose change |
@@ -168,7 +193,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `think` | `{ "text": "...", "dur": ... }` | silent **thought bubble** (cloud + trailing puffs) — for inner monologue, no speech/mouth. |
 | `emote` | `{ "symbol": "?\|!\|...\|zzz\|heart\|music\|sparkle\|idea" }` | floating symbol above head |
 | `burst` | `{ "count": 18, "color": ["#e0533a","#3a86e0"] }` | confetti / particle burst — tiny shapes fan out, arc, and fade. With a figure `target` it bursts over the head; or `{ "at": point }`. `spread` widens the fan. |
-| `sfx` | `{ "name": "boing" }` | play a synth sound effect when the viewer turns **sound** on (also captured into WebM export). Names: `pop` `click` `ding` `bell` `boing`/`bounce` `thud` `whoosh` `swoosh` `zap` `laser` `pluck`/`beep` `coin`/`success` `buzz`/`fail`. Pair with `hop`, `throw`, `camera.shake`, `burst` using `"at": "<"`. |
+| `sfx` | `{ "name": "boing" }` | play a synth sound effect when the viewer turns **sound** on (also captured into WebM export). Names: `pop` `click` `ding` `bell` `boing`/`bounce` `thud` `whoosh` `swoosh` `zap` `laser` `pluck`/`beep` `coin`/`success` `buzz`/`fail` `woof`/`bark`. Pair with `hop`, `throw`, `camera.shake`, `burst` using `"at": "<"`. |
 | `scene.caption` | `{ "text": "...", "dur": "slow" }` | narrator text at the bottom |
 | `playClip` | `{ "name": "wave", "repeat": 2 }` | run a clip |
 | `wait` | — (use `dur`) | beat of stillness |
@@ -185,7 +210,7 @@ Each event: `{ "at": ..., "target": "figId", "cmd": "...", "dur": "...", "args":
 | `scene.fade` / `scene.cut` | `{ "to": "street" }` or `{ "bg": "#...", "elements": [...] }` | change the backdrop (new setting) — fade for a soft transition, cut for instant |
 | `scene.tint` | `{ "to": "sunset" }` or `{ "color": "#ff7a3d", "amount": 0.3 }` | full-frame colour wash (time-of-day / mood). Presets: `sunset` `dawn` `dusk` `night` `day` `alert` `dream` `cold` `warm` `spooky`. `scene.untint` clears it. |
 | `arrow` (alias `connect`) | `{ "from": ..., "to": ..., "color": "#3a86e0" }` | draw an arrow/connector between two anchors (points, `figId.head`, object/board ids). Becomes an object (give it an `id` to recolour/hide). `twoWay`, `width`, `head` size; a `dur` fades it in. Endpoints are fixed at creation time. |
-| `give` (alias `hold`) | `{ "prop": "apple", "hand": "right" }` | put a prop in a hand — it then **follows the hand**. `prop` is a library name or an existing object id. The arm eases to a holding pose. Options: `scale`, `color`, `follow` (force/forbid arm-rotation), `angle` (fixed aim). `hand: "both"` holds it **two-handed** (at the midpoint of both hands, oriented along the hand line) — good for a `box`, `banner`, `sign`. |
+| `give` (alias `hold`) | `{ "prop": "apple", "hand": "right" }` | put a prop in a hand — it then **follows the hand**. `prop` is a library name or an existing object id. The arm eases to a holding pose. Options: `scale` (1 = natural size for this holder; props already scale with the holder's height), `color`, `follow` (force/forbid arm-rotation), `angle` (fixed aim). `hand: "both"` holds it **two-handed** (at the midpoint of both hands, oriented along the hand line) — good for a `box`, `banner`, `sign`. |
 | `drop` (alias `putDown`) | `{ "hand": "right", "to": "ground" }` | release the held prop; it stays where dropped, or settles to a point / `"ground"`. |
 | `throw` | `{ "hand": "right", "to": "bob.chest", "spin": 2 }` | toss the held prop along an arc to a target (point/anchor), with spin. `height` controls the arc. |
 | `pickUp` | `{ "object": "ann_ball", "hand": "right" }` | reach to a prop already on stage (by object id or point) and grab it. |
@@ -383,7 +408,7 @@ Example — a professor teaching:
 
 1. Open with a `scene.caption` to set context; keep total length ~10–30 s.
 2. Sequential by default; use `"at": "<"` when two characters react simultaneously.
-3. Let `move` compute its own duration. Walk distances of 20–50 units read well.
+3. Let `move` compute its own duration. Walk distances of 25–55 units read well.
 4. One emotional beat at a time: mood → gesture/clip → say. Don't stack 5 things at once.
 5. Use `say` for dialogue, `scene.caption` for narration, `emote` for inner state.
 6. Prefer clips & semantic commands; drop to `joints` only for special choreography.
