@@ -301,9 +301,9 @@
       const sc = bd.scene;
       mk('rect', { x: -300, y: -300, width: 700, height: 700, fill: sc.bg }, g);
       if (sc.floor) mk('line', { x1: -300, y1: sc.floorY, x2: 400, y2: sc.floorY, stroke: '#c9bfae', 'stroke-width': 0.35 }, g);
-      for (const el of sc.elements) STICK.drawSceneElement(el, g, sc.ink);
+      for (const el of sc.elements) if (el.layer !== 'front') STICK.drawSceneElement(el, g, sc.ink);
       if (i > 0) g.style.opacity = '0';
-      dom.backdrops.push({ g, t0: bd.t0, fade: bd.fade });
+      dom.backdrops.push({ g, t0: bd.t0, fade: bd.fade, scene: sc, front: null });
     });
 
     // content layers sit above the backdrops
@@ -311,6 +311,14 @@
     dom.shadowG = mk('g', {}, dom.cam); // contact shadows, behind the figures
     dom.layers.fig = mk('g', {}, dom.cam);
     dom.layers.front = mk('g', {}, dom.cam);
+    // scenery marked layer:"front" goes above the figures (a counter, a fence, water);
+    // one group per backdrop so it crossfades with the rest of its scene
+    for (const bd of dom.backdrops) {
+      const els = bd.scene.elements.filter(el => el.layer === 'front');
+      if (!els.length) continue;
+      bd.front = mk('g', {}, dom.layers.front);
+      for (const el of els) STICK.drawSceneElement(el, bd.front, bd.scene.ink);
+    }
     dom.layers.bubbles = mk('g', {}, dom.cam);
     // full-frame colour wash (time-of-day / mood), in screen space over the scene
     dom.tint = mk('rect', { x: view.x, y: view.y, width: view.w, height: view.h, fill: '#000', opacity: 0, 'pointer-events': 'none' }, svg);
@@ -600,8 +608,11 @@
         if (next) aOut = next.fade > 0 ? Math.max(0, Math.min(1, (next.t0 + next.fade - t) / next.fade)) : (t < next.t0 ? 1 : 0);
         op = Math.max(0, Math.min(aIn, aOut));
       }
-      cur.g.style.opacity = op.toFixed(3);
-      cur.g.style.display = op <= 0.001 ? 'none' : '';
+      for (const g of [cur.g, cur.front]) {
+        if (!g) continue;
+        g.style.opacity = op.toFixed(3);
+        g.style.display = op <= 0.001 ? 'none' : '';
+      }
     }
 
     if (!state.scrubbing) $('scrub').value = String(Math.round((t / rt.duration) * 1000));
