@@ -446,8 +446,9 @@
       const id = '_burst' + rt.objs.size + '_' + i;
       const shape = i % 3 === 0 ? 'rect' : 'circle', fill = palette[i % palette.length];
       const props = shape === 'rect' ? { x: -sz, y: -sz * 0.7, w: sz * 2, h: sz * 1.3, fill } : { cx: 0, cy: 0, r: sz, fill };
-      const obj = { id, shape, layer: 'front', props, hidden: false, directional: false, baseAngle: 0, opacity: 1, pivot: { x: 0, y: 0 } };
+      const obj = { id, shape, layer: 'front', props, hidden: true, directional: false, baseAngle: 0, opacity: 1, pivot: { x: 0, y: 0 } };
       rt.objs.set(id, obj); STICK.initObjectChannels(rt, obj);
+      rt.ch.set(id + '.opacity', ctx.t0, 1); // hidden until the burst fires (they wait at the origin)
       const ex = at.x + Math.cos(ang) * sp, up = -Math.sin(ang) * sp;
       rt.ch.set(id + '.tx', ctx.t0, at.x); rt.ch.set(id + '.ty', ctx.t0, at.y);
       rt.ch.tween(id + '.tx', ctx.t0, dur, ex, EASE.out);
