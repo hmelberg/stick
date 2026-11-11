@@ -74,16 +74,40 @@
   const SPEED = { walk: 11, run: 26, slide: 22, moonwalk: 7.5 };
 
   const H = {};
+  const isDog = fig => !!fig && fig.kind === 'dog';
+  // commands that drive a human skeleton: a dog warns once per name and skips them
+  const HUMAN_ONLY = { joints: 1, raiseArm: 1, lowerArm: 1, liftLeg: 1, lowerLeg: 1, point: 1, reachTo: 1, pin: 1, hands: 1 };
+  const warnOnce = (rt, key, msg) => {
+    const seen = rt._warned || (rt._warned = new Set());
+    if (!seen.has(key)) { seen.add(key); rt.warn(msg); }
+  };
 
   /* ------------------------------ movement ------------------------------ */
   H.move = ctx => {
     const fig = figOf(ctx); if (!fig) return 0;
     const rt = ctx.rt, a = ctx.args;
-    const to = STICK.resolvePoint(rt, a.to, ctx.t0);
+    let to = STICK.resolvePoint(rt, a.to, ctx.t0);
     if (!to) { rt.warn('move: missing/unresolvable "to"'); return 0; }
     let style = a.style || 'walk';
     if (!SPEED[style]) { rt.warn(`unknown move style "${style}" — walking`); style = 'walk'; }
     const x0 = cv(ctx, fig, 'x'), y0 = cv(ctx, fig, 'y');
+    // a dog heading for a prop (by id, or to the spot where one will be lying when it arrives)
+    // stops with its nose over it, ready for pickUp, and stays on its own ground line
+    if (isDog(fig)) {
+      const eta = q => ctx.t0 + (ctx.ev.dur != null || a.dur != null ? durOf(ctx, 1) : clamp(Math.hypot(q.x - x0, q.y - y0) / SPEED[style], 0.35, 8));
+      const at = (o, t) => ({ x: o.pivot.x + rt.ch.get(o.id + '.tx', t), y: o.pivot.y + rt.ch.get(o.id + '.ty', t) });
+      const hh = fig.height, named = typeof a.to === 'string' && rt.objs.get(a.to);
+      if (named) { const q = at(named, eta(to)); to = { x: q.x, y: Math.abs(q.y - y0) < 1.2 * hh ? y0 : q.y }; }
+      const tEnd = eta(to);
+      for (const o of rt.objs.values()) {
+        if (o.id[0] === '_' || rt.ch.getDef(o.id + '.opacity', tEnd, 1) < 0.05) continue;
+        if (rt.grips.some(gr => gr.obj === o.id && tEnd >= gr.t0 && tEnd < gr.t1)) continue; // someone is holding it
+        const q = at(o, tEnd);
+        if (o !== named && !(rt.grips.some(gr => gr.obj === o.id) && Math.abs(q.x - to.x) < 0.45 * hh && q.y > to.y - 0.9 * hh && q.y < to.y + 0.3 * hh)) continue;
+        to = { x: q.x - (q.x >= x0 ? 1 : -1) * STICK.dogReach(fig), y: to.y };
+        break;
+      }
+    }
     // optional `via` waypoints -> a polyline path: start -> via... -> to
     const via = Array.isArray(a.via) ? a.via.map(p => STICK.resolvePoint(rt, p, ctx.t0)).filter(Boolean) : [];
     const pts = [{ x: x0, y: y0 }, ...via, to];
@@ -113,7 +137,7 @@
   H.hop = ctx => {
     const fig = figOf(ctx); if (!fig) return 0;
     const dur = durOf(ctx, 0.55);
-    const hgt = num(ctx.args.height, 2.2);
+    const hgt = num(ctx.args.height, (isDog(fig) ? 0.3 : 0.11) * fig.height); // default hop = 11% of height (2.2 at 20); a dog jumps higher for its size
     const y0 = cv(ctx, fig, 'y');
     const up = dur * 0.45;
     tw(ctx, fig, 'y', ctx.t0, up, y0 - hgt, EASE.out);
@@ -713,7 +737,18 @@
     if ((ctx.depth || 0) > 4) { rt.warn('clips nested too deep'); return 0; }
     const name = ctx.args.name || ctx.args.clip || ctx.ev.clip;
     const userClips = (rt.doc && rt.doc.clips) || {};
-    const clip = userClips[name] || STICK.presets.clips[name];
+    // a dog has its own built-in clips; the human ones (and vice versa) warn and are skipped
+    const tfig = ctx.targetId != null ? rt.figs.get(String(ctx.targetId)) : (rt.figs.size === 1 ? rt.figs.values().next().value : null);
+    const dogClips = STICK.presets.dogClips || {};
+    let clip = userClips[name];
+    if (!clip && isDog(tfig)) {
+      clip = dogClips[name];
+      if (!clip && STICK.presets.clips[name]) { warnOnce(rt, 'clip:' + name, `clip "${name}" is not available for a dog — skipped (dog clips: wag, bark, beg, playBow, tiltHead, nod)`); return 0; }
+    } else if (!clip) {
+      clip = STICK.presets.clips[name];
+      if (!clip && dogClips[name] && tfig) { warnOnce(rt, 'dogclip:' + name, `clip "${name}" is only for a dog — skipped`); return 0; }
+      if (!clip && dogClips[name]) clip = dogClips[name]; // no figure target: let the sub-events report it
+    }
     if (!Array.isArray(clip)) { rt.warn(`unknown clip "${name}"`); return 0; }
     const repeat = clamp(Math.round(num(ctx.args.repeat, 1)), 1, 30);
     let tCur = ctx.t0;
@@ -723,6 +758,23 @@
       tCur = Math.max(tCur + 0.02, local.end);
     }
     return tCur - ctx.t0;
+  };
+
+  /* dog: tween the dog-only channels. wag 0..2 (extra wagging on top of the mood),
+     tail / ears −1..1 (offsets on the mood's tail height / ear set), beg / bow 0..1
+     (sit up and beg / play bow), cock −1..1 (head tilt), bark 0..1 (a bark's body jolt). */
+  const DOG_CH = { wag: ['wagAdd', 0, 2], tail: ['tailAdd', -2, 2], ears: ['earAdd', -2, 2], beg: ['beg', 0, 1], bow: ['bow', 0, 1], cock: ['cock', -1, 1], bark: ['bark', 0, 1] };
+  H.dog = ctx => {
+    const fig = figOf(ctx); if (!fig) return 0;
+    if (!isDog(fig)) { warnOnce(ctx.rt, 'dogcmd', `cmd "dog" only works on a dog ("kind": "dog") — skipped for "${fig.id}"`); return 0; }
+    const dur = durOf(ctx, DUR.quick), ease = easeOf(ctx, EASE.inOut);
+    for (const k in ctx.args) {
+      if (k === 'dur' || k === 'ease') continue;
+      const c = DOG_CH[k];
+      if (!c) { ctx.rt.warn(`unknown dog field "${k}" — use wag, tail, ears, beg, bow, cock`); continue; }
+      if (typeof ctx.args[k] === 'number') tw(ctx, fig, c[0], ctx.t0, dur, clamp(ctx.args[k], c[1], c[2]), ease);
+    }
+    return dur;
   };
 
   /* ------------------------------ objects ------------------------------
@@ -1019,10 +1071,10 @@
   H.give = H.hold = ctx => {
     const fig = figOf(ctx); if (!fig) return 0;
     const a = ctx.args;
-    const hand = handOf(a.hand) || 'R';
+    const hand = isDog(fig) ? 'R' : handOf(a.hand) || 'R'; // a dog carries it in its mouth
     const ref = a.prop != null ? a.prop : a.object;
     if (ref == null) { ctx.rt.warn('give: missing "prop"'); return 0; }
-    const popts = { figId: fig.id, scale: a.scale, color: a.color, id: a.id };
+    const popts = { figId: fig.id, scale: a.scale, color: a.color, id: a.id, holderScale: fig.height / STICK.PROP_REF_HEIGHT };
     let obj;
     if (typeof ref === 'object') obj = STICK.makePropDef(ctx.rt, ref, popts);          // inline custom prop
     else obj = ctx.rt.objs.get(String(ref)) || STICK.makeProp(ctx.rt, String(ref), popts); // existing id or library
@@ -1036,7 +1088,7 @@
 
   H.drop = H.putDown = ctx => {
     const fig = figOf(ctx); if (!fig) return 0;
-    const a = ctx.args, hand = handOf(a.hand);
+    const a = ctx.args, hand = isDog(fig) ? 'R' : handOf(a.hand);
     const grip = openGrip(ctx.rt, fig.id, hand, ctx.t0);
     if (!grip) { ctx.rt.warn('drop: nothing held'); return 0; }
     grip.t1 = ctx.t0;
@@ -1060,7 +1112,7 @@
 
   H.throw = ctx => {
     const fig = figOf(ctx); if (!fig) return 0;
-    const a = ctx.args, hand = handOf(a.hand);
+    const a = ctx.args, hand = isDog(fig) ? 'R' : handOf(a.hand);
     const grip = openGrip(ctx.rt, fig.id, hand, ctx.t0);
     if (!grip) { ctx.rt.warn('throw: nothing held'); return 0; }
     const to = STICK.resolvePoint(ctx.rt, a.to, ctx.t0);
@@ -1092,7 +1144,7 @@
 
   H.pickUp = ctx => {
     const fig = figOf(ctx); if (!fig) return 0;
-    const a = ctx.args, hand = handOf(a.hand) || 'R';
+    const a = ctx.args, hand = isDog(fig) ? 'R' : handOf(a.hand) || 'R';
     const ref = a.object != null ? a.object : a.prop;
     const obj = (ref != null && typeof ref !== 'object') ? ctx.rt.objs.get(String(ref)) : null;
     const to = obj
@@ -1100,6 +1152,19 @@
       : STICK.resolvePoint(ctx.rt, ref, ctx.t0);
     if (!obj || !to) { ctx.rt.warn('pickUp: needs an existing object id on stage'); return 0; }
     const reach = durOf(ctx, DUR.quick);
+    let lead = 0;
+    if (isDog(fig)) { // the mouth has to get there: turn to the prop and shuffle until the nose is over it
+      const x0 = cv(ctx, fig, 'x'), y0 = cv(ctx, fig, 'y');
+      let dir = cv(ctx, fig, 'facing') >= 0 ? 1 : -1;
+      if ((to.x - x0) * dir < 0) { dir = -dir; st(ctx, fig, 'facing', ctx.t0, dir); }
+      const xs = to.x - dir * STICK.dogReach(fig);
+      if (Math.abs(xs - x0) > 0.06 * fig.height) {
+        lead = clamp(Math.abs(xs - x0) / 16, 0.2, 0.9);
+        tw(ctx, fig, 'x', ctx.t0, lead, xs, EASE.sine);
+        ctx.rt.loco.push({ fig: fig.id, t0: ctx.t0, t1: ctx.t0 + lead, style: 'walk', x0, y0 });
+        ctx = Object.assign({}, ctx, { t0: ctx.t0 + lead });
+      }
+    }
     const { w } = handWorldAt(ctx.rt, fig, hand, ctx.t0);
     if (cv(ctx, fig, 'reach' + hand + 'on') < 0.01) { st(ctx, fig, 'reach' + hand + 'x', ctx.t0, w.x); st(ctx, fig, 'reach' + hand + 'y', ctx.t0, w.y); }
     tw(ctx, fig, 'reach' + hand + 'x', ctx.t0, reach, to.x, EASE.inOut);
@@ -1109,20 +1174,31 @@
     ctx.rt.grips.push({ obj: obj.id, fig: fig.id, hand, t0: tGrab, t1: Infinity, follow: null });
     tw(ctx, fig, 'reach' + hand + 'on', tGrab, DUR.quick, 0, EASE.inOut);
     holdPose(ctx, fig.id, hand, tGrab, DUR.quick);
-    return reach + DUR.quick;
+    return lead + reach + DUR.quick;
   };
 
   H.handOff = ctx => {
     const fig = figOf(ctx); if (!fig) return 0;
-    const a = ctx.args, hand = handOf(a.hand);
+    const a = ctx.args, hand = isDog(fig) ? 'R' : handOf(a.hand);
     const grip = openGrip(ctx.rt, fig.id, hand, ctx.t0);
     if (!grip) { ctx.rt.warn('handOff: nothing held'); return 0; }
     const toFig = ctx.rt.figs.get(String(a.to));
     if (!toFig) { ctx.rt.warn('handOff: unknown "to" figure'); return 0; }
-    const toHand = handOf(a.toHand) || 'L';
+    const toHand = isDog(toFig) ? 'R' : handOf(a.toHand) || 'L';
     const dur = durOf(ctx, DUR.quick), tHand = ctx.t0 + dur;
     grip.t1 = tHand;
     ctx.rt.grips.push({ obj: grip.obj, fig: toFig.id, hand: toHand, t0: tHand, t1: Infinity, follow: grip.follow });
+    if ((isDog(fig) || isDog(toFig)) && grip.hand !== 'B' && toHand !== 'B') {
+      // mouth <-> hand: the taker reaches (hand or snout) to where the prop is, then settles back
+      const from = handWorldAt(ctx.rt, fig, grip.hand, ctx.t0).w, own = handWorldAt(ctx.rt, toFig, toHand, ctx.t0).w;
+      const rc = (s, v) => ctx.rt.ch.set(toFig.id + '.reach' + toHand + s, ctx.t0, v);
+      if (ctx.rt.ch.get(toFig.id + '.reach' + toHand + 'on', ctx.t0) < 0.01) { rc('x', own.x); rc('y', own.y); }
+      ctx.rt.ch.tween(toFig.id + '.reach' + toHand + 'x', ctx.t0, dur, from.x, EASE.inOut);
+      ctx.rt.ch.tween(toFig.id + '.reach' + toHand + 'y', ctx.t0, dur, from.y, EASE.inOut);
+      ctx.rt.ch.tween(toFig.id + '.reach' + toHand + 'on', ctx.t0, dur, 1, EASE.inOut);
+      ctx.rt.ch.tween(toFig.id + '.reach' + toHand + 'on', tHand, DUR.quick, 0, EASE.inOut);
+      holdPose(ctx, toFig.id, toHand, tHand, DUR.quick);
+    } else
     holdPose(ctx, toFig.id, toHand, ctx.t0, dur); // receiver reaches into the hold
     ctx.rt.ch.tween(fig.id + '.sh' + grip.hand, tHand, DUR.quick, 8, EASE.inOut); // giver relaxes
     ctx.rt.ch.tween(fig.id + '.el' + grip.hand, tHand, DUR.quick, 8, EASE.inOut);
@@ -1146,6 +1222,10 @@
     const targets = Array.isArray(rawTarget) ? (rawTarget.length ? rawTarget : [null]) : [rawTarget];
     let len = 0;
     for (const tg of targets) {
+      if (HUMAN_ONLY[cmdName]) { // a dog has no arms or human joints: say so once, then skip
+        const tf = tg != null ? rt.figs.get(String(tg)) : (rt.figs.size === 1 ? rt.figs.values().next().value : null);
+        if (isDog(tf)) { warnOnce(rt, 'dog:' + cmdName, `cmd "${cmdName}" is not available for a dog — skipped (use mood, pose.tween base sit/lie, playClip wag/bark/beg/playBow/tiltHead)`); continue; }
+      }
       const ctx = { rt, ev, t0, args: ev.args || {}, targetId: tg != null ? tg : null, depth: depth || 0 };
       try { len = Math.max(len, handler(ctx) || 0); }
       catch (e) { rt.warn(`error in cmd "${cmdName}": ${e.message}`); }

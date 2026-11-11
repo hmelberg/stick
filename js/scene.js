@@ -33,6 +33,7 @@
     const bg = def.bg || theme.bg || '#f7f2e9';
     // Ink (figures, outlines, scene strokes) auto-contrasts the background so a dark
     // scene doesn't swallow the dark stick figures. Authors can still force it.
+    STICK._sceneFace = STICK.parseFace ? STICK.parseFace(def.face, null, warn) : null;
     const scene = {
       bg,
       ink: def.ink || (isDark(bg) ? '#f2efe6' : '#2a2a35'),
@@ -197,6 +198,7 @@
       return { x: h.x - r * 1.7, y: h.y - r * 1.9, w: r * 3.4, h: r * 4.0, tight: true };
     }
     const ps = [P.world.head, P.world.chest, P.world.handL, P.world.handR, P.world.footL, P.world.footR, P.world.pos];
+    if (P.world.extra) ps.push(...P.world.extra); // a dog's tail tip, snout and paws
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const p of ps) { if (!p) continue; if (p.x < x0) x0 = p.x; if (p.y < y0) y0 = p.y; if (p.x > x1) x1 = p.x; if (p.y > y1) y1 = p.y; }
     if (!isFinite(x0)) return null;

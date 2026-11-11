@@ -43,13 +43,25 @@
     person: {},
     man:    {},
     woman:  {},
-    kid:    { height: 13, headScale: 1.35 },               // same head, shorter body
+    kid:    { height: 16, headScale: 1.35 },               // same head, shorter body (default figure = 25)
+    dog:    { kind: 'dog' },                               // same as "kind": "dog"
   };
 
+  /* Characters: named bundles of figure fields (merged under the figure's own).
+     Heights are multiples of the default figure (25). A doc may add/override its own
+     via top-level `characters` (see compile). Optional `extends` names another one. */
   STICK.presets.characters = {
-    professor: { glasses: true, height: 21, mood: 'neutral' }, // bald + glasses (no bald-spot hair)
-    student:   { height: 19, mood: 'bored' },
-    dancer:    { hat: 'fedora', height: 20 },
+    professor: { glasses: true, height: 26, mood: 'neutral' }, // bald + glasses (no bald-spot hair)
+    student:   { height: 24, mood: 'bored' },
+    dancer:    { hat: 'fedora', height: 25 },
+    // the cast — distinct silhouettes and temperaments
+    pip: { height: 16.5, headScale: 1.45, hair: 'tuft', age: 'kid', mood: 'happy', wobble: 1, voice: { gender: 'child' } },          // a small, bouncy kid
+    mo:  { height: 28.75, hair: 'long', hunch: 0.5, mood: 'bored', wobble: 0.3, voice: { gender: 'male', pitch: 'low', rate: 'slow' } },                           // tall, slouchy, unbothered
+    bea: { height: 23.75, hair: 'bun', glasses: true, mood: 'happy', voice: { gender: 'female' } },                                      // warm, bookish, upbeat
+    gus: { height: 23, hat: 'cap', beard: 'moustache', mouth: 'pipe', mood: 'neutral', wobble: 0.3, voice: { gender: 'male', pitch: 'low', rate: 'slow' } },    // stocky, calm, pipe-smoking
+    zed: { height: 26.25, hair: 'quiff', beard: 'goatee', mouth: 'cigarette', mood: 'proud', voice: { gender: 'male', rate: 'fast' } },              // cocky, swaggering
+    rex: { kind: 'dog', mood: 'happy', wobble: 0.8, voice: { pitch: 'high', rate: 'fast' } },                                              // the dog: eager, loyal sidekick
+    nan: { height: 21.25, hair: 'bun', glasses: true, hunch: 1, age: 'elderly', mood: 'happy', voice: { gender: 'female', rate: 'slow' } },            // elderly, sweet, stooped
   };
 
   /* Built-in clips, written in the same event language users write.
@@ -98,7 +110,7 @@
     ],
     hopJoy: [
       { cmd: 'joints', dur: 'veryFast', args: { shoulderL: 160, shoulderR: 160, elbowL: 10, elbowR: 10 } },
-      { at: '<', cmd: 'hop', args: { height: 2.4, dur: 0.55 } },
+      { at: '<', cmd: 'hop', args: { dur: 0.55 } },
       { cmd: 'joints', dur: 'fast', args: { shoulderL: 0, shoulderR: 0, elbowL: 8, elbowR: 8 } },
     ],
     facepalm: [
@@ -150,6 +162,44 @@
       { at: '<', cmd: 'pose.tween', dur: 'normal', args: { headTilt: 0.08, bend: 0.06 } },
     ],
   };
+  /* Dog clips: what playClip uses when the target is a dog (kind: "dog"). The `dog`
+     command tweens the dog-only channels: wag, tail, ears, beg, bow, cock. */
+  STICK.presets.dogClips = {
+    wag: [
+      { cmd: 'dog', dur: 'fast', args: { wag: 1.6, tail: 0.35 } },
+      { cmd: 'wait', dur: 1.3 },
+      { cmd: 'dog', dur: 'quick', args: { wag: 0, tail: 0 } },
+    ],
+    bark: [
+      { cmd: 'sfx', args: { name: 'woof' } }, // (the longest of a "<" group goes last: it sets where the next event starts)
+      { at: '<', cmd: 'expression', dur: 0.08, args: { mouthOpen: 0.95 } },
+      { at: '<', cmd: 'pose.tween', dur: 0.1, args: { headTilt: -0.15 } },
+      { at: '<', cmd: 'dog', dur: 0.1, args: { ears: 0.45, bark: 1 } },
+      { cmd: 'wait', dur: 0.06 },
+      { cmd: 'expression', dur: 0.16, args: { mouthOpen: 0.06 } },
+      { at: '<', cmd: 'pose.tween', dur: 0.22, args: { headTilt: 0 } },
+      { at: '<', cmd: 'dog', dur: 0.22, args: { ears: 0, bark: 0 } },
+      { cmd: 'wait', dur: 0.1 },
+    ],
+    beg: [
+      { cmd: 'dog', dur: 'quick', args: { beg: 1, wag: 0.6 } },
+      { cmd: 'wait', dur: 1.6 },
+      { cmd: 'dog', dur: 'quick', args: { beg: 0, wag: 0 } },
+    ],
+    playBow: [
+      { cmd: 'dog', dur: 'fast', args: { bow: 1, wag: 1.5, tail: 0.5 } },
+      { cmd: 'wait', dur: 'normal' },
+      { cmd: 'dog', dur: 'fast', args: { bow: 0, wag: 0, tail: 0 } },
+    ],
+    tiltHead: [
+      { cmd: 'dog', dur: 'fast', args: { cock: 1, ears: 0.35 } },
+      { cmd: 'wait', dur: 'normal' },
+      { cmd: 'dog', dur: 'fast', args: { cock: 0, ears: 0 } },
+    ],
+    nod: STICK.presets.clips.nod,
+    hopJoy: [{ cmd: 'hop', args: { dur: 0.55 } }],
+  };
+
   STICK.presets.clips.clap = STICK.presets.clips.clapOnce;
   STICK.presets.clips.shrug = STICK.presets.clips.shrugOnce;
 
