@@ -532,24 +532,27 @@
   // Compute a {cx,cy,z} framing that fits a target: an explicit rect (a region/
   // "section"), a board, or a figure / figure.face / figure.head (auto-fit to its
   // bounds). Returns null when there's no fittable box (caller uses a point+scale).
-  const frameBox = (box, pad) => ({
-    cx: box.x + box.w / 2, cy: box.y + box.h / 2,
-    z: clamp((100 - 2 * pad) / Math.max(box.w, box.h), 0.2, 8),
-  });
+  const frameBox = (box, pad, view) => {
+    const v = view || { w: 100, h: 100 };
+    return {
+      cx: box.x + box.w / 2, cy: box.y + box.h / 2,
+      z: clamp(Math.min((v.w - 2 * pad) / box.w, (v.h - 2 * pad) / box.h), 0.2, 8),
+    };
+  };
   function cameraFrame(rt, a, t) {
     if (a.rect && typeof a.rect === 'object') {
       const r = a.rect;
       const box = { x: num(r.x, 0), y: num(r.y, 0), w: Math.max(1, num(r.w, 1)), h: Math.max(1, num(r.h, 1)) };
-      return frameBox(box, num(a.pad, 6));
+      return frameBox(box, num(a.pad, 6), rt.view);
     }
     const id = a.on != null ? a.on : a.target != null ? a.target : a.to;
     if (id == null || typeof id === 'number') return null;
     const board = rt.boards.get(String(id));
-    if (board) { const r = board.rect; return frameBox({ x: r.x, y: r.y, w: r.w, h: r.h }, num(a.pad, 6)); }
+    if (board) { const r = board.rect; return frameBox({ x: r.x, y: r.y, w: r.w, h: r.h }, num(a.pad, 6), rt.view); }
     // figures auto-fit to their bounds, unless the author forces an explicit scale
     if (a.scale == null) {
       const b = STICK.figureBounds(rt, id, t);
-      if (b) return frameBox(b, num(a.pad, b.tight ? 4 : 8));
+      if (b) return frameBox(b, num(a.pad, b.tight ? 4 : 8), rt.view);
     }
     return null;
   }
@@ -1130,6 +1133,7 @@
   STICK.expandEvent = function (rt, ev, cur, inheritTarget, depth) {
     if (!ev || typeof ev !== 'object') { rt.warn('skipped non-object timeline entry'); return; }
     const cmdName = ev.cmd || (ev.clip ? 'playClip' : null);
+    if (typeof cmdName === 'string' && cmdName.indexOf('camera.') === 0) rt.usesCamera = true; // disables default auto-framing
     const t0 = resolveAt(ev.at, cur, rt);
     const handler = H[cmdName];
     if (!handler) {

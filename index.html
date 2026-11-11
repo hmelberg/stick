@@ -95,22 +95,22 @@
     display: flex; flex-direction: column; gap: 10px;
   }
   #stageWrap {
-    width: 100%; aspect-ratio: 1;
+    width: 100%; aspect-ratio: var(--aspect, 1); max-height: 88vh; /* --aspect set by rebuildStage (scene.aspect) */
     display: flex; align-items: center; justify-content: center;
     background: #101116; border-radius: 10px;
   }
   #stage {
-    width: 100%; height: 100%; max-width: 100%; max-height: 100%; aspect-ratio: 1;
+    width: 100%; height: 100%; max-width: 100%; max-height: 100%; aspect-ratio: var(--aspect, 1);
     border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,0.5);
   }
   /* fullscreen: stage fills the screen (user toggles via the ⛶ button) */
   #stageWrap:fullscreen,
   #stageWrap:-webkit-full-screen {
-    width: 100vw; height: 100vh; max-width: none; aspect-ratio: auto; border-radius: 0;
+    width: 100vw; height: 100vh; max-width: none; max-height: none; aspect-ratio: auto; border-radius: 0;
   }
   #stageWrap:fullscreen #stage,
   #stageWrap:-webkit-full-screen #stage {
-    width: auto; height: 100%; max-height: 100vh; aspect-ratio: 1; border-radius: 0;
+    width: auto; height: 100%; max-width: 100vw; max-height: 100vh; aspect-ratio: var(--aspect, 1); border-radius: 0;
   }
   #btnFull { width: 42px; text-align: center; font-size: 14px; }
   #transport { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 2px 4px; }
@@ -178,6 +178,7 @@
       <textarea id="createText" placeholder="Describe a scene… e.g. 'A bored student gets confused by a lecture, scratches his head, and shrugs.'"></textarea>
       <div class="row">
         <button id="btnCreate" class="primary">Create</button>
+        <button id="btnRefine" title="revise the animation currently loaded, following the text above">Refine current</button>
         <span id="createStatus"></span>
       </div>
     </div>
@@ -259,6 +260,7 @@
   <script src="js/figure.js"></script>
   <script src="js/styles.js"></script>
   <script src="js/scene.js"></script>
+  <script src="js/bubbles.js"></script>
   <script src="js/props.js"></script>
   <script src="js/board.js"></script>
   <script src="js/commands.js"></script>

@@ -205,6 +205,82 @@
     return { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0), tight: false };
   };
 
+  /* Pure bounding box {x0,y0,x1,y1} of a scene element / object shape (pre-transform),
+     for auto-framing. Returns null when it can't be computed confidently (arcs,
+     relative path commands, unknown types) — callers then treat it as full-frame. */
+  const unionB = (a, b) => (!a ? b : !b ? a : { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) });
+  function pathBounds(d) {
+    if (typeof d !== 'string' || !d.trim()) return null;
+    const toks = d.match(/[A-Za-z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g);
+    if (!toks) return null;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, cx = 0, cy = 0, cmd = null, nums = [];
+    const add = (x, y) => { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; };
+    const arity = { M: 2, L: 2, T: 2, H: 1, V: 1, C: 6, S: 4, Q: 4 };
+    const flush = () => {
+      const n = arity[cmd];
+      while (nums.length >= n) {
+        const a = nums.splice(0, n);
+        if (cmd === 'H') { cx = a[0]; add(cx, cy); continue; }
+        if (cmd === 'V') { cy = a[0]; add(cx, cy); continue; }
+        for (let i = 0; i < a.length; i += 2) add(a[i], a[i + 1]); // control points: a safe superset
+        cx = a[a.length - 2]; cy = a[a.length - 1];
+      }
+    };
+    for (const tk of toks) {
+      if (/[A-Za-z]/.test(tk)) {
+        if (cmd && arity[cmd]) flush();
+        if (tk === 'Z' || tk === 'z') { cmd = null; nums = []; continue; }
+        if (!arity[tk]) return null; // relative commands / arcs: give up
+        cmd = tk; nums = [];
+      } else {
+        if (!cmd) return null;
+        nums.push(parseFloat(tk));
+      }
+    }
+    if (cmd && arity[cmd]) flush();
+    return isFinite(x0) ? { x0, y0, x1, y1 } : null;
+  }
+  STICK.elementBounds = function (el, depth) {
+    if (!el || typeof el !== 'object') return null;
+    depth = depth || 0;
+    const p = el.props || {}, type = el.type || el.shape;
+    const sw = num(p.strokeWidth, p.stroke != null ? 0.5 : 0) / 2;
+    const pad = b => (b ? { x0: b.x0 - sw, y0: b.y0 - sw, x1: b.x1 + sw, y1: b.y1 + sw } : null);
+    switch (type) {
+      case 'rect': { const x = num(p.x, 0), y = num(p.y, 0); return pad({ x0: x, y0: y, x1: x + num(p.w, 10), y1: y + num(p.h, 10) }); }
+      case 'circle': { const x = num(p.cx, 0), y = num(p.cy, 0), r = num(p.r, 5); return pad({ x0: x - r, y0: y - r, x1: x + r, y1: y + r }); }
+      case 'ellipse': { const x = num(p.cx, 0), y = num(p.cy, 0), rx = num(p.rx, 5), ry = num(p.ry, 3); return pad({ x0: x - rx, y0: y - ry, x1: x + rx, y1: y + ry }); }
+      case 'line': {
+        const a = num(p.x1, 0), b = num(p.y1, 0), c = num(p.x2, 10), d = num(p.y2, 10);
+        const w = num(p.strokeWidth, 0.5) / 2;
+        return { x0: Math.min(a, c) - w, y0: Math.min(b, d) - w, x1: Math.max(a, c) + w, y1: Math.max(b, d) + w };
+      }
+      case 'text': { // approximate: Georgia glyphs are ~0.55em wide
+        const size = num(p.size, 3), w = String(p.text != null ? p.text : '').length * size * 0.55, x = num(p.x, 50), y = num(p.y, 50);
+        const x0 = p.align === 'left' ? x : p.align === 'right' ? x - w : x - w / 2;
+        return { x0, y0: y - size, x1: x0 + w, y1: y + size * 0.3 };
+      }
+      case 'path': return pad(pathBounds(p.d));
+      case 'group': {
+        if (depth > 4) return null;
+        const kids = p.children || p.shapes || [];
+        let b = null;
+        for (const k of kids) { if (!k) continue; const kb = STICK.elementBounds({ type: k.type || k.shape, props: k.props }, depth + 1); if (!kb) return null; b = unionB(b, kb); }
+        return b;
+      }
+      case 'repeat': {
+        if (depth > 4) return null;
+        const child = p.of || p.shape;
+        if (!child || !child.type) return { x0: 0, y0: 0, x1: 0, y1: 0 };
+        const cb = STICK.elementBounds({ type: child.type, props: child.props }, depth + 1);
+        if (!cb) return null;
+        const from = num(p.from, 0), to = num(p.to, 100);
+        return p.axis === 'y' ? { x0: cb.x0, x1: cb.x1, y0: cb.y0 + from, y1: cb.y1 + to } : { y0: cb.y0, y1: cb.y1, x0: cb.x0 + from, x1: cb.x1 + to };
+      }
+      default: return null;
+    }
+  };
+
   /* ---------------- static scenery SVG ---------------- */
   const NS = 'http://www.w3.org/2000/svg';
   const mk = (tag, attrs, parent) => {

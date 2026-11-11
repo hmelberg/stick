@@ -770,5 +770,22 @@
         { cmd: 'scene.caption', args: { text: 'End of tour.', dur: 'slow' } },
       ],
     },
+
+    'widescreen': {
+      v: 1,
+      scene: { theme: 'blank', aspect: '16:9' },
+      figures: [
+        { id: 'ana', archetype: ['woman'], hair: 'long', pos: { x: -14, y: 72 }, mood: 'happy' },
+        { id: 'raj', archetype: ['man'], hair: 'short', pos: { x: 116, y: 72 }, facing: 'left' },
+      ],
+      timeline: [
+        { at: 0, cmd: 'scene.caption', args: { text: 'Widescreen: 16:9 shows x from -39 to 139', dur: 'slow' } },
+        { at: 0, target: 'ana', cmd: 'move', args: { style: 'walk', to: { x: 36, y: 72 } }, dur: 4 },
+        { at: 0, target: 'raj', cmd: 'move', args: { style: 'walk', to: { x: 66, y: 72 } }, dur: 4 },
+        { target: 'ana', cmd: 'say', args: { text: 'Plenty of room out here!' } },
+        { target: 'raj', cmd: 'say', args: { text: 'Mind the edges.' } },
+        { target: ['ana', 'raj'], cmd: 'playClip', args: { name: 'wave' } },
+      ],
+    },
   };
 })();

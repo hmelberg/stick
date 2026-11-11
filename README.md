@@ -38,17 +38,14 @@ header) — that skips sign-in and the call is made with the user's key, which
 is relayed per request and never stored server-side.
 
 Required Netlify env vars: `ANTHROPIC_API_KEY`. Optional: `ANTHROPIC_MODEL`
-(default `claude-sonnet-4-6`), `STICK_ACCESS_TOKEN` (shared access code),
+(default `claude-sonnet-5-5`), `STICK_ACCESS_TOKEN` (shared access code),
 `STICK_ANVIL_VALIDATE_URL`.
 
 `_lib/stick-prompt.ts` is generated from `PROMPT.md`. After editing PROMPT.md,
-regenerate it (PowerShell):
+regenerate it (the smoke test fails if you forget):
 
-```powershell
-$p = [IO.File]::ReadAllText("PROMPT.md", [Text.Encoding]::UTF8)
-$json = ConvertTo-Json -InputObject $p
-$out = "// AUTO-GENERATED from PROMPT.md - do not edit by hand.`n// Regenerate after editing PROMPT.md (see README, 'AI create endpoint').`n`nexport const STICK_SYSTEM_PROMPT: string =`n  $json;`n"
-[IO.File]::WriteAllText("netlify/edge-functions/_lib/stick-prompt.ts", $out, (New-Object Text.UTF8Encoding $false))
+```
+node scripts/gen-prompt.js
 ```
 
 ## Use with an LLM

@@ -285,6 +285,9 @@
     const svg = $('stage');
     svg.innerHTML = '';
     svg.style.setProperty('--paper', rt.scene.bg);
+    const view = rt.view || { x: 0, y: 0, w: 100, h: 100, aspect: 1 };
+    svg.setAttribute('viewBox', `${+view.x.toFixed(3)} ${+view.y.toFixed(3)} ${+view.w.toFixed(3)} ${+view.h.toFixed(3)}`);
+    (svg.parentNode || svg).style.setProperty('--aspect', String(+view.aspect.toFixed(5))); // read by the stage CSS (index.html)
 
     const dom = { svg, figNodes: new Map() };
     dom.cam = mk('g', {}, svg);
@@ -310,8 +313,11 @@
     dom.layers.front = mk('g', {}, dom.cam);
     dom.layers.bubbles = mk('g', {}, dom.cam);
     // full-frame colour wash (time-of-day / mood), in screen space over the scene
-    dom.tint = mk('rect', { x: 0, y: 0, width: 100, height: 100, fill: '#000', opacity: 0, 'pointer-events': 'none' }, svg);
+    dom.tint = mk('rect', { x: view.x, y: view.y, width: view.w, height: view.h, fill: '#000', opacity: 0, 'pointer-events': 'none' }, svg);
     dom.fixed = mk('g', {}, svg);
+    // screen-space overlays are authored in a 0..100 box centred in the view; for portrait
+    // views pin that box to the bottom so captions stay at the bottom edge
+    if (view.y > 0.001 || view.y < -0.001) dom.fixed.setAttribute('transform', `translate(0 ${+(view.y + view.h - 100).toFixed(3)})`);
 
     dom.shadows = new Map();
     const shadowsOn = !(rt.doc.scene && rt.doc.scene.shadows === false);
@@ -374,6 +380,7 @@
     dom.fixed.innerHTML = '';
     const ink = rt.scene.ink;
     const bubbleInk = '#2a2a35'; // speech/thought bubbles have a light interior, so always dark text
+    const bubbles = [];
 
     for (const o of rt.overlays) {
       if (t < o.t0 || t > o.t1) continue;
@@ -382,10 +389,11 @@
 
       if (o.type === 'caption') {
         const g = mk('g', { opacity: alpha.toFixed(2) }, dom.fixed);
-        const w = Math.min(92, o.text.length * 1.6 + 5);
+        const maxW = (rt.view ? rt.view.w : 100) - 8, want = o.text.length * 1.6 + 5;
+        const w = Math.min(maxW, want);
         mk('rect', { x: 50 - w / 2, y: 88.6, width: w, height: 5.4, rx: 1.2, fill: 'rgba(42,42,53,0.82)' }, g);
         const tx = mk('text', {
-          x: 50, y: 92.3, 'font-size': 3, fill: '#f7f2e9',
+          x: 50, y: 92.3, 'font-size': (3 * Math.min(1, maxW / want)).toFixed(2), fill: '#f7f2e9',
           'text-anchor': 'middle', 'font-family': 'Georgia, serif', 'font-style': 'italic',
         }, g);
         tx.textContent = o.text;
@@ -396,51 +404,16 @@
       if (!P) continue;
       const head = P.world.head, r = P.g.headR;
 
-      if (o.type === 'say') {
+      if (o.type === 'say' || o.type === 'think') {
+        // measured now, placed after the loop so bubbles can make room for each other
+        const think = o.type === 'think';
         const lines = wrapText(o.text, 20);
         const maxLen = Math.max(...lines.map(l => l.length));
-        const fs = 2.5, lineH = fs * 1.25;
-        const w = maxLen * fs * 0.52 + 3;
-        const h = lines.length * lineH + 2.2;
-        const cx = Math.max(w / 2 + 2, Math.min(98 - w / 2, head.x + P.fc * 4));
-        const by = Math.max(2, head.y - r * 1.6 - h - 2.6);
-        const g = mk('g', { opacity: alpha.toFixed(2) }, dom.layers.bubbles);
-        mk('path', {
-          d: `M ${head.x + P.fc * 2.2} ${by + h - 0.3} L ${head.x + P.fc * 0.6} ${head.y - r * 1.1} L ${head.x + P.fc * 3.6} ${by + h - 0.3} Z`,
-          fill: '#fffdf6', stroke: bubbleInk, 'stroke-width': 0.22, 'stroke-linejoin': 'round',
-        }, g);
-        mk('rect', {
-          x: cx - w / 2, y: by, width: w, height: h, rx: 1.4,
-          fill: '#fffdf6', stroke: bubbleInk, 'stroke-width': 0.25,
-        }, g);
-        lines.forEach((ln, i) => {
-          const tx = mk('text', {
-            x: cx, y: by + 1.6 + (i + 0.72) * lineH, 'font-size': fs, fill: bubbleInk,
-            'text-anchor': 'middle', 'font-family': 'Trebuchet MS, Comic Sans MS, sans-serif',
-          }, g);
-          tx.textContent = ln;
-        });
-      } else if (o.type === 'think') {
-        const lines = wrapText(o.text, 20);
-        const maxLen = Math.max(...lines.map(l => l.length));
-        const fs = 2.5, lineH = fs * 1.25;
-        const w = maxLen * fs * 0.52 + 4;
-        const h = lines.length * lineH + 3;
-        const cx = Math.max(w / 2 + 2, Math.min(98 - w / 2, head.x + P.fc * 4));
-        const by = Math.max(2, head.y - r * 1.6 - h - 3.4);
-        const g = mk('g', { opacity: alpha.toFixed(2) }, dom.layers.bubbles);
-        const ccy = by + h / 2;
-        // trailing thought puffs from the head up to the cloud (small -> large)
-        const x0 = head.x + P.fc * 0.8, y0 = head.y - r * 1.15, x1 = cx - P.fc * w * 0.15, y1 = ccy + h * 0.5;
-        [0.3, 0.66].forEach(u => {
-          const rr = 0.5 + u * 0.9;
-          mk('ellipse', { cx: (x0 + (x1 - x0) * u).toFixed(2), cy: (y0 + (y1 - y0) * u).toFixed(2), rx: rr.toFixed(2), ry: (rr * 0.82).toFixed(2), fill: '#fffdf6', stroke: bubbleInk, 'stroke-width': 0.22 }, g);
-        });
-        // a proper scalloped cloud (vs the speech rect + tail)
-        mk('path', { d: cloudPath(cx, ccy, w / 2 + 1.6, h / 2 + 2), fill: '#fffdf6', stroke: bubbleInk, 'stroke-width': 0.25, 'stroke-linejoin': 'round' }, g);
-        lines.forEach((ln, i) => {
-          const tx = mk('text', { x: cx, y: ccy - (lines.length / 2 - i - 0.28) * lineH, 'font-size': fs, fill: bubbleInk, 'text-anchor': 'middle', 'font-family': 'Trebuchet MS, Comic Sans MS, sans-serif' }, g);
-          tx.textContent = ln;
+        const w = maxLen * BUBBLE_FS * 0.52 + (think ? 4 : 3);
+        const h = lines.length * BUBBLE_FS * 1.25 + (think ? 3 : 2.2);
+        bubbles.push({
+          o, P, think, lines, alpha, w, h, fig: o.fig, headX: head.x,
+          cx: head.x + P.fc * 4, y: head.y - r * 1.6 - h - (think ? 3.4 : 2.6),
         });
       } else if (o.type === 'emote') {
         const prog = (t - o.t0) / (o.t1 - o.t0);
@@ -473,6 +446,62 @@
         }
       }
     }
+    if (bubbles.length) drawBubbles(rt, dom, t, Ps, bubbles, bubbleInk);
+  }
+
+  const BUBBLE_FS = 2.5, BUBBLE_FILL = '#fffdf6', BUBBLE_FONT = 'Trebuchet MS, Comic Sans MS, sans-serif';
+
+  // Place the active speech/thought bubbles (inside the visible frame, clear of each
+  // other and of other figures' heads), then draw: every tail first, then every body,
+  // so a tail never crosses another bubble's text.
+  function drawBubbles(rt, dom, t, Ps, bubbles, bubbleInk) {
+    // Keep bubbles inside what the camera shows — unless it is a tight close-up where a
+    // bubble would not fit beside the face; then place it in the full frame as before
+    // (it sits off-screen above the head rather than covering the face).
+    let view = STICK.visibleRect ? STICK.visibleRect(rt, t) : null;
+    if (view && bubbles.some(b => b.w > view.w - 6 || b.h > view.h * 0.45)) view = rt.view || null;
+    const heads = [];
+    for (const [id, P] of Ps) heads.push({ fig: id, x: P.world.head.x, y: P.world.head.y, r: P.g.headR });
+    const spots = STICK.layoutBubbles(bubbles, heads, view);
+    const lineH = BUBBLE_FS * 1.25, layer = dom.layers.bubbles;
+    const text = (g, x, y, ln) => {
+      mk('text', { x: x.toFixed(2), y: y.toFixed(2), 'font-size': BUBBLE_FS, fill: bubbleInk, 'text-anchor': 'middle', 'font-family': BUBBLE_FONT }, g).textContent = ln;
+    };
+
+    bubbles.forEach((b, i) => { // tails / thought puffs
+      const { P, w, h } = b, { cx, y: by } = spots[i];
+      const head = P.world.head, r = P.g.headR;
+      const g = mk('g', { opacity: b.alpha.toFixed(2) }, layer);
+      if (b.think) {
+        const ccy = by + h / 2;
+        const x0 = head.x + P.fc * 0.8, y0 = head.y - r * 1.15, x1 = cx - P.fc * w * 0.15, y1 = ccy + h * 0.5;
+        [0.3, 0.66].forEach(u => {
+          const rr = 0.5 + u * 0.9;
+          mk('ellipse', { cx: (x0 + (x1 - x0) * u).toFixed(2), cy: (y0 + (y1 - y0) * u).toFixed(2), rx: rr.toFixed(2), ry: (rr * 0.82).toFixed(2), fill: BUBBLE_FILL, stroke: bubbleInk, 'stroke-width': 0.22 }, g);
+        });
+      } else {
+        // the tail's base stays on the bubble's bottom edge even when the bubble was moved
+        const half = Math.max(0, w / 2 - 1.6);
+        const bx = Math.max(cx - half, Math.min(cx + half, head.x + P.fc * 2.9));
+        mk('path', {
+          d: `M ${(bx - 0.7).toFixed(2)} ${(by + h - 0.3).toFixed(2)} L ${(head.x + P.fc * 0.6).toFixed(2)} ${(head.y - r * 1.1).toFixed(2)} L ${(bx + 0.7).toFixed(2)} ${(by + h - 0.3).toFixed(2)} Z`,
+          fill: BUBBLE_FILL, stroke: bubbleInk, 'stroke-width': 0.22, 'stroke-linejoin': 'round',
+        }, g);
+      }
+    });
+
+    bubbles.forEach((b, i) => { // bodies + text
+      const { w, h, lines } = b, { cx, y: by } = spots[i];
+      const g = mk('g', { opacity: b.alpha.toFixed(2) }, layer);
+      if (b.think) {
+        const ccy = by + h / 2;
+        mk('path', { d: cloudPath(cx, ccy, w / 2 + 1.6, h / 2 + 2), fill: BUBBLE_FILL, stroke: bubbleInk, 'stroke-width': 0.25, 'stroke-linejoin': 'round' }, g);
+        lines.forEach((ln, k) => text(g, cx, ccy - (lines.length / 2 - k - 0.28) * lineH, ln));
+      } else {
+        mk('rect', { x: (cx - w / 2).toFixed(2), y: by.toFixed(2), width: w.toFixed(2), height: h.toFixed(2), rx: 1.4, fill: BUBBLE_FILL, stroke: bubbleInk, 'stroke-width': 0.25 }, g);
+        lines.forEach((ln, k) => text(g, cx, by + 1.6 + (k + 0.72) * lineH, ln));
+      }
+    });
   }
 
   // Latest grip holding this object at time t (later grips win — handoffs).
@@ -558,6 +587,8 @@
     const xform = f => `translate(${(50 + jx).toFixed(2)} ${(50 + jy).toFixed(2)}) rotate(${rot.toFixed(2)}) scale(${z.toFixed(3)}) translate(${(-(50 + (cx - 50) * f)).toFixed(2)} ${(-(50 + (cy - 50) * f)).toFixed(2)})`;
     dom.backdropG.setAttribute('transform', xform(par ? par.backdrop : 1));
     for (const name in dom.layers) dom.layers[name].setAttribute('transform', xform(par && par[name] != null ? par[name] : 1));
+    // contact shadows live outside dom.layers but must move with the figures
+    if (dom.shadowG) dom.shadowG.setAttribute('transform', xform(par && par.fig != null ? par.fig : 1));
     // backdrop crossfade
     for (let i = 0; i < dom.backdrops.length; i++) {
       const cur = dom.backdrops[i], next = dom.backdrops[i + 1];
@@ -611,6 +642,7 @@
     }
   }
 
+  let renderSeq = 0;
   function render() {
     let doc;
     try {
@@ -625,7 +657,9 @@
     // Build the stage into locals, then swap state.rt + state.dom together. This
     // keeps the running frame loop consistent if the build is deferred (e.g. while
     // MathJax loads) — otherwise draw() would run the new rt against the old dom.
+    const seq = ++renderSeq; // a deferred finish (math loading) must not clobber a newer render
     const finish = () => {
+      if (seq !== renderSeq) return;
       let dom;
       try { dom = rebuildStage(rt); }
       catch (e) { showWarnings(['engine error: ' + e.message + (e.stack ? ' @ ' + String(e.stack).split('\n')[1] : '')], true); return; }

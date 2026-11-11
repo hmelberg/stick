@@ -43,7 +43,7 @@
     }
     return out;
   }
-  function wobble(pts, amp, seed) {
+  function wobbleRaw(pts, amp, seed) {
     return pts.map((p, i) => ({ x: p.x + jit(i * 7.3 + 1.7, seed, amp), y: p.y + jit(i * 7.3 + 4.1, seed, amp) }));
   }
   function quadPts(p0, c, p1, n) {
@@ -408,13 +408,24 @@
     update(n, P, t) {
       const g = P.g, r = g.headR;
       const frame = boilFrame(t == null ? 0 : t);
-      const sd = n.fig.seed * 53 + frame * 101;
-      const amp = 0.009 * g.h;
+      // wobble: 0 = one fixed hand-drawn line, 1 = full boil; above 1 exaggerates it.
+      const wb = n.fig.wobble != null ? n.fig.wobble : 0.6;
+      const kb = Math.min(1, wb), big = Math.max(1, wb);
+      const sd0 = n.fig.seed * 53, sd = sd0 + frame * 101;
+      const amp = 0.009 * g.h * big;
+      // a jittered polyline: blend of the still drawing (sd0) and this boil frame (sd)
+      const wobble = (pts, a, salt) => {
+        const still = wobbleRaw(pts, a, sd0 + salt);
+        if (kb <= 0) return still;
+        const live = wobbleRaw(pts, a, sd + salt);
+        return still.map((p, i) => ({ x: p.x + (live[i].x - p.x) * kb, y: p.y + (live[i].y - p.y) * kb }));
+      };
+      const jitB = (i, salt, a) => { const s0 = jit(i, sd0 + salt, a); return s0 + (jit(i + frame * 7, sd + salt, a) - s0) * kb; };
       setTf(n.root, P);
       n.farG.setAttribute('opacity', farOpacity(0.6, P));
 
       const bust = isBust(n);
-      const limbD = (pts, salt) => smoothOpen(wobble(resample(pts, 0.075 * g.h), amp, sd + salt));
+      const limbD = (pts, salt) => smoothOpen(wobble(resample(pts, 0.075 * g.h), amp, salt));
       n.far.setAttribute('d',
         (bust ? '' : limbD([P.pelvis, P.legL.knee, P.legL.ank], 11) + ' ') +
         limbD([P.sh, P.armL.elb, P.armL.hand], 23));
@@ -424,7 +435,7 @@
 
       const torsoPts = bust ? [bustBase(P), P.neck] : quadPts(P.pelvis, P.ctrl, P.neck, 6);
       torsoPts.push(neckStub(P));
-      n.torso.setAttribute('d', smoothOpen(wobble(torsoPts, amp, sd + 61)));
+      n.torso.setAttribute('d', smoothOpen(wobble(torsoPts, amp, 61)));
 
       // sketchy head: closed fill + wobbly outline whose seam sits at the BOTTOM
       // (behind the neck) with only a tiny overshoot — so no stray stub at the crown.
@@ -433,25 +444,25 @@
       const th0 = rad(96 + jit(2, n.fig.seed, 8));
       for (let k = 0; k <= N; k++) {
         const th = th0 + (k / N) * Math.PI * 2 * 1.025;
-        const rr = r * (1 + jit(k * 3.1 + frame * 7, sd + 5, 0.045));
+        const rr = r * (1 + jitB(k * 3.1, 5, 0.045 * big));
         const p = { x: P.headC.x + Math.cos(th) * rr, y: P.headC.y + Math.sin(th) * rr };
         fillPts.push(p);
         strokePts.push(p);
       }
       n.headFill.setAttribute('d', polyD(fillPts) + ' Z');
       n.headStroke.setAttribute('d', smoothOpen(strokePts));
-      const stroke2 = strokePts.map((p, i) => ({ x: p.x + jit(i * 5 + 2, sd + 71, 0.035 * r), y: p.y + jit(i * 5 + 3, sd + 71, 0.035 * r) }));
+      const stroke2 = strokePts.map((p, i) => ({ x: p.x + jitB(i * 5 + 2, 71, 0.035 * r), y: p.y + jitB(i * 5 + 3, 71, 0.035 * r) }));
       n.headStroke2.setAttribute('d', smoothOpen(stroke2));
 
       headTf(n.headG, P);
-      updateFace(n.face, P.face, sd + 83);
+      updateFace(n.face, P.face, (kb < 0.5 ? sd0 : sd) + 83);
 
       const shoe = (l, salt) => { // heel just behind the ankle to the (pitched) toe
         const vx = l.foot.x - l.ank.x, vy = l.foot.y - l.ank.y;
         return smoothOpen(wobble([
           { x: l.ank.x - vx * 0.28, y: l.ank.y - vy * 0.28 },
           { x: l.foot.x, y: l.foot.y },
-        ], amp * 0.7, sd + salt));
+        ], amp * 0.7, salt));
       };
       n.shoeL.setAttribute('d', bust ? '' : shoe(P.legL, 91));
       n.shoeR.setAttribute('d', bust ? '' : shoe(P.legR, 97));

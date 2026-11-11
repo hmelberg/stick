@@ -76,84 +76,137 @@
     return (words.length > 36 ? words.slice(0, 36) + '…' : words) || 'created scene';
   }
 
-  async function runCreate() {
-    const text = ($('createText').value || '').trim();
-    if (!text) { setStatus('Describe the scene first.', true); return; }
-    if (!Auth().hasAccess()) { setStatus('Sign in or add your API key first.', true); return; }
-    const btn = $('btnCreate');
-    btn.disabled = true;
-    setStatus('Asking Claude…');
-    try {
-      // Own key wins: the request is billed to the user's key, no sign-in needed.
-      const ownKey = Auth().apiKey;
-      const headers = { 'Content-Type': 'application/json' };
-      if (ownKey) headers['X-Anthropic-Key'] = ownKey;
-      if (Auth().token) headers['Authorization'] = 'Bearer ' + Auth().token;
-      const resp = await fetch('/api/create-animation', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ description: text }),
-      });
-      if (resp.status === 401) {
-        if (ownKey) setStatus('Your API key was rejected — check it, or remove it (header button) and sign in.', true);
-        else setStatus('Sign-in expired or code not accepted — sign in again.', true);
-        return;
-      }
-      if (resp.status === 429) {
-        const retry = parseInt(resp.headers.get('Retry-After') || '0', 10);
-        setStatus('Rate limited — try again in ~' + Math.max(1, Math.ceil(retry / 60)) + ' min.', true);
-        return;
-      }
-      if (!resp.ok || !resp.body) {
-        setStatus('Server error: ' + ((await resp.text()) || resp.status), true);
-        return;
-      }
+  const plural = n => n + ' warning' + (n === 1 ? '' : 's');
 
-      // accumulate the SSE text stream
-      const reader = resp.body.getReader();
-      const dec = new TextDecoder();
-      let buf = '', acc = '', failed = null;
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let i;
-        while ((i = buf.indexOf('\n\n')) >= 0) {
-          const ev = buf.slice(0, i); buf = buf.slice(i + 2);
-          const line = ev.split('\n').find(l => l.startsWith('data:'));
-          if (!line) continue;
-          let obj;
-          try { obj = JSON.parse(line.slice(5)); } catch (e) { continue; }
-          if (obj.type === 'text') {
-            acc += obj.text;
-            setStatus('Writing the scene… ' + acc.length + ' chars');
-          } else if (obj.type === 'error') {
-            failed = obj.message || 'generation failed';
-          }
+  function compileWarnings(doc) {
+    try { return window.STICK.compile(doc).warnings || []; }
+    catch (e) { return null; } // compile itself failed: treat as unusable
+  }
+
+  // One request to the edge function; resolves { acc, failed } (the accumulated
+  // reply text, and a message if the server reported a cut-off/error) or throws
+  // an Error whose .message is ready to show the user.
+  async function callApi(payload, onText) {
+    // Own key wins: the request is billed to the user's key, no sign-in needed.
+    const ownKey = Auth().apiKey;
+    const headers = { 'Content-Type': 'application/json' };
+    if (ownKey) headers['X-Anthropic-Key'] = ownKey;
+    if (Auth().token) headers['Authorization'] = 'Bearer ' + Auth().token;
+    const resp = await fetch('/api/create-animation', { method: 'POST', headers, body: JSON.stringify(payload) });
+    if (resp.status === 401) {
+      throw new Error(ownKey
+        ? 'Your API key was rejected — check it, or remove it (header button) and sign in.'
+        : 'Sign-in expired or code not accepted — sign in again.');
+    }
+    if (resp.status === 429) {
+      const retry = parseInt(resp.headers.get('Retry-After') || '0', 10);
+      throw new Error('Rate limited — try again in ~' + Math.max(1, Math.ceil(retry / 60)) + ' min.');
+    }
+    if (resp.status === 413) throw new Error('This scene is too large to send to the model.');
+    if (!resp.ok || !resp.body) throw new Error('Server error: ' + ((await resp.text()) || resp.status));
+
+    // accumulate the SSE text stream
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', acc = '', failed = null;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const ev = buf.slice(0, i); buf = buf.slice(i + 2);
+        const line = ev.split('\n').find(l => l.startsWith('data:'));
+        if (!line) continue;
+        let obj;
+        try { obj = JSON.parse(line.slice(5)); } catch (e) { continue; }
+        if (obj.type === 'text') {
+          acc += obj.text;
+          if (onText) onText(acc.length);
+        } else if (obj.type === 'error') {
+          failed = obj.message || 'generation failed';
         }
       }
-      // Build the document. If the reply was cut off at the length limit, salvage
-      // whatever completed so the partial scene still plays (failed is set when
-      // the server saw a max_tokens stop).
-      const built = docFromReply(acc);
-      if (!built) { setStatus('Error: ' + (failed || 'could not read the generated scene'), true); return; }
-      const { doc, partial } = built;
+    }
+    return { acc, failed };
+  }
 
-      const name = App().saveMyAnim(nameFrom(text), doc);
+  // Ask for a document ({description[, current]}), then run at most ONE automatic
+  // repair pass if it compiles with warnings. The repair is best-effort: any
+  // failure keeps the original. Returns { doc, partial, failed, before, after }.
+  async function generate(payload, verb) {
+    const first = await callApi(payload, n => setStatus(verb + '… ' + n + ' chars'));
+    // If the reply was cut off at the length limit, docFromReply salvages whatever
+    // completed so the partial scene still plays (failed is set on a max_tokens stop).
+    const built = docFromReply(first.acc);
+    if (!built) throw new Error(first.failed || 'could not read the generated scene');
+    let { doc } = built;
+    const partial = built.partial || !!first.failed;
+    const before = compileWarnings(doc);
+    const res = { doc, partial, failed: first.failed, before: before ? before.length : 0, after: before ? before.length : 0 };
+    if (partial || !before || !before.length) return res;
+
+    setStatus('Fixing ' + plural(before.length) + '…');
+    try {
+      const rep = await callApi({ current: JSON.stringify(doc), warnings: before },
+        n => setStatus('Fixing ' + plural(before.length) + '… ' + n + ' chars'));
+      const rb = docFromReply(rep.acc);
+      if (rb && !rb.partial && !rep.failed) {
+        const w = compileWarnings(rb.doc);
+        if (w && w.length < before.length) {
+          res.doc = rb.doc;
+          res.after = w.length;
+        }
+      }
+    } catch (e) { /* keep the original */ }
+    return res;
+  }
+
+  // mode: 'create' (fresh scene from the text) or 'refine' (revise the loaded one).
+  async function runCreate(mode) {
+    mode = mode === 'refine' ? 'refine' : 'create';
+    const text = ($('createText').value || '').trim();
+    if (!text) { setStatus(mode === 'refine' ? 'Say what to change first.' : 'Describe the scene first.', true); return; }
+    if (!Auth().hasAccess()) { setStatus('Sign in or add your API key first.', true); return; }
+
+    const payload = { description: text };
+    let target = null; // my-animation name to overwrite on refine
+    if (mode === 'refine') {
+      let cur;
+      try { cur = JSON.parse($('ed').value); }
+      catch (e) { setStatus('Fix the JSON in the editor first — it does not parse.', true); return; }
+      payload.current = JSON.stringify(cur);
+      if (payload.current.length > 60000) { setStatus('This scene is too large to refine (limit 60000 characters).', true); return; }
+      const sel = $('selExample').value || '';
+      if (sel.startsWith('my:') && App().getMyAnims()[sel.slice(3)]) target = sel.slice(3);
+    }
+
+    const btns = [$('btnCreate'), $('btnRefine')];
+    btns.forEach(b => { b.disabled = true; });
+    setStatus('Asking Claude…');
+    try {
+      const r = await generate(payload, mode === 'refine' ? 'Revising the scene' : 'Writing the scene');
+      let name;
+      if (target) { App().deleteMyAnim(target); name = App().saveMyAnim(target, r.doc); }
+      else name = App().saveMyAnim(mode === 'refine' ? App().currentName() + ' (edited)' : nameFrom(text), r.doc);
       App().refreshDropdown('my:' + name);
-      App().setEditor(JSON.stringify(doc, null, 2));
+      App().setEditor(JSON.stringify(r.doc, null, 2));
       App().render();
-      const warnings = App().state.rt ? App().state.rt.warnings.length : 0;
-      const warnNote = warnings ? ' (' + warnings + ' warning' + (warnings > 1 ? 's' : '') + ')' : '';
-      if (partial || failed) {
+      const warnings = App().state.rt ? App().state.rt.warnings.length : r.after;
+      const warnNote = warnings ? ' (' + plural(warnings) + ')' : '';
+      const verbDone = mode === 'refine' ? 'revised' : 'created';
+      if (r.partial) {
         setStatus('⚠ cut off at the length limit — playing the partial scene' + warnNote, true);
+      } else if (r.after < r.before) {
+        const fixed = r.before - r.after;
+        setStatus('✓ ' + verbDone + ' (fixed ' + plural(fixed) + ')' + (warnings ? ' — ' + plural(warnings) + ' left, see panel' : ''));
       } else {
-        setStatus(warnings ? '✓ created' + warnNote + ' — see panel' : '✓ created');
+        setStatus(warnings ? '✓ ' + verbDone + warnNote + ' — see panel' : '✓ ' + verbDone);
       }
     } catch (e) {
-      setStatus('Could not build the animation: ' + e.message, true);
+      setStatus(/^(Your API|Sign-in|Rate|Server|This scene)/.test(e.message) ? e.message : 'Error: ' + e.message, true);
     } finally {
-      btn.disabled = false;
+      btns.forEach(b => { b.disabled = false; });
     }
   }
 
@@ -234,9 +287,12 @@
     }
 
     const dur = app.state.rt.duration;
-    const SIZE = 1080;
+    const SIZE = 1080; // long side
+    const asp = (app.state.rt.view && app.state.rt.view.aspect) || 1;
+    const even = n => Math.max(2, 2 * Math.round(n / 2)); // video codecs want even dimensions
+    const CW = asp >= 1 ? SIZE : even(SIZE * asp), CH = asp >= 1 ? even(SIZE / asp) : SIZE;
     const canvas = document.createElement('canvas');
-    canvas.width = SIZE; canvas.height = SIZE;
+    canvas.width = CW; canvas.height = CH;
     const ctx = canvas.getContext('2d');
     const paper = app.state.rt.scene.bg;
 
@@ -266,8 +322,8 @@
       img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml);
       try { await img.decode(); } catch (e) { return; }
       ctx.fillStyle = paper;
-      ctx.fillRect(0, 0, SIZE, SIZE);
-      ctx.drawImage(img, 0, 0, SIZE, SIZE);
+      ctx.fillRect(0, 0, CW, CH);
+      ctx.drawImage(img, 0, 0, CW, CH);
     };
 
     await drawFrame(0, false); // prime the canvas without speaking
@@ -305,9 +361,10 @@
 
   /* ---------------- boot ---------------- */
   window.addEventListener('DOMContentLoaded', () => {
-    $('btnCreate').addEventListener('click', runCreate);
+    $('btnCreate').addEventListener('click', () => runCreate('create'));
+    $('btnRefine').addEventListener('click', () => runCreate('refine'));
     $('createText').addEventListener('keydown', e => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runCreate(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runCreate('create'); }
     });
     $('btnUpload').addEventListener('click', () => $('fileUpload').click());
     $('fileUpload').addEventListener('change', e => {
