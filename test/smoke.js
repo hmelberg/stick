@@ -118,6 +118,27 @@ console.log('auto-framing / aspect');
 }
 
 // wobble: a still figure really is still at 0, and the scene default / names / bad values behave
+console.log('faces');
+{
+  const mk = (scene, fig, extra) => STICK.compile({ scene, figures: [{ id: 'a', ...fig }], timeline: [{ cmd: 'wait', dur: 1 }], ...extra });
+  const f = rt => rt.figs.get('a'), headR = rt => STICK.geom(f(rt)).headR;
+  if (f(mk({}, {})).face !== 'cartoon') fail('default face should be cartoon');
+  if (f(mk({ face: 'dots' }, {})).face !== 'dots') fail('scene.face should set the default');
+  if (f(mk({ face: 'dots' }, { face: 'classic' })).face !== 'classic') fail('figure face should override the scene');
+  if (f(mk({}, { face: 'Big Eyes' })).face !== 'cartoon') fail('face aliases should resolve');
+  if (!mk({}, { face: 'photoreal' }).warnings.some(w => /face/.test(w))) fail('bogus face should warn');
+  if (!(headR(mk({}, {})) > headR(mk({}, { face: 'classic' })) * 1.15)) fail('abstract faces should have a bigger head than classic');
+  if (f(mk({}, {})).unevenEyes !== 1) fail('unevenEyes should default to 1');
+  if (f(mk({ unevenEyes: false }, {})).unevenEyes !== 0) fail('scene.unevenEyes should set the default');
+  if (f(mk({ unevenEyes: false }, { unevenEyes: 1.5 })).unevenEyes !== 1.5) fail('figure unevenEyes should override the scene');
+  if (f(mk({}, { character: 'twin' }, { characters: { twin: { unevenEyes: false } } })).unevenEyes !== 0) fail('a character should be able to set unevenEyes');
+  if (!mk({}, { unevenEyes: 'lots' }).warnings.some(w => /unevenEyes/.test(w))) fail('bogus unevenEyes should warn');
+  // a scene compiled after a dots scene must not inherit its face (no state leaks between compiles)
+  mk({ face: 'dots' }, {});
+  if (f(mk({}, {})).face !== 'cartoon') fail('scene.face leaked into the next compile');
+  console.log('  ok');
+}
+
 console.log('wobble');
 {
   const mk = (scene, fig) => STICK.compile({ scene, figures: [{ id: 'a', ...fig }], timeline: [{ cmd: 'wait', args: { dur: 3 } }] });

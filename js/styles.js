@@ -86,7 +86,7 @@
     const fr = { r, ink, opts, g: grp, kind };
     // every figure's eyes are a little mismatched (which one is bigger, and by how much, is its own)
     const ms = Math.sin((fig.seed || 1) * 91.7) * 43758.5453, mr = ms - Math.floor(ms);
-    fr.mis = (mr < 0.5 ? -1 : 1) * (0.06 + 0.09 * Math.abs(mr * 2 - 1));
+    fr.mis = (mr < 0.5 ? -1 : 1) * (0.06 + 0.09 * Math.abs(mr * 2 - 1)) * (fig.unevenEyes == null ? 1 : fig.unevenEyes);
     if (fig.beard && fig.beard !== 'moustache') { // drawn first so it sits behind the eyes/mouth; fades with the face toward the back
       const b = fig.beard === 'goatee' || fig.beard === 'stubble' ? fig.beard : 'full';
       // Beard hugs the jaw: top edge along the cheeks, dipping just below the mouth in
@@ -263,8 +263,9 @@
     const open = cl(F.eyeOpen, 0, 1), raise = Math.max(0, F.browRaise);
     const happyArcs = F.smile > 0.65 && open > 0.72;
     const eyes = [
-      { eye: fr.eyeN, pup: fr.pupN, arc: fr.arcN, cx: cxN * r, k: 1 + fr.mis },
-      { eye: fr.eyeF, pup: fr.pupF, arc: fr.arcF, cx: cxF * r, k: (1 - fr.mis) * (1 - 0.14 * (1 - front)) },
+      // the mismatch (and the smaller far eye in profile) is a cartoon-face quirk; dots stay identical
+      { eye: fr.eyeN, pup: fr.pupN, arc: fr.arcN, cx: cxN * r, k: dots ? 1 : 1 + fr.mis },
+      { eye: fr.eyeF, pup: fr.pupF, arc: fr.arcF, cx: cxF * r, k: dots ? 1 : (1 - fr.mis) * (1 - 0.14 * (1 - front)) },
     ];
     for (const e of eyes) {
       const rx = (dots ? 0.105 : 0.33) * r * e.k;

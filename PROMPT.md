@@ -127,6 +127,8 @@ All three render the same skeleton, so every command works in every style.
 `"characters": { "boss": { "hat": "fedora", "beard": "full", "hunch": 0.3, "height": 27 }, "intern": { "extends": "pip", "hat": "cap" } }` then `{ "id": "b", "character": "boss" }`.
 
 - Engine adds idle life automatically (breathing, sway, blinking) based on mood.
+- `face` picks how the face is drawn: `cartoon` (default — big eyes with pupils and a wide mouth; the most expressive), `dots` (two dots; brows and mouth appear only when the feeling needs them — calm, good for serious explainers) or `classic` (the older small realistic face). Set it per figure or for everyone with `"scene": { "face": "dots" }`. Every mood, expression field, `say` and `lookAt` works with every face.
+- `unevenEyes`: a cartoon face draws one eye slightly bigger than the other (a different quirk per figure). `false` gives identical eyes, a number 0–2 scales the mismatch (default 1). Per figure, per character, or `"scene": { "unevenEyes": false }`. Dot eyes are always identical.
 - `wobble` sets how restless a figure is at rest (idle sway + the sketch style's line boil): a number 0–2 or `"none"`/`"low"`/`"medium"`/`"high"`. Default `0.6`; `0` is perfectly still, `1` is lively. Set it per figure, or for everyone with `"scene": { "wobble": 0.3 }`.
 
 ### Dog

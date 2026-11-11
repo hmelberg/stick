@@ -33,9 +33,11 @@
     const bg = def.bg || theme.bg || '#f7f2e9';
     // Ink (figures, outlines, scene strokes) auto-contrasts the background so a dark
     // scene doesn't swallow the dark stick figures. Authors can still force it.
-    STICK._sceneFace = STICK.parseFace ? STICK.parseFace(def.face, null, warn) : null;
     const scene = {
       bg,
+      // scene-wide defaults for how faces are drawn (a figure or its character can override both)
+      face: STICK.parseFace ? STICK.parseFace(def.face, null, warn) : null,
+      unevenEyes: STICK.parseUneven ? STICK.parseUneven(def.unevenEyes, null, warn) : null,
       ink: def.ink || (isDark(bg) ? '#f2efe6' : '#2a2a35'),
       floorY: num(def.floorY, num(theme.floorY, 70)),
       floor: def.floor !== false,

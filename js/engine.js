@@ -251,7 +251,7 @@
       else warn('"characters" must be an object of name -> figure fields');
     }
     figs.forEach((f, i) => {
-      const fig = STICK.normalizeFigure(f, i, warn, defaultStyle, rt.scene.ink, sceneWobble, docChars);
+      const fig = STICK.normalizeFigure(f, i, warn, defaultStyle, rt.scene.ink, sceneWobble, docChars, rt.scene);
       if (rt.figs.has(fig.id)) { warn(`duplicate figure id "${fig.id}" — second one ignored`); return; }
       rt.figs.set(fig.id, fig);
       STICK.initFigureChannels(rt, fig);

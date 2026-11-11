@@ -384,7 +384,7 @@
       n.earN = mk('path', earAttrs, hg);
       // every dog's eyes are a little mismatched, like the people's
       const ms = Math.sin((fig.seed || 1) * 91.7) * 43758.5453, mr = ms - Math.floor(ms);
-      n.mis = (mr < 0.5 ? -1 : 1) * (0.05 + 0.07 * Math.abs(mr * 2 - 1));
+      n.mis = (mr < 0.5 ? -1 : 1) * (0.05 + 0.07 * Math.abs(mr * 2 - 1)) * (fig.unevenEyes == null ? 1 : fig.unevenEyes);
       return n;
     },
 

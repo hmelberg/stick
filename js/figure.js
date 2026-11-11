@@ -110,7 +110,17 @@
     return fallback;
   };
 
-  STICK.normalizeFigure = function (raw, i, warn, defaultStyle, sceneInk, sceneWobble, docChars) {
+  // unevenEyes: true/false or a number 0–2 (1 = the default amount of mismatch, 0 = identical eyes)
+  STICK.parseUneven = function (v, fallback, warn) {
+    if (v == null) return fallback;
+    if (v === true) return 1;
+    if (v === false) return 0;
+    if (typeof v === 'number' && isFinite(v)) return clamp(v, 0, 2);
+    if (warn) warn(`unknown unevenEyes "${v}" — use true, false or a number 0–2`);
+    return fallback;
+  };
+
+  STICK.normalizeFigure = function (raw, i, warn, defaultStyle, sceneInk, sceneWobble, docChars, scene) {
     raw = raw && typeof raw === 'object' ? raw : {};
     let preset = {};
     if (raw.character) {
@@ -167,7 +177,9 @@
       // collar (dogs): a colour, or false for none
       collar: (v => v === false || v === 'none' ? null : typeof v === 'string' ? v : '#d9534f')(raw.collar != null ? raw.collar : preset.collar),
       seed: (i + 1) * 0.731,
-      face: STICK.parseFace(raw.face, STICK.parseFace(preset.face, STICK._sceneFace || 'cartoon'), warn),
+      face: STICK.parseFace(raw.face, STICK.parseFace(preset.face, (scene && scene.face) || 'cartoon'), warn),
+      // how mismatched the two eyes of a cartoon face are: 1 = default quirk, 0 = identical eyes
+      unevenEyes: STICK.parseUneven(raw.unevenEyes, STICK.parseUneven(preset.unevenEyes, scene && scene.unevenEyes != null ? scene.unevenEyes : 1), warn),
       wobble: STICK.parseWobble(raw.wobble != null ? raw.wobble : preset.wobble, sceneWobble != null ? sceneWobble : STICK.DEFAULT_WOBBLE, warn),
     };
     if (fig.mouthItem && !MOUTH_ITEMS.includes(fig.mouthItem)) { warn(`unknown mouth "${fig.mouthItem}" — use ${MOUTH_ITEMS.join('/')}`); fig.mouthItem = null; }
