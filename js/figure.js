@@ -60,7 +60,22 @@
     return archList.includes('kid') ? 'kid' : 'adult';
   }
 
-  STICK.normalizeFigure = function (raw, i, warn, defaultStyle, sceneInk) {
+  // wobble: how restless a figure is when nothing is happening — scales the idle
+  // sway/breathing and the sketch style's line boil. 0 = perfectly still,
+  // 0.6 = default, 1 = lively. Accepts a number (0–2), true/false, or a name.
+  const WOBBLE = { none: 0, off: 0, still: 0, low: 0.3, medium: 0.6, normal: 0.6, high: 1, lively: 1 };
+  STICK.DEFAULT_WOBBLE = 0.6;
+  STICK.parseWobble = function (v, fallback, warn) {
+    if (v == null) return fallback;
+    if (v === true) return 1;
+    if (v === false) return 0;
+    if (typeof v === 'number' && isFinite(v)) return clamp(v, 0, 2);
+    if (typeof v === 'string' && WOBBLE[v.toLowerCase()] != null) return WOBBLE[v.toLowerCase()];
+    if (warn) warn(`unknown wobble "${v}" — use a number 0–2 or none/low/medium/high`);
+    return fallback;
+  };
+
+  STICK.normalizeFigure = function (raw, i, warn, defaultStyle, sceneInk, sceneWobble) {
     raw = raw && typeof raw === 'object' ? raw : {};
     let preset = {};
     if (raw.character) {
@@ -106,6 +121,7 @@
       expression: raw.expression || {},
       mood: raw.mood || preset.mood || 'neutral',
       seed: (i + 1) * 0.731,
+      wobble: STICK.parseWobble(raw.wobble, sceneWobble != null ? sceneWobble : STICK.DEFAULT_WOBBLE, warn),
     };
     if (!STICK.presets.moods[fig.mood]) { warn(`unknown mood "${fig.mood}" — using neutral`); fig.mood = 'neutral'; }
     return fig;
@@ -281,13 +297,15 @@
     // idle life: breathing, sway, joy-bounce — scaled down while walking
     const moodName = ch.getDef(id + '.mood', t, 'neutral');
     const prof = (STICK.presets.moods[moodName] || STICK.presets.moods.neutral).idle;
+    const wob = fig.wobble != null ? fig.wobble : STICK.DEFAULT_WOBBLE;
     const idleK = (1 - gait.ramp) * (1 - wLie * 0.7);
+    const swayK = idleK * wob; // breathing + drift scale with wobble; the joy-bounce does not
     const ph0 = fig.seed * 6.283;
     const sway = prof.sway * ag.sway, bounce = prof.bounce * ag.bounce; // age-modulated liveliness
     const f = (0.22 + 0.12 * prof.energy * ag.energy) * (0.9 + rand01(24, fig.seed) * 0.2); // per-figure pace
-    bend += 0.012 * (0.5 + sway) * Math.sin(6.283 * f * t + ph0) * idleK;
-    headTilt += 0.018 * sway * Math.sin(6.283 * f * 0.6 * t + ph0 * 1.7) * idleK;
-    const shIdle = 2.2 * sway * Math.sin(6.283 * f * 0.5 * t + ph0 * 0.6) * idleK
+    bend += 0.012 * (0.5 + sway) * Math.sin(6.283 * f * t + ph0) * swayK;
+    headTilt += 0.018 * sway * Math.sin(6.283 * f * 0.6 * t + ph0 * 1.7) * swayK;
+    const shIdle = 2.2 * sway * Math.sin(6.283 * f * 0.5 * t + ph0 * 0.6) * swayK
       + bounce * 6 * Math.sin(6.283 * 2.1 * t + ph0) * idleK;
     const bobIdle = bounce ? 0.035 * g.h * bounce * Math.max(0, Math.sin(6.283 * 2.1 * t + ph0)) * idleK : 0;
 

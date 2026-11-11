@@ -12,19 +12,26 @@
    Required Netlify env vars:
      ANTHROPIC_API_KEY        — server-side Anthropic key (never sent to client)
    Optional:
-     ANTHROPIC_MODEL          — default "claude-sonnet-4-6"
+     ANTHROPIC_MODEL          — default "claude-sonnet-5-5"
      STICK_ACCESS_TOKEN       — shared access code fallback
      STICK_ANVIL_VALIDATE_URL — default "https://mdataapi.anvil.app/_/api/auth/me"
+
+   Body: {description, current?, warnings?}. description only = create; with
+   `current` (the JSON document, <= 60000 chars, else 413) = refine; `current` +
+   `warnings` (<= 30 strings) and no description = repair. See _lib/prompt.ts.
 
    Response: SSE stream of {type:"text"|"done"|"error"} events (see _lib/anthropic.ts).
    The client accumulates the text events into the JSON document. */
 import { streamAnthropic } from "./_lib/anthropic.ts";
 import { checkRateLimit } from "./_lib/rate-limit.ts";
 import { clientIp, type IpContext, timingSafeEqual } from "./_lib/auth.ts";
+import { buildPrompt } from "./_lib/prompt.ts";
 import { STICK_SYSTEM_PROMPT } from "./_lib/stick-prompt.ts";
 
 interface RequestBody {
   description?: string;
+  current?: string;
+  warnings?: string[];
 }
 
 export default async (request: Request, context: IpContext): Promise<Response> => {
@@ -88,7 +95,8 @@ export default async (request: Request, context: IpContext): Promise<Response> =
     }
   }
 
-  const MAX_BODY_BYTES = 10_000;
+  // Room for `current` (60k chars, up to 4 bytes each in UTF-8) plus warnings.
+  const MAX_BODY_BYTES = 300_000;
   const contentLength = parseInt(request.headers.get("content-length") ?? "0", 10);
   if (contentLength > MAX_BODY_BYTES) {
     return new Response("Payload too large", { status: 413 });
@@ -109,28 +117,20 @@ export default async (request: Request, context: IpContext): Promise<Response> =
   } catch (_) {
     return new Response("Invalid JSON", { status: 400 });
   }
-  const description = (body.description ?? "").trim().slice(0, 2000);
-  if (!description) {
-    return new Response("Missing description", { status: 400 });
+  if (!body || typeof body !== "object") {
+    return new Response("Invalid JSON", { status: 400 });
   }
+  const built = buildPrompt(body);
+  if (!built.ok) {
+    return new Response(built.message, { status: built.status });
+  }
+  const prompt = built.prompt;
 
   const apiKey = userKey || Deno.env.get("ANTHROPIC_API_KEY");
-  const model = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-4-6";
+  const model = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-5-5";
   if (!apiKey) {
     return new Response("Server misconfigured: missing ANTHROPIC_API_KEY", { status: 500 });
   }
-
-  const prompt = [
-    "Write a stick animation document for this request:",
-    "",
-    '"""',
-    description,
-    '"""',
-    "",
-    "Keep the document compact enough to finish within the length limit: represent crowds or full teams with a handful of representative figures (about 4-8), not every individual, and keep the timeline focused. A document that gets cut off mid-JSON cannot be rendered.",
-    "",
-    "Reply with ONLY the JSON object — no markdown fences, no commentary before or after.",
-  ].join("\n");
 
   try {
     const stream = await streamAnthropic({

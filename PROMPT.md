@@ -112,6 +112,7 @@ All three render the same skeleton, so every command works in every style.
   Position it with `pos` (a bust usually sits higher, e.g. `"pos": { "y": 45 }`); pair it with
   `camera.focus { on: "id.face" }` for an expressive close-up.
 - Engine adds idle life automatically (breathing, sway, blinking) based on mood.
+- `wobble` sets how restless a figure is at rest (idle sway + the sketch style's line boil): a number 0–2 or `"none"`/`"low"`/`"medium"`/`"high"`. Default `0.6`; `0` is perfectly still, `1` is lively. Set it per figure, or for everyone with `"scene": { "wobble": 0.3 }`.
 
 ### Pose fields
 - `base`: `stand` | `sit` | `crouch` | `lie` | `sleep` (sleep = lie + eyes closed).
@@ -239,6 +240,8 @@ Play with `{ "target": "sam", "cmd": "playClip", "args": { "name": "tantrum", "r
 Types: `rect` (x,y,w,h,fill,rx) · `circle` (cx,cy,r) · `ellipse` · `line` (x1,y1,x2,y2) ·
 `text` (x,y,text,size) · `path` (d) · `repeat` (tile a child shape across a range:
 `{ "of": {"type":"rect","props":{...}}, "from":0, "to":200, "step":28 }`). Layers: `back`, `mid` (default), `front`.
+
+**Frame:** `"scene": { "aspect": "16:9" }` (also `"4:3"`, `"9:16"`; default `"1:1"`) changes the stage shape. Landscape keeps y 0–100 and widens x around 50 (16:9 shows x ≈ −39…139), so figures can walk in from beyond the usual 0–100; portrait keeps x 0–100 and extends y. With **no `camera.*` commands**, the camera auto-zooms (static, never out) to frame everything on stage; scenes with full-frame scenery stay unzoomed. Set `"scene": { "autoFrame": false }` to keep the full frame.
 
 Figures cast a soft **ground shadow** by default (it shrinks as they hop); turn it off with `"scene": { "shadows": false }`.
 
